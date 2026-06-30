@@ -1,0 +1,13 @@
+{
+  "itemGroup.adminsfactions": "Example Mod Tab",
+  "block.adminsfactions.example_block": "Example Block",
+  "item.adminsfactions.example_item": "Example Item",
+
+  "adminsfactions.configuration.title": "Admin's_Factions Configs",
+  "adminsfactions.configuration.section.adminsfactions.common.toml": "Admin's_Factions Configs",
+  "adminsfactions.configuration.section.adminsfactions.common.toml.title": "Admin's_Factions Configs",
+  "adminsfactions.configuration.items": "Item List",
+  "adminsfactions.configuration.logDirtBlock": "Log Dirt Block",
+  "adminsfactions.configuration.magicNumberIntroduction": "Magic Number Text",
+  "adminsfactions.configuration.magicNumber": "Magic Number"
+}
