@@ -1,0 +1,35 @@
+package com.admin82.factions.registry;
+
+import com.admin82.factions.item.CoinItem;
+import com.admin82.factions.item.FactionTableItem;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.neoforged.neoforge.registries.DeferredItem;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+import static com.admin82.factions.AdminsFactions.MODID;
+
+public class ModItems {
+
+    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
+
+    public static final DeferredItem<FactionTableItem> FACTION_TABLE =
+            ITEMS.register("faction_table",
+                    () -> new FactionTableItem(ModBlocks.FACTION_TABLE.get(), new Item.Properties()));
+
+    // ── Coins ─────────────────────────────────────────────────────────────────
+    public static final DeferredItem<CoinItem> COPPER_COIN =
+            ITEMS.register("copper_coin", () -> new CoinItem(new Item.Properties().stacksTo(64)));
+    public static final DeferredItem<CoinItem> SILVER_COIN =
+            ITEMS.register("silver_coin", () -> new CoinItem(new Item.Properties().stacksTo(64)));
+    public static final DeferredItem<CoinItem> GOLD_COIN =
+            ITEMS.register("gold_coin", () -> new CoinItem(new Item.Properties().stacksTo(64)));
+    public static final DeferredItem<CoinItem> PLATINUM_COIN =
+            ITEMS.register("platinum_coin", () -> new CoinItem(new Item.Properties().stacksTo(64)));
+
+    // ── Block items ───────────────────────────────────────────────────────────
+    public static final DeferredItem<BlockItem> MARKET_BLOCK =
+            ITEMS.register("market_block", () -> new BlockItem(ModBlocks.MARKET.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> CURRENCY_EXCHANGE_BLOCK =
+            ITEMS.register("currency_exchange_block", () -> new BlockItem(ModBlocks.CURRENCY_EXCHANGE.get(), new Item.Properties()));
+}

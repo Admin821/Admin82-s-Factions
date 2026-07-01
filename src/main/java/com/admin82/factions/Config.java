@@ -1,42 +1,102 @@
 package com.admin82.factions;
 
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-// An example config class. This is not required, but it's a good idea to have one to keep your config organized.
-// Demonstrates how to use Neo's config APIs
+/**
+ * All server-side tunable values for Admin's Factions.
+ * Edit adminsfactions-common.toml in the config folder to change these.
+ */
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
-    public static final ModConfigSpec.BooleanValue LOG_DIRT_BLOCK = BUILDER
-            .comment("Whether to log the dirt block on common setup")
-            .define("logDirtBlock", true);
+    // ── Economy ───────────────────────────────────────────────────────────────
 
-    public static final ModConfigSpec.IntValue MAGIC_NUMBER = BUILDER
-            .comment("A magic number")
-            .defineInRange("magicNumber", 42, 0, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue CLAIM_COST_COPPER;
+    public static final ModConfigSpec.IntValue UPKEEP_PER_CLAIM_PER_DAY;
+    public static final ModConfigSpec.IntValue UPKEEP_INTERVAL_HOURS;
+    public static final ModConfigSpec.IntValue MAX_CLAIMS_PER_FACTION;
 
-    public static final ModConfigSpec.ConfigValue<String> MAGIC_NUMBER_INTRODUCTION = BUILDER
-            .comment("What you want the introduction message to be for the magic number")
-            .define("magicNumberIntroduction", "The magic number is... ");
+    // ── Market ────────────────────────────────────────────────────────────────
 
-    // a list of strings that are treated as resource locations for items
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
-            .comment("A list of items to log on common setup.")
-            .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), () -> "", Config::validateItemName);
+    public static final ModConfigSpec.IntValue MAX_LISTINGS_PER_PLAYER;
+    public static final ModConfigSpec.IntValue MARKET_TAX_BIN_PERCENT;
+    public static final ModConfigSpec.IntValue MARKET_TAX_AUCTION_4H;
+    public static final ModConfigSpec.IntValue MARKET_TAX_AUCTION_8H;
+    public static final ModConfigSpec.IntValue MARKET_TAX_AUCTION_12H;
+    public static final ModConfigSpec.IntValue MARKET_TAX_AUCTION_16H;
+    public static final ModConfigSpec.IntValue MARKET_TAX_AUCTION_24H;
 
-    static final ModConfigSpec SPEC = BUILDER.build();
+    // ── Wars ──────────────────────────────────────────────────────────────────
 
-    private static boolean validateItemName(final Object obj) {
-        return obj instanceof String itemName && BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(itemName));
+    public static final ModConfigSpec.IntValue WAR_GRACE_PERIOD_SECONDS;
+    public static final ModConfigSpec.IntValue WAR_ATTACKER_LIVES;
+    public static final ModConfigSpec.IntValue WAR_DEFENDER_LIVES;
+    public static final ModConfigSpec.IntValue WAR_DEFENDER_LIVES_NO_UPKEEP;
+    public static final ModConfigSpec.IntValue WAR_CAPTURE_RADIUS_BLOCKS;
+    public static final ModConfigSpec.IntValue WAR_CAPTURE_TIME_SECONDS;
+    public static final ModConfigSpec.IntValue WAR_BOUNDARY_RADIUS_BLOCKS;
+    public static final ModConfigSpec.BooleanValue WAR_BOUNDARY_ENABLED;
+
+    // ── Vassal ────────────────────────────────────────────────────────────────
+
+    public static final ModConfigSpec.IntValue VASSAL_TAX_PERCENT;
+    public static final ModConfigSpec.IntValue VASSAL_BUYOUT_COPPER;
+
+    static {
+        BUILDER.push("economy");
+        CLAIM_COST_COPPER        = BUILDER.comment("Cost to claim one chunk, in copper coins (100 copper = 1 silver).")
+                                          .defineInRange("claimCostCopper", 100, 1, Integer.MAX_VALUE);
+        UPKEEP_PER_CLAIM_PER_DAY = BUILDER.comment("Daily upkeep cost per claimed chunk, in copper coins.")
+                                          .defineInRange("upkeepPerClaimPerDay", 20, 0, Integer.MAX_VALUE);
+        UPKEEP_INTERVAL_HOURS    = BUILDER.comment("Hours between upkeep charges (default 24 = once per real day).")
+                                          .defineInRange("upkeepIntervalHours", 24, 1, 720);
+        MAX_CLAIMS_PER_FACTION   = BUILDER.comment("Maximum chunks a faction may claim (0 = unlimited).")
+                                          .defineInRange("maxClaimsPerFaction", 50, 0, 10000);
+        BUILDER.pop();
+
+        BUILDER.push("market");
+        MAX_LISTINGS_PER_PLAYER  = BUILDER.comment("Maximum active listings a player may have at once.")
+                                          .defineInRange("maxListingsPerPlayer", 5, 1, 100);
+        MARKET_TAX_BIN_PERCENT   = BUILDER.comment("Tax % deducted from Buy-It-Now sales.")
+                                          .defineInRange("marketTaxBinPercent", 10, 0, 100);
+        MARKET_TAX_AUCTION_4H    = BUILDER.comment("Tax % for 4-hour auctions.")
+                                          .defineInRange("marketTaxAuction4h", 10, 0, 100);
+        MARKET_TAX_AUCTION_8H    = BUILDER.comment("Tax % for 8-hour auctions.")
+                                          .defineInRange("marketTaxAuction8h", 12, 0, 100);
+        MARKET_TAX_AUCTION_12H   = BUILDER.comment("Tax % for 12-hour auctions.")
+                                          .defineInRange("marketTaxAuction12h", 16, 0, 100);
+        MARKET_TAX_AUCTION_16H   = BUILDER.comment("Tax % for 16-hour auctions.")
+                                          .defineInRange("marketTaxAuction16h", 20, 0, 100);
+        MARKET_TAX_AUCTION_24H   = BUILDER.comment("Tax % for 24-hour auctions.")
+                                          .defineInRange("marketTaxAuction24h", 24, 0, 100);
+        BUILDER.pop();
+
+        BUILDER.push("war");
+        WAR_GRACE_PERIOD_SECONDS     = BUILDER.comment("Duration of the grace period after a war is declared, in seconds (default 600 = 10 minutes). Also changeable in-game via /faction war graceperiod set <seconds>.")
+                                              .defineInRange("gracePeriodSeconds", 600, 0, 86400);
+        WAR_ATTACKER_LIVES           = BUILDER.comment("Lives each committed attacker gets per war.")
+                                              .defineInRange("attackerLives", 3, 1, 20);
+        WAR_DEFENDER_LIVES           = BUILDER.comment("Lives each defender gets when their faction has active upkeep.")
+                                              .defineInRange("defenderLives", 3, 1, 20);
+        WAR_DEFENDER_LIVES_NO_UPKEEP = BUILDER.comment("Lives each defender gets when their faction vault is empty (no upkeep).")
+                                              .defineInRange("defenderLivesNoUpkeep", 1, 1, 20);
+        WAR_CAPTURE_RADIUS_BLOCKS    = BUILDER.comment("Block radius around the defending faction table that counts as the capture point.")
+                                              .defineInRange("captureRadiusBlocks", 25, 5, 200);
+        WAR_CAPTURE_TIME_SECONDS     = BUILDER.comment("Seconds of uncontested attacker presence needed to capture the point and win.")
+                                              .defineInRange("captureTimeSeconds", 300, 30, 3600);
+        WAR_BOUNDARY_RADIUS_BLOCKS   = BUILDER.comment("Block radius from the defending faction table that defines the war boundary. Attackers who leave this area lose all their lives.")
+                                              .defineInRange("boundaryRadiusBlocks", 300, 50, 10000);
+        WAR_BOUNDARY_ENABLED         = BUILDER.comment("Whether the war boundary is enforced for attackers.")
+                                              .define("boundaryEnabled", true);
+        BUILDER.pop();
+
+        BUILDER.push("vassal");
+        VASSAL_TAX_PERCENT   = BUILDER.comment("Percentage of a vassal faction's market sale proceeds and claim costs redirected as tax to the suzerain.")
+                                      .defineInRange("taxPercent", 15, 0, 100);
+        VASSAL_BUYOUT_COPPER = BUILDER.comment("Total copper a vassal faction must pay from their vault to purchase independence (default 500 gold = 5,000,000 copper).")
+                                      .defineInRange("buyoutCopperValue", 5_000_000, 1000, Integer.MAX_VALUE);
+        BUILDER.pop();
     }
+
+    public static final ModConfigSpec SPEC = BUILDER.build();
 }

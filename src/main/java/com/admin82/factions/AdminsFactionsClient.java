@@ -1,31 +1,38 @@
 package com.admin82.factions;
 
-import net.minecraft.client.Minecraft;
+import com.admin82.factions.registry.ModMenuTypes;
+import com.admin82.factions.screen.CurrencyExchangeScreen;
+import com.admin82.factions.screen.FactionTableScreen;
+import com.admin82.factions.screen.MarketScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
-// This class will not load on dedicated servers. Accessing client side code from here is safe.
 @Mod(value = AdminsFactions.MODID, dist = Dist.CLIENT)
-// You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
 @EventBusSubscriber(modid = AdminsFactions.MODID, value = Dist.CLIENT)
 public class AdminsFactionsClient {
+
     public AdminsFactionsClient(ModContainer container) {
-        // Allows NeoForge to create a config screen for this mod's configs.
-        // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
-        // Do not forget to add translations for your config options to the en_us.json file.
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
     }
 
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
-        // Some client setup code
-        AdminsFactions.LOGGER.info("HELLO FROM CLIENT SETUP");
-        AdminsFactions.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+        AdminsFactions.LOGGER.info("Admin's Factions — client setup complete.");
+    }
+
+    @SubscribeEvent
+    static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
+        event.register(ModMenuTypes.FACTION_TABLE.get(), FactionTableScreen::new);
+        event.register(ModMenuTypes.MARKET.get(), MarketScreen::new);
+        event.register(ModMenuTypes.CURRENCY_EXCHANGE.get(), CurrencyExchangeScreen::new);
     }
 }
+
+

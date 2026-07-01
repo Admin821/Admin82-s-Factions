@@ -1,0 +1,10 @@
+/ldlib2_ui_editor
+/faction list
+/faction delete life
+/faction exchange list
+/faction exchange set
+/faction exchange set copper 1
+/faction exchange set
+/
+/faction war graceperiod
+/faction war vassals edit

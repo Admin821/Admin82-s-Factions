@@ -1,0 +1,495 @@
+package com.admin82.factions;
+
+import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.economy.Currency;
+import com.admin82.factions.economy.ExchangeManager;
+import com.admin82.factions.faction.*;
+import com.admin82.factions.menu.CurrencyExchangeMenu;
+import com.admin82.factions.network.packet.SyncFactionDataPacket;
+import com.mojang.authlib.GameProfile;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.level.Level;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+import com.admin82.factions.war.WarManager;
+import com.admin82.factions.war.VassalManager;
+import com.mojang.brigadier.arguments.LongArgumentType;
+import javax.annotation.Nullable;
+import java.util.Optional;
+import java.util.UUID;
+
+@EventBusSubscriber(modid = AdminsFactions.MODID)
+public class FactionCommands {
+
+    // ── Suggestion providers ──────────────────────────────────────────────────
+
+    /** Suggests all existing faction names. */
+    private static final SuggestionProvider<CommandSourceStack> FACTION_NAMES =
+            (ctx, builder) -> {
+                FactionManager.get(ctx.getSource().getServer())
+                        .getAllFactions().values()
+                        .forEach(f -> builder.suggest(f.getName()));
+                return builder.buildFuture();
+            };
+
+    /** Suggests "none" plus all existing faction names. */
+    private static final SuggestionProvider<CommandSourceStack> FACTION_NAMES_OR_NONE =
+            (ctx, builder) -> {
+                builder.suggest("none");
+                FactionManager.get(ctx.getSource().getServer())
+                        .getAllFactions().values()
+                        .forEach(f -> builder.suggest(f.getName()));
+                return builder.buildFuture();
+            };
+
+    /** Suggests names of currently online players. */
+    private static final SuggestionProvider<CommandSourceStack> ONLINE_PLAYER_NAMES =
+            (ctx, builder) -> {
+                ctx.getSource().getServer().getPlayerList().getPlayers()
+                        .forEach(p -> builder.suggest(p.getGameProfile().getName()));
+                return builder.buildFuture();
+            };
+
+    // ── Command registration ──────────────────────────────────────────────────
+
+    @SubscribeEvent
+    public static void registerCommands(RegisterCommandsEvent event) {
+        event.getDispatcher().register(
+            Commands.literal("faction")
+                .requires(src -> src.hasPermission(2))
+
+                // /faction list
+                .then(Commands.literal("list")
+                    .executes(ctx -> cmdList(ctx.getSource())))
+
+                // /faction info <name>
+                .then(Commands.literal("info")
+                    .then(Commands.argument("name", StringArgumentType.word())
+                        .suggests(FACTION_NAMES)
+                        .executes(ctx -> cmdInfo(
+                                ctx.getSource(),
+                                StringArgumentType.getString(ctx, "name")))))
+
+                // /faction delete <name>
+                .then(Commands.literal("delete")
+                    .then(Commands.argument("name", StringArgumentType.word())
+                        .suggests(FACTION_NAMES)
+                        .executes(ctx -> cmdDelete(
+                                ctx.getSource(),
+                                StringArgumentType.getString(ctx, "name")))))
+
+                // /faction set <player> <faction|none>
+                .then(Commands.literal("set")
+                    .then(Commands.argument("player", StringArgumentType.word())
+                        .suggests(ONLINE_PLAYER_NAMES)
+                        .then(Commands.argument("faction", StringArgumentType.word())
+                            .suggests(FACTION_NAMES_OR_NONE)
+                            .executes(ctx -> cmdSet(
+                                    ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "player"),
+                                    StringArgumentType.getString(ctx, "faction"))))))
+
+                // /faction add <player> <faction>
+                .then(Commands.literal("add")
+                    .then(Commands.argument("player", StringArgumentType.word())
+                        .suggests(ONLINE_PLAYER_NAMES)
+                        .then(Commands.argument("faction", StringArgumentType.word())
+                            .suggests(FACTION_NAMES)
+                            .executes(ctx -> cmdAdd(
+                                    ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "player"),
+                                    StringArgumentType.getString(ctx, "faction"))))))
+
+                // /faction exchange set             ← no-arg: opens GUI
+                // /faction exchange set <item> <rate>  ← console/command-block
+                .then(Commands.literal("exchange")
+                    .then(Commands.literal("set")
+                        .executes(ctx -> cmdExchangeOpenGui(ctx.getSource()))
+                        .then(Commands.argument("item", StringArgumentType.word())
+                            .then(Commands.argument("rate", StringArgumentType.word())
+                                .executes(ctx -> cmdExchangeSet(
+                                        ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "item"),
+                                        StringArgumentType.getString(ctx, "rate"))))))
+                    .then(Commands.literal("remove")
+                        .then(Commands.argument("item", StringArgumentType.word())
+                            .executes(ctx -> cmdExchangeRemove(
+                                    ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "item")))))
+                    .then(Commands.literal("list")
+                        .executes(ctx -> cmdExchangeList(ctx.getSource()))))
+
+                // /faction war graceperiod set <seconds>
+                .then(Commands.literal("war")
+                    .then(Commands.literal("graceperiod")
+                        .then(Commands.literal("set")
+                            .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 86400))
+                                .executes(ctx -> cmdWarGraceperiodSet(ctx.getSource(),
+                                        IntegerArgumentType.getInteger(ctx, "seconds"))))))
+                    // /faction war vassals edit <faction> free
+                    // /faction war vassals edit <faction> tax <amount>
+                    .then(Commands.literal("vassals")
+                        .then(Commands.literal("edit")
+                            .requires(src -> src.hasPermission(2))
+                            .then(Commands.argument("faction", StringArgumentType.string())
+                                .then(Commands.literal("free")
+                                    .executes(ctx -> cmdVassalFree(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "faction"))))
+                                .then(Commands.literal("tax")
+                                    .then(Commands.argument("amount", LongArgumentType.longArg(0))
+                                        .executes(ctx -> cmdVassalTax(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "faction"),
+                                                LongArgumentType.getLong(ctx, "amount")))))))))
+        );
+    }
+
+    // ── /faction list ─────────────────────────────────────────────────────────
+
+    private static int cmdList(CommandSourceStack src) {
+        FactionManager manager = FactionManager.get(src.getServer());
+        var factions = manager.getAllFactions();
+        if (factions.isEmpty()) {
+            src.sendSuccess(() -> Component.literal("§7No factions exist yet."), false);
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("§6§l── Factions (" + factions.size() + ") ──"), false);
+        for (Faction f : factions.values()) {
+            src.sendSuccess(() -> Component.literal(
+                    "§e" + f.getName()
+                    + " §7[" + f.getMembers().size() + " members"
+                    + ", " + f.getLandClaims().size() + " chunks"
+                    + ", pow " + f.getPower() + "]"), false);
+        }
+        return factions.size();
+    }
+
+    // ── /faction info <name> ──────────────────────────────────────────────────
+
+    private static int cmdInfo(CommandSourceStack src, String name) {
+        FactionManager manager = FactionManager.get(src.getServer());
+        Faction faction = manager.getFactionByName(name);
+        if (faction == null) {
+            src.sendFailure(Component.literal("§cFaction '§e" + name + "§c' not found."));
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("§6§l" + faction.getName()), false);
+        if (!faction.getDescription().isBlank())
+            src.sendSuccess(() -> Component.literal("§7" + faction.getDescription()), false);
+        src.sendSuccess(() -> Component.literal(
+                "§fMembers: §e" + faction.getMembers().size()
+                + "  §fChunks: §e" + faction.getLandClaims().size()
+                + "  §fPower: §a" + faction.getPower()), false);
+        for (FactionMember m : faction.getMembers()) {
+            src.sendSuccess(() -> Component.literal(
+                    "§8  [§7" + m.getRole().getId() + "§8] §f" + m.getPlayerName()), false);
+        }
+        return 1;
+    }
+
+    // ── /faction delete <name> ────────────────────────────────────────────────
+
+    private static int cmdDelete(CommandSourceStack src, String name) {
+        FactionManager manager = FactionManager.get(src.getServer());
+        Faction faction = manager.getFactionByName(name);
+        if (faction == null) {
+            src.sendFailure(Component.literal("§cFaction '§e" + name + "§c' not found."));
+            return 0;
+        }
+        String factionName = faction.getName();
+        performDisband(src.getServer(), faction.getId(),
+                Component.literal("§cFaction '§e" + factionName + "§c' was deleted by an admin."));
+        src.sendSuccess(() -> Component.literal("§aFaction '§e" + factionName + "§a' has been deleted."), true);
+        return 1;
+    }
+
+    // ── /faction set <player> <faction|none> ──────────────────────────────────
+
+    private static int cmdSet(CommandSourceStack src, String playerName, String factionName) {
+        MinecraftServer server = src.getServer();
+        FactionManager manager = FactionManager.get(server);
+
+        Optional<UUID> uuidOpt = findPlayerUUID(server, playerName);
+        if (uuidOpt.isEmpty()) {
+            src.sendFailure(Component.literal("§cPlayer '§e" + playerName + "§c' not found (must have joined at least once)."));
+            return 0;
+        }
+        UUID playerUUID = uuidOpt.get();
+
+        // If the player is already in a faction, remove them first (unless they're the owner)
+        UUID currentFactionId = manager.getPlayerFactionId(playerUUID);
+        if (currentFactionId != null) {
+            Faction current = manager.getFaction(currentFactionId);
+            if (current != null && current.getOwnerId().equals(playerUUID)) {
+                src.sendFailure(Component.literal(
+                        "§c§e" + playerName + " §cis the owner of '§e" + current.getName()
+                        + "§c'. Use §f/faction delete " + current.getName() + " §cfirst."));
+                return 0;
+            }
+            manager.removePlayerFromFaction(playerUUID);
+            syncPlayer(server, playerUUID, null);
+        }
+
+        if (factionName.equalsIgnoreCase("none")) {
+            src.sendSuccess(() -> Component.literal("§aRemoved §e" + playerName + " §afrom their faction."), true);
+            return 1;
+        }
+
+        Faction target = manager.getFactionByName(factionName);
+        if (target == null) {
+            src.sendFailure(Component.literal("§cFaction '§e" + factionName + "§c' not found."));
+            return 0;
+        }
+
+        String resolvedName = resolvePlayerName(server, playerName, playerUUID);
+        manager.addPlayerToFaction(target.getId(), playerUUID, resolvedName);
+        syncPlayer(server, playerUUID,
+                Component.literal("§aYou were placed in faction '§e" + target.getName() + "§a' by an admin."));
+        src.sendSuccess(() -> Component.literal(
+                "§aSet §e" + playerName + " §ato faction '§e" + target.getName() + "§a'."), true);
+        return 1;
+    }
+
+    // ── /faction add <player> <faction> ──────────────────────────────────────
+
+    private static int cmdAdd(CommandSourceStack src, String playerName, String factionName) {
+        MinecraftServer server = src.getServer();
+        FactionManager manager = FactionManager.get(server);
+
+        Optional<UUID> uuidOpt = findPlayerUUID(server, playerName);
+        if (uuidOpt.isEmpty()) {
+            src.sendFailure(Component.literal("§cPlayer '§e" + playerName + "§c' not found (must have joined at least once)."));
+            return 0;
+        }
+        UUID playerUUID = uuidOpt.get();
+
+        if (manager.getPlayerFactionId(playerUUID) != null) {
+            src.sendFailure(Component.literal(
+                    "§c§e" + playerName + " §cis already in a faction. Use §f/faction set §cto move them."));
+            return 0;
+        }
+
+        Faction target = manager.getFactionByName(factionName);
+        if (target == null) {
+            src.sendFailure(Component.literal("§cFaction '§e" + factionName + "§c' not found."));
+            return 0;
+        }
+
+        String resolvedName = resolvePlayerName(server, playerName, playerUUID);
+        manager.addPlayerToFaction(target.getId(), playerUUID, resolvedName);
+        syncPlayer(server, playerUUID,
+                Component.literal("§aYou were added to faction '§e" + target.getName() + "§a' by an admin."));
+        src.sendSuccess(() -> Component.literal(
+                "§aAdded §e" + playerName + " §ato faction '§e" + target.getName() + "§a'."), true);
+        return 1;
+    }
+
+    // ── /faction exchange ─────────────────────────────────────────────────────
+
+    private static int cmdExchangeOpenGui(CommandSourceStack src) {
+        if (!(src.getEntity() instanceof ServerPlayer sp)) {
+            src.sendFailure(Component.literal("§cOnly players can open the exchange GUI. Use: /faction exchange set <item> <rate>"));
+            return 0;
+        }
+        if (!sp.hasPermissions(2)) {
+            src.sendFailure(Component.literal("§cOperator permission required."));
+            return 0;
+        }
+        var server = sp.getServer(); if (server == null) return 0;
+        var rates = ExchangeManager.get(server).getRates();
+        sp.openMenu(new SimpleMenuProvider(
+                (id, inv, p) -> new CurrencyExchangeMenu(id, inv, BlockPos.ZERO),
+                Component.literal("Manage Exchange Rates")),
+                buf -> {
+                    buf.writeBlockPos(BlockPos.ZERO);
+                    buf.writeBoolean(true);
+                    buf.writeVarInt(rates.size());
+                    for (var e : rates.entrySet()) { buf.writeUtf(e.getKey()); buf.writeLong(e.getValue()); }
+                });
+        return 1;
+    }
+
+    private static int cmdExchangeSet(CommandSourceStack src, String itemId, String rateStr) {
+        long rate = Currency.parse(rateStr);
+        if (rate <= 0) {
+            src.sendFailure(Component.literal("§cInvalid rate '§e" + rateStr + "§c'. Use e.g. §f100§c or §f1s§c."));
+            return 0;
+        }
+        ExchangeManager.get(src.getServer()).setRate(itemId, rate);
+        src.sendSuccess(() -> Component.literal(
+                "§aSet exchange rate: §e" + itemId + " §a→ §e" + Currency.format(rate) + " §aper item."), true);
+        return 1;
+    }
+
+    private static int cmdExchangeRemove(CommandSourceStack src, String itemId) {
+        ExchangeManager mgr = ExchangeManager.get(src.getServer());
+        if (!mgr.hasRate(itemId)) {
+            src.sendFailure(Component.literal("§cNo rate found for '§e" + itemId + "§c'."));
+            return 0;
+        }
+        mgr.removeRate(itemId);
+        src.sendSuccess(() -> Component.literal("§aRemoved exchange rate for §e" + itemId + "§a."), true);
+        return 1;
+    }
+
+    private static int cmdExchangeList(CommandSourceStack src) {
+        var rates = ExchangeManager.get(src.getServer()).getRates();
+        if (rates.isEmpty()) {
+            src.sendSuccess(() -> Component.literal("§7No exchange rates configured."), false);
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("§6§l── Exchange Rates ──"), false);
+        rates.entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .forEach(e -> src.sendSuccess(() -> Component.literal(
+                        "§e" + e.getKey() + " §7→ §a" + Currency.format(e.getValue()) + " §7each"), false));
+        return rates.size();
+    }
+
+    // ── /faction war ─────────────────────────────────────────────────────────
+
+    private static int cmdWarGraceperiodSet(CommandSourceStack src, int seconds) {
+        if (!src.hasPermission(2)) {
+            src.sendFailure(Component.literal("§cYou need operator permission to change the grace period."));
+            return 0;
+        }
+        WarManager.get(src.getServer()).setGracePeriodSeconds(seconds);
+        src.sendSuccess(() -> Component.literal("§aWar grace period set to §e" + seconds + "s§a. "
+                + "(Config default: §7" + Config.WAR_GRACE_PERIOD_SECONDS.get() + "s§a.)"), true);
+        return seconds;
+    }
+
+    // ── /faction war vassals edit ─────────────────────────────────────────────
+
+    private static int cmdVassalFree(CommandSourceStack src, String factionName) {
+        FactionManager fmgr = FactionManager.get(src.getServer());
+        Faction faction = fmgr.getFactionByName(factionName);
+        if (faction == null) {
+            src.sendFailure(Component.literal("§cFaction not found: §e" + factionName));
+            return 0;
+        }
+        VassalManager vmgr = VassalManager.get(src.getServer());
+        if (!vmgr.isVassal(faction.getId())) {
+            src.sendFailure(Component.literal("§c" + factionName + " §cis not a vassal."));
+            return 0;
+        }
+        vmgr.freeVassal(faction.getId());
+        src.sendSuccess(() -> Component.literal("§a" + factionName + " §ahas been freed from vassalage."), true);
+        // Notify faction members
+        for (FactionMember m : faction.getMembers()) {
+            ServerPlayer sp = src.getServer().getPlayerList().getPlayer(m.getUuid());
+            if (sp != null) sp.displayClientMessage(
+                    Component.literal("§a[Admin] Your faction has been granted independence by an admin."), false);
+        }
+        return 1;
+    }
+
+    private static int cmdVassalTax(CommandSourceStack src, String factionName, long amount) {
+        FactionManager fmgr = FactionManager.get(src.getServer());
+        Faction faction = fmgr.getFactionByName(factionName);
+        if (faction == null) {
+            src.sendFailure(Component.literal("§cFaction not found: §e" + factionName));
+            return 0;
+        }
+        VassalManager vmgr = VassalManager.get(src.getServer());
+        if (!vmgr.isVassal(faction.getId())) {
+            src.sendFailure(Component.literal("§c" + factionName + " §cis not a vassal."));
+            return 0;
+        }
+        vmgr.accumulateTax(faction.getId(), amount);
+        src.sendSuccess(() -> Component.literal("§aAdded §e" + Currency.format(amount)
+                + " §ato pending tax for §e" + factionName + "§a."), true);
+        return 1;
+    }
+
+    // ── Shared utilities ──────────────────────────────────────────────────────
+
+    /**
+     * Disbands a faction: unlinks its table block entity, notifies all online members,
+     * then removes the faction from persistent storage.
+     * Called by the /faction delete command and by the block-break event handler.
+     */
+    public static void performDisband(MinecraftServer server, UUID factionId, @Nullable Component reason) {
+        FactionManager manager = FactionManager.get(server);
+        Faction faction = manager.getFaction(factionId);
+        if (faction == null) return;
+
+        Component msg = reason != null ? reason
+                : Component.literal("§cFaction '§e" + faction.getName() + "§c' has been disbanded.");
+
+        // Unlink the block entity so the table becomes freely usable again
+        FactionManager.TableLocation table = manager.getFactionTable(factionId);
+        if (table != null) {
+            ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
+                    ResourceLocation.parse(table.dimension()));
+            ServerLevel tableLevel = server.getLevel(dimKey);
+            if (tableLevel != null
+                    && tableLevel.getBlockEntity(table.pos()) instanceof FactionTableBlockEntity be) {
+                be.setLinkedFactionId(null);
+            }
+        }
+
+        // Notify and desync all online members
+        for (FactionMember member : faction.getMembers()) {
+            ServerPlayer mp = server.getPlayerList().getPlayer(member.getUuid());
+            if (mp != null) {
+                PacketDistributor.sendToPlayer(mp, new SyncFactionDataPacket(null));
+                mp.displayClientMessage(msg, false);
+            }
+        }
+
+        manager.disbandFaction(factionId);
+    }
+
+    /** Sends an updated faction sync packet (and optional message) to an online player. */
+    private static void syncPlayer(MinecraftServer server, UUID uuid, @Nullable Component message) {
+        ServerPlayer online = server.getPlayerList().getPlayer(uuid);
+        if (online == null) return;
+        FactionManager manager = FactionManager.get(server);
+        PacketDistributor.sendToPlayer(online,
+                new SyncFactionDataPacket(manager.getFactionForPlayer(uuid)));
+        if (message != null) online.displayClientMessage(message, false);
+    }
+
+    /**
+     * Resolves a player UUID from a name.
+     * Checks online players first, then existing faction member records,
+     * then the server profile cache (for offline players who have joined before).
+     */
+    private static Optional<UUID> findPlayerUUID(MinecraftServer server, String name) {
+        ServerPlayer online = server.getPlayerList().getPlayerByName(name);
+        if (online != null) return Optional.of(online.getUUID());
+
+        FactionManager manager = FactionManager.get(server);
+        for (Faction f : manager.getAllFactions().values()) {
+            for (FactionMember m : f.getMembers()) {
+                if (m.getPlayerName().equalsIgnoreCase(name)) return Optional.of(m.getUuid());
+            }
+        }
+
+        return server.getProfileCache().get(name).map(GameProfile::getId);
+    }
+
+    /** Resolves the display name of a player by UUID, falling back to the provided string. */
+    private static String resolvePlayerName(MinecraftServer server, String fallback, UUID uuid) {
+        ServerPlayer online = server.getPlayerList().getPlayer(uuid);
+        if (online != null) return online.getGameProfile().getName();
+        return server.getProfileCache().get(uuid)
+                .map(GameProfile::getName).orElse(fallback);
+    }
+}
