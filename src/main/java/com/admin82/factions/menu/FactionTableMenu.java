@@ -15,6 +15,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
@@ -32,6 +33,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.MapColor;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
 import org.appliedenergistics.yoga.YogaFlexDirection;
@@ -105,7 +109,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         this.tablePos = tablePos;
         this.tableDim = inv.player.level().dimension().location().toString();
         this.factionRef.set(faction);
-        if (this instanceof IModularUIHolderMenu h) h.setModularUI(createModularUI(inv.player));
+        if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(createModularUI(inv.player));
     }
 
     public FactionTableMenu(int containerId, Inventory inv, FriendlyByteBuf buf) {
@@ -175,6 +179,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
     // UI CONSTRUCTION
     // ══════════════════════════════════════════════════════════════════════════
 
+    @OnlyIn(Dist.CLIENT)
     private ModularUI createModularUI(Player player) {
         playerRef = player;
         tableDim  = player.level().dimension().location().toString();
@@ -245,34 +250,47 @@ public class FactionTableMenu extends AbstractContainerMenu {
         contentArea.layout(l -> l.flex(1).width(420));
         contentArea.addChildren(tabPanels[currentTab.ordinal()]);
 
-        var tabBar = new UIElement();
-        tabBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(24).width(420).gapAll(2).paddingHorizontal(2));
-        buildTabButtons(tabBar, Tab.values(), tabPanels, contentArea);
+        // ── Two-row tab bar ───────────────────────────────────────────────────────
+        // Row 1 — core faction management
+        final Tab[] row1 = { Tab.OVERVIEW, Tab.MEMBERS, Tab.PERMISSIONS, Tab.TERRITORY, Tab.WARS };
+        // Row 2 — economy and external relations
+        final Tab[] row2 = { Tab.UPKEEP, Tab.VAULT, Tab.LEADERBOARD, Tab.VASSAL };
 
-        panel.addChildren(tabBar, contentArea);
+        var tabBar1 = new UIElement();
+        tabBar1.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(21).width(420).gapAll(2).paddingHorizontal(2));
+        var tabBar2 = new UIElement();
+        tabBar2.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(21).width(420).gapAll(2).paddingHorizontal(2));
+
+        UIElement[] bars   = { tabBar1, tabBar2 };
+        Tab[][]     groups = { row1, row2 };
+
+        buildTabRow(tabBar1, row1, tabPanels, contentArea, bars, groups);
+        buildTabRow(tabBar2, row2, tabPanels, contentArea, bars, groups);
+
+        panel.addChildren(tabBar1, tabBar2, contentArea);
         return panel;
     }
 
-    /** Rebuilds tab button bar; active tab gets a gold-tinted background. */
-    private void buildTabButtons(UIElement tabBar, Tab[] tabs, UIElement[] panels, UIElement contentArea) {
-        tabBar.clearAllChildren();
-        for (int i = 0; i < tabs.length; i++) {
-            final int idx    = i;
-            final Tab tab    = tabs[i];
-            // Only show the Vassal tab when the player's faction is involved in a vassal relationship
+    /** Builds one row of the two-row tab system; on any click all rows are refreshed. */
+    private void buildTabRow(UIElement bar, Tab[] tabs, UIElement[] panels, UIElement contentArea,
+                              UIElement[] allBars, Tab[][] allGroups) {
+        bar.clearAllChildren();
+        for (Tab tab : tabs) {
             if (tab == Tab.VASSAL && !vassalIsVassal && !vassalIsSuzerain) continue;
-            boolean   active = tab == currentTab;
+            boolean active = tab == currentTab;
             var btn = new Button()
                     .setText(tabLabel(tab))
                     .setOnClick(e -> {
                         currentTab = tab;
                         contentArea.clearAllChildren();
-                        contentArea.addChildren(panels[idx]);
-                        buildTabButtons(tabBar, tabs, panels, contentArea);
+                        contentArea.addChildren(panels[tab.ordinal()]);
+                        for (int i = 0; i < allBars.length; i++) {
+                            buildTabRow(allBars[i], allGroups[i], panels, contentArea, allBars, allGroups);
+                        }
                     })
-                    .layout(l -> l.flex(1).height(22));
+                    .layout(l -> l.flex(1).height(19));
             if (active) btn.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#cc7700ff)");
-            tabBar.addChildren(btn);
+            bar.addChildren(btn);
         }
     }
 
@@ -505,6 +523,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
     // TERRITORY — interactive live chunk map
     // ══════════════════════════════════════════════════════════════════════════
 
+    @OnlyIn(Dist.CLIENT)
     private UIElement buildTerritoryPanel(Player player) {
         var panel = new UIElement();
         panel.layout(l -> l.flex(1).paddingAll(6).gapAll(4).flexDirection(YogaFlexDirection.COLUMN));
@@ -594,25 +613,11 @@ public class FactionTableMenu extends AbstractContainerMenu {
             }
         });
 
-        // ── Nav buttons ───────────────────────────────────────────────────────
-        var navRow = new UIElement();
-        navRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(3).width(408));
-        navRow.addChildren(
-                mkNavBtn("Table", 50, e -> { mapOffsetX = 0; mapOffsetZ = 0; rebuildMap(coreX, coreZ, canClaim); }),
-                mkNavBtn("Me", -1, e -> {
-                    var mc = Minecraft.getInstance();
-                    if (mc.player != null) {
-                        mapOffsetX = SectionPos.blockToSectionCoord(mc.player.getBlockX()) - coreX;
-                        mapOffsetZ = SectionPos.blockToSectionCoord(mc.player.getBlockZ()) - coreZ;
-                        rebuildMap(coreX, coreZ, canClaim);
-                    }
-                })
-        );
-
-        panel.addChildren(statsRow, legend, mapGrid, navRow);
+        panel.addChildren(statsRow, legend, mapGrid);
         return panel;
     }
 
+    @OnlyIn(Dist.CLIENT)
     private void rebuildMap(int coreX, int coreZ, boolean canClaim) {
         if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
     }
@@ -634,6 +639,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
      * other=red, free=terrain only).  The default "Button" text is cleared to
      * avoid visual noise; only the player's current chunk shows "P".
      */
+    @OnlyIn(Dist.CLIENT)
     private void fillMapCells(UIElement grid, int coreX, int coreZ, boolean canClaim) {
         var   mc    = Minecraft.getInstance();
         Level level = mc.level;
@@ -781,29 +787,123 @@ public class FactionTableMenu extends AbstractContainerMenu {
     // ── Terrain colour helpers ────────────────────────────────────────────────
 
     /**
-     * Returns the terrain RGB colour for a single world block ({@code wx}, {@code wz}).
-     * Uses MOTION_BLOCKING vs WORLD_SURFACE heightmaps to detect water depth;
-     * applies saturation boost and height shading to land blocks.
+     * Returns a per-block terrain colour matching Xaero's/JourneyMap quality:
+     *  • Samples the actual top-face texture from the baked model so oak logs
+     *    look brown, stone looks speckled grey, sand is pale yellow, etc.
+     *  • Multiplies biome tint onto the texture so grass/leaves stay correct.
+     *  • Adds a tiny positional brightness jitter (±4%) so flat areas look
+     *    subtly textured rather than a solid wash of colour.
+     *  • Uses MOTION_BLOCKING (includes leaves) for hill shading so tree crowns
+     *    become raised bumps with visible bright/dark edge rings.
+     *  • 12% brightness per block of height difference → ±60% for a 5-block
+     *    crown edge, creating clearly visible individual trees.
      */
+    @OnlyIn(Dist.CLIENT)
     private static int computeBlockColor(Level level, int wx, int wz) {
-        int wyLand    = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz) - 1;
-        int wySurface = level.getHeight(Heightmap.Types.WORLD_SURFACE,   wx, wz) - 1;
-        if (wyLand < level.getMinBuildHeight()) wyLand = level.getMinBuildHeight();
-        int waterDepth = Math.max(0, wySurface - wyLand);
-        if (waterDepth > 0) {
-            int shade = Math.max(60, 210 - waterDepth * 12);
-            return ((shade / 6) << 16) | ((shade * 2 / 5) << 8) | shade;
+        try {
+            // ── Water ─────────────────────────────────────────────────────────────
+            int wyFloor   = level.getHeight(Heightmap.Types.OCEAN_FLOOR,   wx, wz) - 1;
+            int wySurface = level.getHeight(Heightmap.Types.WORLD_SURFACE, wx, wz) - 1;
+            if (wyFloor   < level.getMinBuildHeight()) wyFloor   = level.getMinBuildHeight();
+            if (wySurface < level.getMinBuildHeight()) wySurface = level.getMinBuildHeight();
+
+            if (wySurface > wyFloor) {
+                var surfPos = new BlockPos(wx, wySurface, wz);
+                if (!level.getFluidState(surfPos).isEmpty()) {
+                    int base;
+                    try {
+                        base = net.minecraft.client.renderer.BiomeColors
+                                .getAverageWaterColor(level, surfPos);
+                    } catch (Exception e) { base = 0x3F76E4; }
+                    float f = Math.max(0.20f, 1.0f - (wySurface - wyFloor) * 0.05f);
+                    return ((int)(((base >> 16) & 0xFF) * f) << 16)
+                         | ((int)(((base >>  8) & 0xFF) * f) << 8)
+                         |  (int)(( base        & 0xFF) * f);
+                }
+            }
+
+            // ── Land ──────────────────────────────────────────────────────────────
+            int wyTop = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz) - 1;
+            if (wyTop < level.getMinBuildHeight()) wyTop = level.getMinBuildHeight();
+
+            var pos   = new BlockPos(wx, wyTop, wz);
+            var state = level.getBlockState(pos);
+
+            // Texture colour: baked top-face sprite → biome tint multiplied on top
+            int col = getBlockRenderColor(state, level, pos);
+            col = saturateColor(col, 1.35f);
+
+            // Tiny positional jitter breaks up uniform surfaces (±4%)
+            long h  = wx * 374761393L ^ wz * 668265263L;
+            float jitter = 1.0f + (((h >> 16) & 0xFF) - 128) / 3200.0f;
+
+            // ── Proportional hill shading ──────────────────────────────────────
+            int wyN = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx,     wz - 1) - 1;
+            int wyE = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx + 1, wz    ) - 1;
+            if (wyN <= level.getMinBuildHeight() || wyN > level.getMaxBuildHeight()) wyN = wyTop;
+            if (wyE <= level.getMinBuildHeight() || wyE > level.getMaxBuildHeight()) wyE = wyTop;
+
+            float hill  = 1.0f + (wyTop - wyN) * 0.12f + (wyTop - wyE) * 0.06f;
+            hill = Math.max(0.40f, Math.min(1.60f, hill));
+            float alt   = Math.max(0.70f, Math.min(1.25f, 1.0f + (wyTop - 64) * 0.004f));
+            float total = hill * alt * jitter;
+
+            int r = Math.min(255, Math.max(0, (int)(((col >> 16) & 0xFF) * total)));
+            int g = Math.min(255, Math.max(0, (int)(((col >>  8) & 0xFF) * total)));
+            int b = Math.min(255, Math.max(0, (int)(( col        & 0xFF) * total)));
+            return (r << 16) | (g << 8) | b;
+
+        } catch (Exception e) {
+            return 0x404040;
         }
-        var pos = new BlockPos(wx, wyLand, wz);
-        int col = level.getBlockState(pos).getMapColor(level, pos).col;
-        if (col == 0) col = 0x707070;
-        col = saturateColor(col, 1.8f);
-        float hf = Math.max(0.70f, Math.min(1.30f, 1.0f + (wyLand - 64) * 0.003f));
-        int r2 = Math.min(255, (int)(((col >> 16) & 0xFF) * hf));
-        int g2 = Math.min(255, (int)(((col >>  8) & 0xFF) * hf));
-        int b2 = Math.min(255, (int)(( col        & 0xFF) * hf));
-        return (r2 << 16) | (g2 << 8) | b2;
     }
+
+    /**
+     * Samples the top-face baked-model sprite for {@code state}, averages the
+     * non-transparent pixel colours, then multiplies by the biome tint if the
+     * block has one.  Falls back to biome tint alone, then MapColor.
+     */
+    @OnlyIn(Dist.CLIENT)
+    private static int getBlockRenderColor(net.minecraft.world.level.block.state.BlockState state,
+                                           Level level, BlockPos pos) {
+        try {
+            var mc    = net.minecraft.client.Minecraft.getInstance();
+            var model = mc.getBlockRenderer().getBlockModel(state);
+            var quads = model.getQuads(state, net.minecraft.core.Direction.UP,
+                    net.minecraft.util.RandomSource.create(42L));
+            if (!quads.isEmpty()) {
+                var contents = quads.get(0).getSprite().contents();
+                int w = contents.width(), h = contents.height();
+                long rS = 0, gS = 0, bS = 0; int n = 0;
+                for (int sy = 0; sy < h; sy += 2) {
+                    for (int sx = 0; sx < w; sx += 2) {
+                        // NativeImage: pixels stored RGBA, R in LSB
+                        int px = contents.getOriginalImage().getPixelRGBA(sx, sy);
+                        if (((px >> 24) & 0xFF) < 64) continue;
+                        rS += px & 0xFF; gS += (px >> 8) & 0xFF; bS += (px >> 16) & 0xFF; n++;
+                    }
+                }
+                if (n > 0) {
+                    int tex = (int)(rS/n) << 16 | (int)(gS/n) << 8 | (int)(bS/n);
+                    int tint = mc.getBlockColors().getColor(state, level, pos, 0);
+                    if (tint != -1) {
+                        tex = ((tex >> 16 & 0xFF) * (tint >> 16 & 0xFF) / 255) << 16
+                            | ((tex >>  8 & 0xFF) * (tint >>  8 & 0xFF) / 255) << 8
+                            |  (tex       & 0xFF) * (tint       & 0xFF) / 255;
+                    }
+                    return tex;
+                }
+            }
+        } catch (Exception ignored) {}
+        try {
+            int t = net.minecraft.client.Minecraft.getInstance()
+                    .getBlockColors().getColor(state, level, pos, 0);
+            if (t != -1) return t;
+        } catch (Exception ignored) {}
+        int c = state.getMapColor(level, pos).col;
+        return (c == 0 || c == -1) ? 0x707070 : c;
+    }
+
 
     /**
      * Boosts the saturation of an RGB colour by {@code factor}
@@ -830,6 +930,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
      * com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture}.
      * Callers write pixels with {@link #setPixel} then call {@link #upload} once per frame.
      */
+    @OnlyIn(Dist.CLIENT)
     private static final class TerrainMapTexture
             extends com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture {
 
@@ -1037,30 +1138,72 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private void buildAttackerSelectView(Player player) {
         Faction myFaction = factionRef.get();
+        int selCount = warsSelectedAttackers.size();
+
         warsPanel.addChildren(
-                new Label().setText("§6§lChoose Attackers"),
-                new Label().setText("§7Target: §c" + (warsTarget != null ? warsTarget.name() : "?"))
+                new Label().setText("§6§l⚔ Select War Party"),
+                new Label().setText("§7Declaring war on: §c"
+                        + (warsTarget != null ? warsTarget.name() : "?")
+                        + "  §8— click a member card to toggle selection")
         );
+
+        // Member cards — 2 per row, showing player head + name + role
         if (myFaction != null) {
-            for (FactionMember fm : myFaction.getMembers()) {
-                UUID uid = fm.getUuid();
-                boolean selected = warsSelectedAttackers.contains(uid);
+            java.util.List<FactionMember> members = myFaction.getMembers();
+            for (int i = 0; i < members.size(); i += 2) {
                 var row = new UIElement();
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(20).width(404));
-                row.addChildren(
-                        new Label().setText(roleColor(fm.getRole()) + fm.getPlayerName() + " §8(" + fm.getRole().name().toLowerCase() + ")").layout(l -> l.flex(1)),
-                        new Toggle().setOn(selected).setOnToggleChanged(on -> {
-                            if (on) warsSelectedAttackers.add(uid);
-                            else    warsSelectedAttackers.remove(uid);
-                        }).layout(l -> l.width(30))
-                );
+                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingBottom(4));
+                for (int j = i; j < Math.min(i + 2, members.size()); j++) {
+                    FactionMember fm = members.get(j);
+                    UUID uid   = fm.getUuid();
+                    boolean sel = warsSelectedAttackers.contains(uid);
+
+                    // Build a player-head ItemStack that resolves the skin client-side
+                    var skull = new net.minecraft.world.item.ItemStack(
+                            net.minecraft.world.item.Items.PLAYER_HEAD);
+                    skull.set(net.minecraft.core.component.DataComponents.PROFILE,
+                            new net.minecraft.world.item.component.ResolvableProfile(
+                                    java.util.Optional.of(fm.getPlayerName()),
+                                    java.util.Optional.of(uid),
+                                    new com.mojang.authlib.properties.PropertyMap()));
+
+                    var headSlot = new ItemSlot().setItem(skull);
+                    headSlot.layout(l -> l.width(32).height(32).alignSelf(YogaAlign.CENTER));
+
+                    var card = new UIElement();
+                    card.layout(l -> l.width(196).paddingAll(6).gapAll(3)
+                            .flexDirection(YogaFlexDirection.COLUMN));
+                    card.lss("base-background",
+                            sel ? "built-in(ui-mc:RECT_BORDER) color(#22aa2288)"
+                               : "built-in(ui-mc:RECT_BORDER) color(#00000055)");
+
+                    card.addChildren(
+                            headSlot,
+                            new Label().setText("§f" + fm.getPlayerName())
+                                    .lss("horizontal-align", "center"),
+                            new Label().setText(roleColor(fm.getRole())
+                                    + capitalize(fm.getRole().getId()))
+                                    .lss("horizontal-align", "center"),
+                            new Label().setText(sel ? "§a✔ Selected" : "§8Click to add")
+                                    .lss("horizontal-align", "center")
+                    );
+                    card.addEventListener(UIEvents.MOUSE_UP, ev -> {
+                        if (warsSelectedAttackers.contains(uid)) warsSelectedAttackers.remove(uid);
+                        else warsSelectedAttackers.add(uid);
+                        fillWarsPanel(player);
+                    });
+                    row.addChildren(card);
+                }
                 warsPanel.addChildren(row);
             }
         }
+
         var btnRow = new UIElement();
         btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingTop(6));
         btnRow.addChildren(
-                new Button().setText("§a✓ Declare War")
+                new Button().setText(selCount > 0
+                                ? "§a⚔ Start War §7(" + selCount + " fighter" + (selCount == 1 ? "" : "s") + ")"
+                                : "§8Select at least one fighter")
                         .setOnClick(e -> {
                             if (warsTarget != null && !warsSelectedAttackers.isEmpty()) {
                                 PacketDistributor.sendToServer(

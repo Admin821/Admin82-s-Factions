@@ -1,12 +1,13 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
-import com.admin82.factions.screen.ConquestDecisionScreen;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.UUID;
@@ -43,14 +44,23 @@ public record OpenConquestGuiPacket(
 
     /** Client-side handler — only called on the client. */
     public static void handle(OpenConquestGuiPacket pkt, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> Minecraft.getInstance().setScreen(
-                new ConquestDecisionScreen(
+        ctx.enqueueWork(() -> {
+            if (FMLEnvironment.dist == Dist.CLIENT) {
+                handleClient(pkt);
+            }
+        });
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void handleClient(OpenConquestGuiPacket pkt) {
+        net.minecraft.client.Minecraft.getInstance().setScreen(
+                new com.admin82.factions.screen.ConquestDecisionScreen(
                         pkt.defeatedFactionId(),
                         pkt.defeatedFactionName(),
                         pkt.defenderClaims(),
                         pkt.defenderVault()
                 )
-        ));
+        );
     }
 
     @Override

@@ -22,8 +22,8 @@ public class WarManager extends SavedData {
 
     private final Map<UUID, ActiveWar> activeWars       = new HashMap<>();
     /** -1 means use Config default; any positive value overrides it. */
-    private int gracePeriodOverride = -1;
-
+    private int gracePeriodOverride = -1;    /** -1 means use default (5); any positive value overrides the attacker TP spawn distance in chunks. */
+    private int tpDistanceChunksOverride = -1;
     // ── Static access ─────────────────────────────────────────────────────────
 
     public static WarManager get(MinecraftServer server) {
@@ -43,6 +43,19 @@ public class WarManager extends SavedData {
     /** Overrides the grace period for this world. Set to -1 to revert to config. */
     public void setGracePeriodSeconds(int seconds) {
         this.gracePeriodOverride = seconds;
+        setDirty();
+    }
+
+    // ── TP spawn distance ──────────────────────────────────────────────
+
+    /** Returns the effective attacker TP distance in chunks (command override or default 5). */
+    public int getTpDistanceChunks() {
+        return tpDistanceChunksOverride > 0 ? tpDistanceChunksOverride : 5;
+    }
+
+    /** Overrides the TP spawn distance for this world (in chunks). Set to -1 to revert to default. */
+    public void setTpDistanceChunks(int chunks) {
+        this.tpDistanceChunksOverride = chunks;
         setDirty();
     }
 
@@ -111,6 +124,7 @@ public class WarManager extends SavedData {
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt("gracePeriodOverride", gracePeriodOverride);
+        tag.putInt("tpDistanceChunksOverride", tpDistanceChunksOverride);
         ListTag warList = new ListTag();
         activeWars.values().forEach(w -> warList.add(w.save()));
         tag.put("wars", warList);
@@ -121,6 +135,8 @@ public class WarManager extends SavedData {
         WarManager mgr = new WarManager();
         mgr.gracePeriodOverride = tag.getInt("gracePeriodOverride");
         if (mgr.gracePeriodOverride == 0) mgr.gracePeriodOverride = -1; // 0 wasn't set
+        mgr.tpDistanceChunksOverride = tag.getInt("tpDistanceChunksOverride");
+        if (mgr.tpDistanceChunksOverride == 0) mgr.tpDistanceChunksOverride = -1;
         ListTag warList = tag.getList("wars", Tag.TAG_COMPOUND);
         for (int i = 0; i < warList.size(); i++) {
             ActiveWar w = ActiveWar.load(warList.getCompound(i));

@@ -19,6 +19,8 @@ public class Faction {
     private final Map<FactionRole, Map<FactionPermission, Boolean>> rolePermissions = new EnumMap<>(FactionRole.class);
     private final List<LandClaim> landClaims = new ArrayList<>();
     private final List<WarEntry> wars = new ArrayList<>();
+    /** Epoch-ms when this faction was created. Used for the 1-hour grace-period protection. */
+    private long createdAt = 0L;
 
     // Default permissions for each role (what each role is allowed to do by default)
     private static final Map<FactionRole, Set<FactionPermission>> DEFAULT_ROLE_PERMS;
@@ -43,6 +45,7 @@ public class Faction {
         this.ownerId = ownerId;
         this.description = description;
         this.power = 10;
+        this.createdAt = System.currentTimeMillis();
         for (FactionPermission perm : FactionPermission.values()) {
             permissions.put(perm, perm.getDefaultValue());
         }
@@ -58,6 +61,9 @@ public class Faction {
     // ── Getters / Setters ──────────────────────────────────────────────────────
 
     public UUID getId() { return id; }
+    public long getCreatedAt() { return createdAt; }
+    /** True if the faction is still within the 1-hour new-faction protection grace period. */
+    public boolean isInGracePeriod() { return createdAt > 0L && System.currentTimeMillis() - createdAt < 3_600_000L; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }
@@ -173,6 +179,7 @@ public class Faction {
         ListTag warList = new ListTag();
         wars.forEach(w -> warList.add(w.save()));
         tag.put("wars", warList);
+        tag.putLong("createdAt", createdAt);
 
         return tag;
     }
@@ -223,6 +230,7 @@ public class Faction {
         for (int i = 0; i < warList.size(); i++) {
             faction.wars.add(WarEntry.load(warList.getCompound(i)));
         }
+        faction.createdAt = tag.contains("createdAt") ? tag.getLong("createdAt") : 0L;
 
         return faction;
     }

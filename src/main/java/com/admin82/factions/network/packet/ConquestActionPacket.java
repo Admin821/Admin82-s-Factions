@@ -85,24 +85,34 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
                     Faction defeated = fmgr.getAllFactions().get(pkt.targetFactionId());
                     if (defeated == null) return;
 
+                    // Transfer vault
                     long loot = eco.getVault(defeated.getId());
                     eco.setVault(defeated.getId(), 0);
                     eco.addVault(myFaction.getId(), loot);
 
+                    // Transfer all land claims to the winner
                     var claims = new ArrayList<>(defeated.getLandClaims());
                     for (var claim : claims) {
-                        fmgr.unclaimChunk(defeated.getId(), claim.chunkX(), claim.chunkZ(),
-                                claim.dimension().toString());
+                        // Unclaim from defeated, then add directly to winner
+                        defeated.removeClaim(claim.chunkX(), claim.chunkZ(), claim.dimension().toString());
+                        myFaction.addClaim(claim);
                     }
+                    fmgr.setDirty();
 
+                    String defeatedName = defeated.getName();
                     vmgr.clearPendingConquest(myFaction.getId());
+
                     notifyFaction(sp.server, myFaction,
-                            Component.literal("§6[Conquest] §ePlundered §f"
-                                    + Currency.format(loot) + " §eand §f" + claims.size()
-                                    + " §eclaims from §f" + defeated.getName() + "§e!"));
-                    notifyFaction(sp.server, defeated,
-                            Component.literal("§c[Conquest] §eAll vault and claims seized by §f"
-                                    + myFaction.getName() + "§c!"));
+                            Component.literal("§6[Conquest] §a§lVICTORY! Seized §e" + Currency.format(loot)
+                                    + " §aand §e" + claims.size() + " claim"
+                                    + (claims.size() == 1 ? "" : "s") + " §afrom §f" + defeatedName + "§a!"));
+
+                    // Disband the defeated faction (removes their table, notifies members)
+                    com.admin82.factions.FactionCommands.performDisband(sp.server, defeated.getId(),
+                            Component.literal("§c[Conquest] Your faction §e" + defeatedName
+                                    + " §chas been conquered by §e" + myFaction.getName()
+                                    + "§c! All claims and vault have been seized."));
+
                     sp.closeContainer();
                 }
 

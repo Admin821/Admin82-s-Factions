@@ -142,6 +142,12 @@ public class FactionCommands {
                             .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 86400))
                                 .executes(ctx -> cmdWarGraceperiodSet(ctx.getSource(),
                                         IntegerArgumentType.getInteger(ctx, "seconds"))))))
+                    // /faction war settpdistance <chunks>
+                    .then(Commands.literal("settpdistance")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("chunks", IntegerArgumentType.integer(1, 50))
+                            .executes(ctx -> cmdWarSetTpDistance(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "chunks")))))
                     // /faction war vassals edit <faction> free
                     // /faction war vassals edit <faction> tax <amount>
                     .then(Commands.literal("vassals")
@@ -320,6 +326,7 @@ public class FactionCommands {
                     buf.writeBoolean(true);
                     buf.writeVarInt(rates.size());
                     for (var e : rates.entrySet()) { buf.writeUtf(e.getKey()); buf.writeLong(e.getValue()); }
+                    buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
                 });
         return 1;
     }
@@ -360,7 +367,12 @@ public class FactionCommands {
                         "§e" + e.getKey() + " §7→ §a" + Currency.format(e.getValue()) + " §7each"), false));
         return rates.size();
     }
-
+    private static int cmdWarSetTpDistance(CommandSourceStack src, int chunks) {
+        WarManager.get(src.getServer()).setTpDistanceChunks(chunks);
+        src.sendSuccess(() -> Component.literal("§aWar TP spawn distance set to §e" + chunks
+                + " chunk" + (chunks == 1 ? "" : "s") + "§a from defender territory."), true);
+        return chunks;
+    }
     // ── /faction war ─────────────────────────────────────────────────────────
 
     private static int cmdWarGraceperiodSet(CommandSourceStack src, int seconds) {
@@ -432,15 +444,14 @@ public class FactionCommands {
         Component msg = reason != null ? reason
                 : Component.literal("§cFaction '§e" + faction.getName() + "§c' has been disbanded.");
 
-        // Unlink the block entity so the table becomes freely usable again
+        // Remove the faction table block from the world
         FactionManager.TableLocation table = manager.getFactionTable(factionId);
         if (table != null) {
             ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
                     ResourceLocation.parse(table.dimension()));
             ServerLevel tableLevel = server.getLevel(dimKey);
-            if (tableLevel != null
-                    && tableLevel.getBlockEntity(table.pos()) instanceof FactionTableBlockEntity be) {
-                be.setLinkedFactionId(null);
+            if (tableLevel != null) {
+                tableLevel.removeBlock(table.pos(), false);
             }
         }
 

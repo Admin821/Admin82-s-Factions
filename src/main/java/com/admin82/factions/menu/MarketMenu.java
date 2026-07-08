@@ -21,6 +21,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
 import org.appliedenergistics.yoga.YogaFlexDirection;
@@ -79,7 +82,7 @@ public class MarketMenu extends AbstractContainerMenu {
     public MarketMenu(int containerId, Inventory inv, BlockPos pos) {
         super(ModMenuTypes.MARKET.get(), containerId);
         this.pos = pos;
-        if (this instanceof IModularUIHolderMenu h) h.setModularUI(createModularUI(inv.player));
+        if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(createModularUI(inv.player));
     }
 
     public MarketMenu(int containerId, Inventory inv, FriendlyByteBuf buf) {
@@ -107,6 +110,7 @@ public class MarketMenu extends AbstractContainerMenu {
 
     // ── Root UI ───────────────────────────────────────────────────────────────
 
+    @OnlyIn(Dist.CLIENT)
     private ModularUI createModularUI(Player player) {
         var frame = new UIElement();
         frame.layout(l -> l.width(456).height(348).paddingAll(2));
@@ -191,6 +195,7 @@ public class MarketMenu extends AbstractContainerMenu {
         return panel;
     }
 
+    @OnlyIn(Dist.CLIENT)
     private void fillBrowseList(UIElement area) {
         var listings = listingsRef.get();
         if (listings.isEmpty()) { area.addChildren(new Label().setText("§7No listings available.")); return; }
@@ -308,6 +313,7 @@ public class MarketMenu extends AbstractContainerMenu {
         myContentArea.addChildren(myListArea, scrollRow, createBtn);
     }
 
+    @OnlyIn(Dist.CLIENT)
     private void fillMyList(UIElement area) {
         var mc = Minecraft.getInstance();
         UUID myId = mc.player != null ? mc.player.getUUID() : null;
@@ -340,6 +346,7 @@ public class MarketMenu extends AbstractContainerMenu {
 
     // ─ Step INV_SELECT ────────────────────────────────────────────────────────
 
+    @OnlyIn(Dist.CLIENT)
     private void stepInvSelect(Player player) {
         myContentArea.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(6));
         myContentArea.addChildren(new Label().setText("§6Step 1 §7— Click the item you want to sell."));

@@ -53,6 +53,7 @@ public class CurrencyExchangeBlock extends Block {
                 buf.writeUtf(e.getKey());
                 buf.writeLong(e.getValue());
             }
+            buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
         });
         return InteractionResult.CONSUME;
     }

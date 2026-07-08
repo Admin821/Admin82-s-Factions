@@ -47,7 +47,7 @@ public class MarketBlock extends Block {
         MenuProvider provider = new SimpleMenuProvider(
                 (id, inv, p) -> new MarketMenu(id, inv, pos),
                 Component.literal("Faction Market"));
-        sp.openMenu(provider, buf -> buf.writeBlockPos(pos));
+        sp.openMenu(provider, buf -> { buf.writeBlockPos(pos); buf.writeVarInt(0); }); // 0 = LDLib2 UISyncManager initial pack
 
         // Immediately send current market data
         int myListings = market.countPlayerListings(sp.getUUID());

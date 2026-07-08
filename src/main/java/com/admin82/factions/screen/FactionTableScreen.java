@@ -48,6 +48,11 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
         boolean viewChange = (prev == null) != (faction == null);
 
         if (viewChange) {
+            if (faction == null) {
+                // Faction was disbanded — close the screen entirely
+                Minecraft.getInstance().setScreen(null);
+                return;
+            }
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 menu.rebuildForFaction(faction, mc.player);

@@ -1,16 +1,25 @@
 package com.admin82.factions;
 
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.economy.EconomyManager;
+import com.admin82.factions.faction.Faction;
+import com.admin82.factions.faction.FactionMember;
+import com.admin82.factions.faction.FactionPermission;
 import com.admin82.factions.faction.FactionManager;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.ExplosionEvent;
 
 import java.util.UUID;
 
@@ -73,5 +82,113 @@ public class FactionTableEvents {
             player.displayClientMessage(Component.literal("§cMove mode cancelled (dimension change)."), false);
         }
         manager.clearPendingCreation(player.getUUID());
+    }
+
+    // ── Land claim protection ──────────────────────────────────────────────────
+    //   Upkeep required (same rule as FactionWarEvents.onBlockBreak).
+    //   Block-breaking is handled by FactionWarEvents (includes war overrides).
+
+    /**
+     * Returns the faction protecting the given position, or {@code null} if unclaimed
+     * or the owning faction has no active upkeep (unprotected land).
+     */
+    private static Faction getProtectedClaimAt(ServerLevel level, BlockPos pos) {
+        FactionManager mgr = FactionManager.get(level);
+        EconomyManager eco = EconomyManager.get(level.getServer());
+        int cx = SectionPos.blockToSectionCoord(pos.getX());
+        int cz = SectionPos.blockToSectionCoord(pos.getZ());
+        String dim = level.dimension().location().toString();
+        for (Faction f : mgr.getAllFactions().values()) {
+            if (f.hasClaim(cx, cz, dim) && (eco.hasUpkeep(f.getId()) || f.isInGracePeriod())) return f;
+        }
+        return null;
+    }
+
+    /**
+     * Prevents non-members from right-clicking / interacting with blocks in protected chunks.
+     * Also blocks unauthorised block placement (placing a block is a RightClickBlock action).
+     */
+    @SubscribeEvent
+    public static void onBlockInteractProtection(PlayerInteractEvent.RightClickBlock event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        Player player = event.getEntity();
+        if (player.hasPermissions(2)) return;
+
+        Faction owner = getProtectedClaimAt(level, event.getPos());
+        if (owner == null) return;
+
+        FactionMember m = owner.getMember(player.getUUID());
+        if (m == null || !owner.getRolePermission(m.getRole(), FactionPermission.MEMBER_INTERACT)) {
+            event.setCanceled(true);
+            player.displayClientMessage(
+                    Component.literal("§cThis land is claimed by §e" + owner.getName() + "§c."), true);
+        }
+    }
+
+    /**
+     * Strips protected claimed blocks from every explosion's affected-block list.
+     * Covers TNT, creepers, ghast fireballs, wither skulls, bed/anchor explosions, etc.
+     * No player-permission bypass — nobody can blow up claimed land.
+     */
+    @SubscribeEvent
+    public static void onExplosionDetonate(ExplosionEvent.Detonate event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        FactionManager mgr = FactionManager.get(level);
+        EconomyManager eco = EconomyManager.get(level.getServer());
+        String dim = level.dimension().location().toString();
+        event.getAffectedBlocks().removeIf(pos -> {
+            int cx = SectionPos.blockToSectionCoord(pos.getX());
+            int cz = SectionPos.blockToSectionCoord(pos.getZ());
+            for (Faction f : mgr.getAllFactions().values()) {
+                if (f.hasClaim(cx, cz, dim) && (eco.hasUpkeep(f.getId()) || f.isInGracePeriod())) return true;
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Blocks non-player entities — pistons, dispensers, modded drills/miners,
+     * and fake players used by automation mods — from placing blocks in protected chunks.
+     * For real players the BUILD role-permission is checked normally.
+     */
+    @SubscribeEvent
+    public static void onEntityBlockPlace(BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        Entity entity = event.getEntity();
+        if (entity == null) return; // world-internal operation — skip
+
+        Faction owner = getProtectedClaimAt(level, event.getPos());
+        if (owner == null) return;
+
+        if (entity instanceof Player player) {
+            // Covers fake players from automation/tech mods as well as real players
+            if (player.hasPermissions(2)) return;
+            FactionMember m = owner.getMember(player.getUUID());
+            if (m == null || !owner.getRolePermission(m.getRole(), FactionPermission.MEMBER_BUILD)) {
+                event.setCanceled(true);
+            }
+        } else {
+            // Piston, dispenser, falling block, modded machine — always protect
+            event.setCanceled(true);
+        }
+    }
+
+    /**
+     * Prevents entities from trampling protected farmland in claimed chunks.
+     * Faction members are exempt; outsiders and mobs are blocked.
+     */
+    @SubscribeEvent
+    public static void onFarmlandTrample(BlockEvent.FarmlandTrampleEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+
+        Faction owner = getProtectedClaimAt(level, event.getPos());
+        if (owner == null) return;
+
+        Entity entity = event.getEntity();
+        if (entity instanceof Player player) {
+            if (player.hasPermissions(2)) return;
+            if (owner.getMember(player.getUUID()) != null) return; // members can run freely
+        }
+        event.setCanceled(true);
     }
 }

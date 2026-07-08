@@ -40,14 +40,14 @@ public record DisbandFactionPacket() implements CustomPacketPayload {
             UUID factionId = faction.getId();
             String factionName = faction.getName();
 
-            // Unlink the block entity so the table becomes freely usable again
+            // Remove the faction table block from the world
             FactionManager.TableLocation table = manager.getFactionTable(factionId);
             if (table != null) {
                 ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
                         ResourceLocation.parse(table.dimension()));
                 ServerLevel tableLevel = player.server.getLevel(dimKey);
-                if (tableLevel != null && tableLevel.getBlockEntity(table.pos()) instanceof FactionTableBlockEntity be) {
-                    be.setLinkedFactionId(null);
+                if (tableLevel != null) {
+                    tableLevel.removeBlock(table.pos(), false);
                 }
             }
 
@@ -62,6 +62,7 @@ public record DisbandFactionPacket() implements CustomPacketPayload {
             }
 
             manager.disbandFaction(factionId);
+            player.closeContainer(); // close the faction table GUI for the disbanding player
         });
     }
 }

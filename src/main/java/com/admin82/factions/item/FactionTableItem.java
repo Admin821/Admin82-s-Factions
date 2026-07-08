@@ -70,6 +70,13 @@ public class FactionTableItem extends BlockItem {
                     buf -> {
                         buf.writeBlockPos(targetPos);
                         buf.writeBoolean(false); // No faction
+                        // Vassal data — must always be written to match FactionTableBlock's protocol
+                        buf.writeBoolean(false); // isVassal
+                        buf.writeBoolean(false); // isSuzerain
+                        buf.writeUtf("");        // vassalSuzerainName
+                        buf.writeLong(0L);       // vassalPendingTax
+                        buf.writeVarInt(0);      // vassalSubjects count
+                        buf.writeVarInt(0);      // LDLib2 UISyncManager initial pack: 0 sync values
                     });
 
             // Resync the target block to the client so no ghost block appears

@@ -16,6 +16,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -70,16 +71,17 @@ public class FactionWarEvents {
 
         EconomyManager eco = EconomyManager.get(level.getServer());
 
-        // If the claiming faction has no upkeep, their land is unprotected
-        if (!eco.hasUpkeep(claimerId)) return;
+        // If the claiming faction has no upkeep and is past the grace period, land is unprotected
+        if (!eco.hasUpkeep(claimerId) && !claimingFaction.isInGracePeriod()) return;
 
-        // During an active war, committed attackers can break defender blocks
+        // During an active war, both sides can break each other's claimed territory
         WarManager warmgr = WarManager.get(level.getServer());
         ActiveWar war = warmgr.getWarForPlayer(player.getUUID());
-        if (war != null && war.phase == WarPhase.ACTIVE
-                && war.isAttacker(player.getUUID())
-                && war.defenderFactionId.equals(claimerId)) {
-            return; // attacker can break defender's blocks during war
+        if (war != null && war.phase == WarPhase.ACTIVE) {
+            if (war.isAttacker(player.getUUID()) && war.defenderFactionId.equals(claimerId))
+                return; // attacker can break defender's blocks during war
+            if (war.isDefender(player.getUUID()) && war.attackerFactionId.equals(claimerId))
+                return; // defender can break attacker's blocks during war
         }
 
         // Default: claim is protected
@@ -108,6 +110,8 @@ public class FactionWarEvents {
         FactionManager fmgr = FactionManager.get(server);
         if (remaining <= 0) {
             player.displayClientMessage(Component.literal("§c☠ You have been eliminated from the war!"), false);
+            player.setGameMode(GameType.SPECTATOR);
+            player.displayClientMessage(Component.literal("§7You are now spectating. You will be restored to survival when the war ends."), false);
             // Send "0 lives" packet to this player so HUD updates
             sendWarStateTo(server, war, fmgr, player);
         } else {
@@ -265,6 +269,13 @@ public class FactionWarEvents {
                 // Both present → contested → no change
                 warmgr.setDirty();
 
+                // ── KOTH capture-zone particle effects ─────────────────────
+                spawnKothParticles(server, war, attackersOnPoint, defendersOnPoint);
+
+                // ── Spectator leash: keep dead players within 10 blocks of nearest living teammate ──
+                enforceSpectatorLeash(server, war.attackerLives);
+                enforceSpectatorLeash(server, war.defenderLives);
+
                 // ── Win conditions ─────────────────────────────────────────
                 checkWinConditions(server, war, fmgr, warmgr);
             }
@@ -280,6 +291,7 @@ public class FactionWarEvents {
         for (UUID wid : toEnd) {
             ActiveWar w = warmgr.getWar(wid);
             if (w != null) {
+                restoreWarSpectators(server, w);
                 fmgr.endWar(w.attackerFactionId, w.defenderFactionId);
             }
             warmgr.endWar(wid);
@@ -293,6 +305,8 @@ public class FactionWarEvents {
         war.attackerLives.put(uid, 0);
         warmgr.setDirty();
         sp.displayClientMessage(Component.literal(msg), false);
+        sp.setGameMode(GameType.SPECTATOR);
+        sp.displayClientMessage(Component.literal("§7You are now spectating. You will be restored to survival when the war ends."), false);
         checkWinConditions(server, war, fmgr, warmgr);
     }
 
@@ -433,16 +447,17 @@ public class FactionWarEvents {
             }
         }
 
-        // Build ring of unclaimed spawn chunks (1-5 chunks around any defender claim)
+        // Build ring of unclaimed spawn chunks (configurable distance around defender claims)
+        int tpDist = WarManager.get(server).getTpDistanceChunks();
         Set<String> spawnKeys = new LinkedHashSet<>();
         List<int[]>  spawnList = new ArrayList<>();
         for (String key : defClaims) {
             String[] p = key.split(",");
             int cx = Integer.parseInt(p[0]), cz = Integer.parseInt(p[1]);
-            for (int dx = -5; dx <= 5; dx++) {
-                for (int dz = -5; dz <= 5; dz++) {
+            for (int dx = -tpDist; dx <= tpDist; dx++) {
+                for (int dz = -tpDist; dz <= tpDist; dz++) {
                     int chebDist = Math.max(Math.abs(dx), Math.abs(dz));
-                    if (chebDist < 1 || chebDist > 5) continue;
+                    if (chebDist < 1 || chebDist > tpDist) continue;
                     int ncx = cx + dx, ncz = cz + dz;
                     String nk = ncx + "," + ncz;
                     if (!allClaimed.contains(nk) && spawnKeys.add(nk)) {
@@ -456,7 +471,9 @@ public class FactionWarEvents {
         if (spawnList.isEmpty()) {
             int tcx = SectionPos.blockToSectionCoord(war.defenderTablePos.getX());
             int tcz = SectionPos.blockToSectionCoord(war.defenderTablePos.getZ());
-            for (int d = 3; d <= 7; d++) {
+            int fallbackMin = Math.max(2, tpDist - 1);
+            int fallbackMax = tpDist + 2;
+            for (int d = fallbackMin; d <= fallbackMax; d++) {
                 spawnList.add(new int[]{tcx + d, tcz});
                 spawnList.add(new int[]{tcx - d, tcz});
                 spawnList.add(new int[]{tcx, tcz + d});
@@ -501,6 +518,112 @@ public class FactionWarEvents {
         for (FactionMember m : faction.getMembers()) {
             ServerPlayer sp = server.getPlayerList().getPlayer(m.getUuid());
             if (sp != null) sp.displayClientMessage(msg, false);
+        }
+    }
+
+    // ── Restore spectators on login (in case war ended while offline) ─────────
+
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (!player.isSpectator()) return;
+        // If there's no active war for this player, restore to survival
+        WarManager warmgr = WarManager.get(player.server);
+        if (warmgr.getWarForPlayer(player.getUUID()) == null) {
+            player.setGameMode(GameType.SURVIVAL);
+            player.displayClientMessage(Component.literal("§aRestored to survival mode — your war has ended."), false);
+        }
+    }
+
+    // ── Spectator helpers ─────────────────────────────────────────────────────
+
+    private static final double SPECTATOR_LEASH_BLOCKS = 10.0;
+
+    /**
+     * Teleports eliminated spectators back to within {@link #SPECTATOR_LEASH_BLOCKS} blocks
+     * of their nearest living teammate. Prevents spectators from roaming freely.
+     */
+    private static void enforceSpectatorLeash(MinecraftServer server, Map<UUID, Integer> side) {
+        for (Map.Entry<UUID, Integer> entry : side.entrySet()) {
+            if (entry.getValue() > 0) continue; // still has lives
+            ServerPlayer sp = server.getPlayerList().getPlayer(entry.getKey());
+            if (sp == null || !sp.isSpectator()) continue;
+
+            // Find nearest living teammate
+            double minDist = Double.MAX_VALUE;
+            ServerPlayer nearest = null;
+            for (Map.Entry<UUID, Integer> other : side.entrySet()) {
+                if (other.getKey().equals(entry.getKey()) || other.getValue() <= 0) continue;
+                ServerPlayer mate = server.getPlayerList().getPlayer(other.getKey());
+                if (mate == null) continue;
+                double dx = sp.getX() - mate.getX();
+                double dy = sp.getY() - mate.getY();
+                double dz = sp.getZ() - mate.getZ();
+                double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (d < minDist) { minDist = d; nearest = mate; }
+            }
+            if (nearest == null) continue; // all dead — free to roam
+
+            boolean wrongDim = !sp.level().dimension().equals(nearest.level().dimension());
+            if (wrongDim || minDist > SPECTATOR_LEASH_BLOCKS) {
+                sp.teleportTo((ServerLevel) nearest.level(),
+                        nearest.getX(), nearest.getY() + 1.0, nearest.getZ(),
+                        sp.getYRot(), sp.getXRot());
+            }
+        }
+    }
+
+    /** Restores all eliminated (spectator) players in a war back to survival mode. */
+    private static void restoreWarSpectators(MinecraftServer server, ActiveWar war) {
+        Set<UUID> all = new HashSet<>(war.attackerLives.keySet());
+        all.addAll(war.defenderLives.keySet());
+        for (UUID uid : all) {
+            ServerPlayer sp = server.getPlayerList().getPlayer(uid);
+            if (sp != null && sp.isSpectator()) {
+                sp.setGameMode(GameType.SURVIVAL);
+                sp.displayClientMessage(Component.literal("§aThe war has ended — you have been restored to survival."), false);
+            }
+        }
+    }
+
+    // ── KOTH particle effects ─────────────────────────────────────────────────
+
+    /**
+     * Spawns particles around the capture zone each second to show who controls it:
+     *   No one    → white campfire signal smoke
+     *   Attackers → orange flame
+     *   Defenders → blue soul-fire flame
+     *   Both      → mix of flame and soul-fire
+     */
+    private static void spawnKothParticles(MinecraftServer server, ActiveWar war,
+                                           boolean attackersOn, boolean defendersOn) {
+        ServerLevel level = null;
+        for (ServerLevel lvl : server.getAllLevels()) {
+            if (lvl.dimension().location().toString().equals(war.defenderDimension)) {
+                level = lvl; break;
+            }
+        }
+        if (level == null) return;
+
+        double spread = Config.WAR_CAPTURE_RADIUS_BLOCKS.get() * 0.65;
+        double cx = war.defenderTablePos.getX() + 0.5;
+        double cy = war.defenderTablePos.getY() + 1.5;
+        double cz = war.defenderTablePos.getZ() + 0.5;
+
+        if (attackersOn && defendersOn) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.FLAME,
+                    cx, cy, cz, 8, spread, 0.6, spread, 0.03);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME,
+                    cx, cy, cz, 8, spread, 0.6, spread, 0.03);
+        } else if (attackersOn) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.FLAME,
+                    cx, cy, cz, 16, spread, 0.6, spread, 0.03);
+        } else if (defendersOn) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME,
+                    cx, cy, cz, 16, spread, 0.6, spread, 0.03);
+        } else {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.CAMPFIRE_SIGNAL_SMOKE,
+                    cx, cy, cz, 4, spread * 0.5, 0.3, spread * 0.5, 0.01);
         }
     }
 

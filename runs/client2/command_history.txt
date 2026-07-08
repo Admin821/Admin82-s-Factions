@@ -1,0 +1,4 @@
+/gamemode creative
+/time set dat
+/time set day
+/deop Player2

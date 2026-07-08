@@ -105,6 +105,7 @@ public class FactionTableBlock extends BaseEntityBlock {
                 } else {
                     buf.writeVarInt(0);
                 }
+                buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
             });
             // Send all other factions to the client for the Wars tab
             final UUID ownFactionId = faction != null ? faction.getId() : null;

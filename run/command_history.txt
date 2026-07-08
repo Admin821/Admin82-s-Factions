@@ -8,3 +8,20 @@
 /
 /faction war graceperiod
 /faction war vassals edit
+/faction delete life
+/ldlib2_client
+/gamemode creative
+/deop Player2
+/op Player2
+/faction war vassals edit
+/faction war vassals edit life free
+/faction war vassals edit life tax 10
+/faction war vassals edit life tax 1
+/deop Player2
+/op Player2
+/warden_spawn_tracker
+/faction war graceperiod set 1
+/gamemode survival
+/gamemode survival Player2
+/gamemode creative
+/gamemode creative Player2

@@ -23,6 +23,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
 import org.appliedenergistics.yoga.YogaFlexDirection;
@@ -73,7 +76,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         super(ModMenuTypes.CURRENCY_EXCHANGE.get(), containerId);
         this.pos  = pos;
         this.isOp = false;
-        if (this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
+        if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
     }
 
     public CurrencyExchangeMenu(int containerId, Inventory inv, FriendlyByteBuf buf) {
@@ -82,7 +85,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         this.isOp = buf.readBoolean();
         int count = buf.readVarInt();
         for (int i = 0; i < count; i++) rates.put(buf.readUtf(256), buf.readLong());
-        if (this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
+        if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
     }
 
     @Override public ItemStack quickMoveStack(Player p, int i) { return ItemStack.EMPTY; }
@@ -93,6 +96,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
 
     // ── Root UI ───────────────────────────────────────────────────────────────
 
+    @OnlyIn(Dist.CLIENT)
     private ModularUI buildUI(Player player) {
         var frame = new UIElement();
         frame.layout(l -> l.width(460).height(340).paddingAll(2));
@@ -209,6 +213,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         }
     }
 
+    @OnlyIn(Dist.CLIENT)
     private void refreshExConfirmArea(Player player) {
         exchangeConfirmArea.clearAllChildren();
         exchangeConfirmArea.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).paddingTop(4));
@@ -384,6 +389,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
      * Builds a 4-row inventory grid (3 main rows + hotbar).
      * {@code forManage}: if true, clicking selects mgSelected; otherwise selects for exchange.
      */
+    @OnlyIn(Dist.CLIENT)
     private void buildInvGrid(UIElement parent, Player player, boolean forManage) {
         int[][] rowDefs = {{9,18},{18,27},{27,36},{0,9}};
         for (int[] range : rowDefs) {
