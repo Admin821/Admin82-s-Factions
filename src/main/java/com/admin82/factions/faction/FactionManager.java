@@ -22,10 +22,14 @@ public class FactionManager extends SavedData {
     private final Map<UUID, UUID> playerFactionMap = new HashMap<>();
     // factionId → table location (persistent)
     private final Map<UUID, TableLocation> factionTables = new HashMap<>();
+    // factionId → barracks location (persistent)
+    private final Map<UUID, TableLocation> factionBarracks = new HashMap<>();
     // playerUUID → pending move (transient, not saved to NBT)
     private final Map<UUID, PendingMove> pendingMoves = new HashMap<>();
     // playerUUID → intended table location when opening Create Faction UI (transient)
     private final Map<UUID, TableLocation> pendingCreationTables = new HashMap<>();
+    // playerUUID → pending barracks location (transient — set when barracks placed pre-faction)
+    private final Map<UUID, TableLocation> pendingBarracksMap = new HashMap<>();
 
     public FactionManager() {}
 
@@ -118,6 +122,32 @@ public class FactionManager extends SavedData {
         factionTables.remove(factionId);
         setDirty();
     }
+
+    // ── Faction barracks tracking ─────────────────────────────────────────────
+
+    public void setFactionBarracks(UUID factionId, BlockPos pos, String dimension) {
+        factionBarracks.put(factionId, new TableLocation(pos, dimension));
+        setDirty();
+    }
+
+    @Nullable
+    public TableLocation getFactionBarracks(UUID factionId) { return factionBarracks.get(factionId); }
+
+    public void removeFactionBarracks(UUID factionId) {
+        factionBarracks.remove(factionId);
+        setDirty();
+    }
+
+    // ── Pending barracks (transient — set when barracks placed before faction created) ──
+
+    public void setPendingBarracks(UUID playerUUID, BlockPos pos, String dimension) {
+        pendingBarracksMap.put(playerUUID, new TableLocation(pos, dimension));
+    }
+
+    @Nullable
+    public TableLocation getPendingBarracks(UUID playerUUID) { return pendingBarracksMap.get(playerUUID); }
+
+    public void clearPendingBarracks(UUID playerUUID) { pendingBarracksMap.remove(playerUUID); }
 
     // ── Move mode (transient) ─────────────────────────────────────────────────
 
@@ -235,6 +265,13 @@ public class FactionManager extends SavedData {
                 manager.factionTables.put(id, TableLocation.load(tablesTag.getCompound(key)));
             } catch (IllegalArgumentException ignored) {}
         }
+        CompoundTag barrTag = tag.getCompound("barracks");
+        for (String key : barrTag.getAllKeys()) {
+            try {
+                UUID id = UUID.fromString(key);
+                manager.factionBarracks.put(id, TableLocation.load(barrTag.getCompound(key)));
+            } catch (IllegalArgumentException ignored) {}
+        }
         return manager;
     }
 
@@ -246,6 +283,9 @@ public class FactionManager extends SavedData {
         CompoundTag tablesTag = new CompoundTag();
         factionTables.forEach((id, loc) -> tablesTag.put(id.toString(), loc.save()));
         tag.put("tables", tablesTag);
+        CompoundTag barrTag = new CompoundTag();
+        factionBarracks.forEach((id, loc) -> barrTag.put(id.toString(), loc.save()));
+        tag.put("barracks", barrTag);
         return tag;
     }
 }

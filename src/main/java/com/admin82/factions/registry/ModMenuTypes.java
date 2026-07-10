@@ -1,5 +1,6 @@
 package com.admin82.factions.registry;
 
+import com.admin82.factions.menu.BarracksMenu;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.admin82.factions.menu.FactionTableMenu;
 import com.admin82.factions.menu.MarketMenu;
@@ -15,6 +16,11 @@ public class ModMenuTypes {
 
     public static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(Registries.MENU, MODID);
+
+    public static final DeferredHolder<MenuType<?>, MenuType<BarracksMenu>> BARRACKS =
+            MENUS.register("barracks", () ->
+                    IMenuTypeExtension.create((id, inv, buf) -> new BarracksMenu(id, inv, buf))
+            );
 
     public static final DeferredHolder<MenuType<?>, MenuType<FactionTableMenu>> FACTION_TABLE =
             MENUS.register("faction_table", () ->

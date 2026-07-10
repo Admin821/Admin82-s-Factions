@@ -7,7 +7,11 @@
   },
   "minecraft:adventure/adventuring_time": {
     "criteria": {
-      "minecraft:jungle": "2026-07-04 00:59:52 -0400"
+      "minecraft:jungle": "2026-07-04 00:59:52 -0400",
+      "minecraft:river": "2026-07-08 04:46:16 -0400",
+      "minecraft:lukewarm_ocean": "2026-07-08 04:46:10 -0400",
+      "minecraft:birch_forest": "2026-07-08 04:46:17 -0400",
+      "minecraft:deep_lukewarm_ocean": "2026-07-08 04:46:12 -0400"
     },
     "done": false
   },
@@ -80,6 +84,30 @@
   "minecraft:recipes/combat/diamond_boots": {
     "criteria": {
       "has_diamond": "2026-07-08 01:36:45 -0400"
+    },
+    "done": true
+  },
+  "minecraft:story/obtain_armor": {
+    "criteria": {
+      "iron_chestplate": "2026-07-09 22:41:03 -0400"
+    },
+    "done": true
+  },
+  "minecraft:recipes/misc/iron_nugget_from_smelting": {
+    "criteria": {
+      "has_iron_chestplate": "2026-07-09 22:41:03 -0400"
+    },
+    "done": true
+  },
+  "minecraft:recipes/misc/iron_nugget_from_blasting": {
+    "criteria": {
+      "has_iron_chestplate": "2026-07-09 22:41:03 -0400"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/chest": {
+    "criteria": {
+      "has_lots_of_items": "2026-07-09 22:50:02 -0400"
     },
     "done": true
   },

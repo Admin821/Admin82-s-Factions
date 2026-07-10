@@ -74,7 +74,7 @@ public class MarketListing {
         tag.putUUID("listingId", listingId);
         tag.putUUID("sellerUUID", sellerUUID);
         if (sellerFactionId != null) tag.putUUID("sellerFactionId", sellerFactionId);
-        tag.put("item", item.save(reg));
+        tag.put("item", item.isEmpty() ? new net.minecraft.nbt.CompoundTag() : item.save(reg));
         tag.putBoolean("isAuction", isAuction);
         tag.putLong("price", price);
         tag.putLong("highestBid", highestBid);

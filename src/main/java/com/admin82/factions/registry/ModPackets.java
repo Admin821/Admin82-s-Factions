@@ -9,6 +9,14 @@ public class ModPackets {
     public static void register(RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar("adminsfactions");
 
+        // Barracks: Client → Server
+        registrar.playToServer(BarracksActionPacket.TYPE, BarracksActionPacket.STREAM_CODEC, BarracksActionPacket::handle);
+        registrar.playToServer(SelectKitPacket.TYPE, SelectKitPacket.STREAM_CODEC, SelectKitPacket::handle);
+
+        // Barracks: Server → Client
+        registrar.playToClient(SyncBarracksPacket.TYPE, SyncBarracksPacket.STREAM_CODEC, SyncBarracksPacket::handle);
+        registrar.playToClient(OpenKitSelectionPacket.TYPE, OpenKitSelectionPacket.STREAM_CODEC, OpenKitSelectionPacket::handle);
+
         // Client → Server
         registrar.playToServer(CreateFactionPacket.TYPE, CreateFactionPacket.STREAM_CODEC, CreateFactionPacket::handle);
         registrar.playToServer(MemberActionPacket.TYPE, MemberActionPacket.STREAM_CODEC, MemberActionPacket::handle);

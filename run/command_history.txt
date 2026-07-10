@@ -25,3 +25,20 @@
 /gamemode survival Player2
 /gamemode creative
 /gamemode creative Player2
+/gamemode spectator
+/gamemode creative
+/faction delete life
+/faction list
+/faction delete 121
+/faction list
+/faction delete 121
+/time set day
+/gamemode survival
+/gamemode creative
+/gamemode survival Player2
+/give Player2 minecraft:flint_and_steel
+/gamemode creative
+/gamemode creative Player2
+/faction war graceperiod set 10
+/gamemode survival
+/gamemode creative

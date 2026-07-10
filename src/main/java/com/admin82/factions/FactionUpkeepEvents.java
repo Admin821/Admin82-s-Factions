@@ -2,7 +2,6 @@ package com.admin82.factions;
 
 import com.admin82.factions.economy.Currency;
 import com.admin82.factions.economy.EconomyManager;
-import com.admin82.factions.economy.MarketListing;
 import com.admin82.factions.economy.MarketManager;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
@@ -56,27 +55,13 @@ public class FactionUpkeepEvents {
                 eco.setUpkeepNextDue(fid, now + Currency.UPKEEP_INTERVAL_MS);
                 AdminsFactions.LOGGER.debug("Faction '{}' paid upkeep of {} copper.", faction.getName(), cost);
             } else {
-                // Cannot pay — release all claims and list them on market
+                // Cannot pay — release all claims
                 AdminsFactions.LOGGER.info(
                         "Faction '{}' failed upkeep payment ({} copper). Releasing all claims.", faction.getName(), cost);
                 var claimsToRelease = new ArrayList<>(faction.getLandClaims());
                 String dim = server.overworld().dimension().location().toString();
                 for (var claim : claimsToRelease) {
                     fmgr.unclaimChunk(fid, claim.chunkX(), claim.chunkZ(), dim);
-                    // List claim on market as an unpaid-upkeep BIN
-                    var listing = new MarketListing();
-                    listing.listingId    = UUID.randomUUID();
-                    listing.sellerUUID   = faction.getOwnerId();
-                    listing.sellerFactionId = fid;
-                    listing.item         = net.minecraft.world.item.ItemStack.EMPTY; // no physical item
-                    listing.isAuction    = false;
-                    listing.price        = Currency.CLAIM_COST_COPPER;
-                    listing.highestBid   = 0;
-                    listing.highestBidder = null;
-                    listing.durationHours = 24;
-                    listing.expiresAt    = now + 86_400_000L;
-                    listing.unpaidUpkeep = true;
-                    market.addListing(listing);
                 }
                 // Reset upkeep timer
                 eco.setUpkeepNextDue(fid, now + Currency.UPKEEP_INTERVAL_MS);

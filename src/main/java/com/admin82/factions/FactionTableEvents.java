@@ -1,5 +1,6 @@
 package com.admin82.factions;
 
+import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.Faction;
@@ -33,22 +34,33 @@ public class FactionTableEvents {
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
-        if (!(level.getBlockEntity(event.getPos()) instanceof FactionTableBlockEntity be)) return;
 
-        UUID linkedId = be.getLinkedFactionId();
-        if (linkedId == null) return; // Unlinked table — breakable normally
-
-        Player player = event.getPlayer();
-        if (player.hasPermissions(2)) {
-            // Op breaking a linked table: automatically disband the faction
-            FactionCommands.performDisband(level.getServer(), linkedId,
-                    Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
-            return; // Allow the break to proceed
+        // Protect linked Faction Tables
+        if (level.getBlockEntity(event.getPos()) instanceof FactionTableBlockEntity be) {
+            UUID linkedId = be.getLinkedFactionId();
+            if (linkedId == null) return;
+            Player player = event.getPlayer();
+            if (player.hasPermissions(2)) {
+                FactionCommands.performDisband(level.getServer(), linkedId,
+                        Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
+                return;
+            }
+            event.setCanceled(true);
+            player.displayClientMessage(
+                    Component.literal("§cFaction Tables cannot be broken. Use the faction menu to move or disband."), true);
+            return;
         }
 
-        event.setCanceled(true);
-        player.displayClientMessage(
-                Component.literal("§cFaction Tables cannot be broken. Use the faction menu to move or disband."), true);
+        // Protect linked Barracks
+        if (level.getBlockEntity(event.getPos()) instanceof BarracksBlockEntity barrBe) {
+            UUID linkedId = barrBe.getLinkedFactionId();
+            if (linkedId == null) return;
+            Player player = event.getPlayer();
+            if (player.hasPermissions(2)) return; // ops can break it
+            event.setCanceled(true);
+            player.displayClientMessage(
+                    Component.literal("§cBarracks cannot be broken while linked to a faction."), true);
+        }
     }
 
     /** Cancels any in-progress move mode when the player logs out. */
@@ -58,6 +70,7 @@ public class FactionTableEvents {
         FactionManager manager = FactionManager.get(player.server);
         manager.clearPendingMove(player.getUUID());
         manager.clearPendingCreation(player.getUUID());
+        manager.clearPendingBarracks(player.getUUID());
     }
 
     /** Cancels move mode and pending creation when the player dies. */
@@ -70,6 +83,7 @@ public class FactionTableEvents {
             player.displayClientMessage(Component.literal("§cMove mode cancelled (you died)."), false);
         }
         manager.clearPendingCreation(player.getUUID());
+        manager.clearPendingBarracks(player.getUUID());
     }
 
     /** Cancels move mode and pending creation when the player changes dimension. */
@@ -190,5 +204,19 @@ public class FactionTableEvents {
             if (owner.getMember(player.getUUID()) != null) return; // members can run freely
         }
         event.setCanceled(true);
+    }
+
+    /**
+     * Prevents mobs from griefing blocks in claimed chunks.
+     * Covers endermen picking up/placing blocks, creepers igniting,
+     * ravagers destroying crops, villager farming, etc.
+     */
+    @SubscribeEvent
+    public static void onMobGriefing(net.neoforged.neoforge.event.entity.EntityMobGriefingEvent event) {
+        net.minecraft.world.entity.Entity entity = event.getEntity();
+        if (!(entity.level() instanceof ServerLevel level)) return;
+        if (getProtectedClaimAt(level, entity.blockPosition()) != null) {
+            event.setCanGrief(false);
+        }
     }
 }

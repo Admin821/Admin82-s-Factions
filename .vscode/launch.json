@@ -26,10 +26,32 @@
     {
       "type": "java",
       "request": "launch",
-      "name": "Data",
+      "name": "Client2",
       "presentation": {
         "group": "Mod Development - Admin82-s-Factions",
         "order": 1
+      },
+      "projectName": "Admin82-s-Factions",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@C:\\Users\\delta\\Documents\\github\\Admin82-s-Factions\\build\\moddev\\client2RunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@C:\\Users\\delta\\Documents\\github\\Admin82-s-Factions\\build\\moddev\\client2RunVmArgs.txt",
+        "-Dfml.modFolders\u003dadminsfactions%%C:\\Users\\delta\\Documents\\github\\Admin82-s-Factions\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\runs\\client2",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Data",
+      "presentation": {
+        "group": "Mod Development - Admin82-s-Factions",
+        "order": 2
       },
       "projectName": "Admin82-s-Factions",
       "mainClass": "net.neoforged.devlaunch.Main",
@@ -51,7 +73,7 @@
       "name": "GameTestServer",
       "presentation": {
         "group": "Mod Development - Admin82-s-Factions",
-        "order": 2
+        "order": 3
       },
       "projectName": "Admin82-s-Factions",
       "mainClass": "net.neoforged.devlaunch.Main",
@@ -73,7 +95,7 @@
       "name": "Server",
       "presentation": {
         "group": "Mod Development - Admin82-s-Factions",
-        "order": 3
+        "order": 4
       },
       "projectName": "Admin82-s-Factions",
       "mainClass": "net.neoforged.devlaunch.Main",

@@ -2,8 +2,10 @@
   "itemGroup.adminsfactions": "Admin's Factions",
 
   "block.adminsfactions.faction_table": "Faction Table",
+  "block.adminsfactions.barracks": "Barracks",
 
   "gui.adminsfactions.faction_table": "Faction Table",
+  "gui.adminsfactions.barracks": "Barracks",
 
   "adminsfactions.configuration.title": "Admin's Factions Config",
   "adminsfactions.configuration.section.adminsfactions.common.toml": "Admin's Factions Config",

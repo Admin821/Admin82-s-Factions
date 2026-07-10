@@ -2,7 +2,10 @@ package com.admin82.factions;
 
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.*;
+import com.admin82.factions.barracks.BarracksData;
+import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.network.packet.OpenConquestGuiPacket;
+import com.admin82.factions.network.packet.OpenKitSelectionPacket;
 import com.admin82.factions.network.packet.SyncWarStatePacket;
 import com.admin82.factions.network.packet.WageWarPacket;
 import com.admin82.factions.war.ActiveWar;
@@ -122,6 +125,58 @@ public class FactionWarEvents {
         checkWinConditions(server, war, fmgr, warmgr);
         if (war.phase != WarPhase.ENDED) {
             WageWarPacket.broadcastWarState(server, war, fmgr);
+        }
+    }
+
+    // ── Player Respawn → teleport to faction barracks ─────────────────────────
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        MinecraftServer server = player.server;
+        WarManager warmgr = WarManager.get(server);
+        ActiveWar war = warmgr.getWarForPlayer(player.getUUID());
+        if (war == null || war.phase != WarPhase.ACTIVE) return;
+
+        // Only teleport if they still have lives
+        UUID uid = player.getUUID();
+        boolean isAtk = war.isAttacker(uid);
+        int lives = isAtk ? war.attackerLives.getOrDefault(uid, 0)
+                           : war.defenderLives.getOrDefault(uid, 0);
+        if (lives <= 0) return; // eliminated — stays as spectator
+
+        FactionManager fmgr = FactionManager.get(server);
+        Faction faction = fmgr.getFactionForPlayer(uid);
+        if (faction == null) return;
+
+        FactionManager.TableLocation barrLoc = fmgr.getFactionBarracks(faction.getId());
+        if (barrLoc == null) return;
+
+        // Find the target level
+        ServerLevel targetLevel = null;
+        for (ServerLevel lvl : server.getAllLevels()) {
+            if (lvl.dimension().location().toString().equals(barrLoc.dimension())) {
+                targetLevel = lvl; break;
+            }
+        }
+        if (targetLevel == null) return;
+
+        BlockPos barrPos = barrLoc.pos();
+        // Spawn a few blocks in front of the barracks door
+        int spawnX = barrPos.getX();
+        int spawnZ = barrPos.getZ() + 2;
+        int spawnY = targetLevel.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawnX, spawnZ);
+
+        final ServerLevel finalLevel = targetLevel;
+        player.teleportTo(finalLevel, spawnX + 0.5, spawnY, spawnZ + 0.5, player.getYRot(), player.getXRot());
+        player.displayClientMessage(
+                Component.literal("§7You respawned at the §e" + faction.getName() + " §7Barracks."), false);
+
+        // Send kit selection screen if faction has kits available
+        BarracksData bData = BarracksData.get(server);
+        List<KitData> kits = new java.util.ArrayList<>(bData.getKits(player.getUUID()));
+        if (!kits.isEmpty()) {
+            PacketDistributor.sendToPlayer(player, OpenKitSelectionPacket.fromKits(kits));
         }
     }
 

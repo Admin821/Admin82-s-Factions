@@ -1,5 +1,6 @@
 package com.admin82.factions.registry;
 
+import com.admin82.factions.item.BarracksItem;
 import com.admin82.factions.item.CoinItem;
 import com.admin82.factions.item.FactionTableItem;
 import net.minecraft.world.item.BlockItem;
@@ -12,6 +13,10 @@ import static com.admin82.factions.AdminsFactions.MODID;
 public class ModItems {
 
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
+
+    public static final DeferredItem<BarracksItem> BARRACKS =
+            ITEMS.register("barracks",
+                    () -> new BarracksItem(ModBlocks.BARRACKS.get(), new Item.Properties()));
 
     public static final DeferredItem<FactionTableItem> FACTION_TABLE =
             ITEMS.register("faction_table",

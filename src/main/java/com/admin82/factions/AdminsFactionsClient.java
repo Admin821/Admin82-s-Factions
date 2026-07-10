@@ -1,6 +1,7 @@
 package com.admin82.factions;
 
 import com.admin82.factions.registry.ModMenuTypes;
+import com.admin82.factions.screen.BarracksScreen;
 import com.admin82.factions.screen.CurrencyExchangeScreen;
 import com.admin82.factions.screen.FactionTableScreen;
 import com.admin82.factions.screen.MarketScreen;
@@ -29,6 +30,7 @@ public class AdminsFactionsClient {
 
     @SubscribeEvent
     static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
+        event.register(ModMenuTypes.BARRACKS.get(), BarracksScreen::new);
         event.register(ModMenuTypes.FACTION_TABLE.get(), FactionTableScreen::new);
         event.register(ModMenuTypes.MARKET.get(), MarketScreen::new);
         event.register(ModMenuTypes.CURRENCY_EXCHANGE.get(), CurrencyExchangeScreen::new);

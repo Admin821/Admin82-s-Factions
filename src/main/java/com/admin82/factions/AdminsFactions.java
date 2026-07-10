@@ -38,6 +38,7 @@ public class AdminsFactions {
                     .withTabsBefore(CreativeModeTabs.COMBAT)
                     .icon(() -> ModItems.FACTION_TABLE.get().getDefaultInstance())
                     .displayItems((params, output) -> {
+                        output.accept(ModItems.BARRACKS.get());
                         output.accept(ModItems.FACTION_TABLE.get());
                         output.accept(ModItems.MARKET_BLOCK.get());
                         output.accept(ModItems.CURRENCY_EXCHANGE_BLOCK.get());

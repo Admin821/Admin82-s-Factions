@@ -1,6 +1,7 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
@@ -49,6 +50,15 @@ public record CreateFactionPacket(String name, String description) implements Cu
             String name = packet.name().trim();
             if (name.isEmpty() || name.length() > 32) return;
             if (manager.isNameTaken(name)) return;
+
+            // ── Require a placed Barracks before faction can be created ───────
+            FactionManager.TableLocation pendingBarracks = manager.getPendingBarracks(player.getUUID());
+            if (pendingBarracks == null) {
+                player.displayClientMessage(
+                        net.minecraft.network.chat.Component.literal(
+                                "§cYou must place a §eBarracks§c block first!"), true);
+                return;
+            }
 
             Faction faction = manager.createFaction(name, player, packet.description().trim());
 
@@ -100,6 +110,19 @@ public record CreateFactionPacket(String name, String description) implements Cu
                 int chunkX = SectionPos.blockToSectionCoord(tablePos.getX());
                 int chunkZ = SectionPos.blockToSectionCoord(tablePos.getZ());
                 manager.claimChunk(faction.getId(), chunkX, chunkZ, tableDim);
+            }
+
+            // ── Link the pending barracks to the new faction ──────────────────
+            manager.clearPendingBarracks(player.getUUID());
+            ResourceKey<Level> barrDimKey = ResourceKey.create(Registries.DIMENSION,
+                    ResourceLocation.parse(pendingBarracks.dimension()));
+            ServerLevel barrLevel = player.server.getLevel(barrDimKey);
+            if (barrLevel != null) {
+                BlockPos barrPos = pendingBarracks.pos();
+                if (barrLevel.getBlockEntity(barrPos) instanceof BarracksBlockEntity barrBe) {
+                    barrBe.setLinkedFactionId(faction.getId());
+                }
+                manager.setFactionBarracks(faction.getId(), barrPos, pendingBarracks.dimension());
             }
 
             PacketDistributor.sendToPlayer(player, new SyncFactionDataPacket(faction));

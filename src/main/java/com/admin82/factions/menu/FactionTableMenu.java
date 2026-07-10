@@ -211,6 +211,8 @@ public class FactionTableMenu extends AbstractContainerMenu {
         panel.addChildren(
                 new Label().setText("§6§lFaction Table").lss("horizontal-align", "center"),
                 new Label().setText("§7Create a faction to claim land and build power.").lss("horizontal-align", "center"),
+                new Label().setText("§e⚠ You must place a §6Barracks§e block first!").lss("horizontal-align", "center"),
+                new Label().setText("§8The Barracks will be your faction spawn point.").lss("horizontal-align", "center"),
                 new Label().setText("§fFaction Name:"),
                 new TextField().setValue("").bindObserver(v -> nameVal[0] = v).layout(l -> l.width(388)),
                 new Label().setText("§fDescription (optional):"),

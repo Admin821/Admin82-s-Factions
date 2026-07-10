@@ -1,5 +1,6 @@
 package com.admin82.factions.registry;
 
+import com.admin82.factions.block.BarracksBlock;
 import com.admin82.factions.block.CurrencyExchangeBlock;
 import com.admin82.factions.block.FactionTableBlock;
 import com.admin82.factions.block.MarketBlock;
@@ -14,6 +15,17 @@ import static com.admin82.factions.AdminsFactions.MODID;
 public class ModBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
+
+    public static final DeferredBlock<BarracksBlock> BARRACKS = BLOCKS.register(
+            "barracks",
+            () -> new BarracksBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.STONE)
+                            .strength(3.5f)
+                            .sound(SoundType.STONE)
+                            .requiresCorrectToolForDrops()
+            )
+    );
 
     public static final DeferredBlock<FactionTableBlock> FACTION_TABLE = BLOCKS.register(
             "faction_table",
