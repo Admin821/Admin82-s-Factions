@@ -19,10 +19,10 @@ public class BarracksItem extends BlockItem {
     public void appendHoverText(ItemStack stack, Item.TooltipContext context,
                                 List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        tooltip.add(Component.literal("§7The faction's spawn point during wars."));
-        tooltip.add(Component.literal("§7Stores kits for each life in war."));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line1"));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line2"));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("§8» Required before creating a faction."));
-        tooltip.add(Component.literal("§8» Right-click to manage kits and life assignments."));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line3"));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line4"));
     }
 }

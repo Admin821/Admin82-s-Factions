@@ -85,12 +85,10 @@ public class Faction {
 
     public void addMember(FactionMember member) {
         members.add(member);
-        power++;
     }
 
     public void removeMember(UUID uuid) {
         members.removeIf(m -> m.getUuid().equals(uuid));
-        power = Math.max(1, power - 1);
     }
 
     // ── Permissions ───────────────────────────────────────────────────────────

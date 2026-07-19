@@ -1,6 +1,7 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.block.FactionTableBlock;
 import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.faction.Faction;
@@ -81,6 +82,10 @@ public record CreateFactionPacket(String name, String description) implements Cu
                     if (tableLevel.getBlockEntity(tablePos) instanceof FactionTableBlockEntity be) {
                         be.setLinkedFactionId(faction.getId());
                     }
+                    // Place the three invisible filler blocks for the 2×2 footprint
+                    if (FactionTableBlock.has2x2Space(tableLevel, tablePos)) {
+                        FactionTableBlock.placeFillers(tableLevel, tablePos);
+                    }
                     // Consume the Faction Table item from the player's hand
                     if (!player.getAbilities().instabuild) {
                         ItemStack held = player.getMainHandItem();
@@ -109,7 +114,7 @@ public record CreateFactionPacket(String name, String description) implements Cu
                 manager.setFactionTable(faction.getId(), tablePos, tableDim);
                 int chunkX = SectionPos.blockToSectionCoord(tablePos.getX());
                 int chunkZ = SectionPos.blockToSectionCoord(tablePos.getZ());
-                manager.claimChunk(faction.getId(), chunkX, chunkZ, tableDim);
+                manager.claimChunk(faction.getId(), chunkX, chunkZ, tableDim, 100L); // core chunk = 1 silver/day
             }
 
             // ── Link the pending barracks to the new faction ──────────────────

@@ -30,6 +30,8 @@ public class FactionManager extends SavedData {
     private final Map<UUID, TableLocation> pendingCreationTables = new HashMap<>();
     // playerUUID → pending barracks location (transient — set when barracks placed pre-faction)
     private final Map<UUID, TableLocation> pendingBarracksMap = new HashMap<>();
+    // playerUUID → pending barracks move (transient, not saved to NBT)
+    private final Map<UUID, PendingMove> pendingBarracksMoves = new HashMap<>();
 
     public FactionManager() {}
 
@@ -149,7 +151,16 @@ public class FactionManager extends SavedData {
 
     public void clearPendingBarracks(UUID playerUUID) { pendingBarracksMap.remove(playerUUID); }
 
-    // ── Move mode (transient) ─────────────────────────────────────────────────
+    // ── Barracks move mode (transient) ──────────────────────────────────────────
+
+    public void startPendingBarracksMove(UUID playerUUID, UUID factionId, BlockPos originalPos, String dimension) {
+        pendingBarracksMoves.put(playerUUID, new PendingMove(factionId, originalPos, dimension));
+    }
+
+    @Nullable
+    public PendingMove getPendingBarracksMove(UUID playerUUID) { return pendingBarracksMoves.get(playerUUID); }
+
+    public void clearPendingBarracksMove(UUID playerUUID) { pendingBarracksMoves.remove(playerUUID); }
 
     public void startPendingMove(UUID playerUUID, UUID factionId, BlockPos originalPos, String dimension) {
         pendingMoves.put(playerUUID, new PendingMove(factionId, originalPos, dimension));
@@ -198,12 +209,16 @@ public class FactionManager extends SavedData {
     // ── Land claims ───────────────────────────────────────────────────────────
 
     public boolean claimChunk(UUID factionId, int chunkX, int chunkZ, String dimension) {
+        return claimChunk(factionId, chunkX, chunkZ, dimension, 0L);
+    }
+
+    public boolean claimChunk(UUID factionId, int chunkX, int chunkZ, String dimension, long dailyCost) {
         for (Faction f : factions.values()) {
             if (f.hasClaim(chunkX, chunkZ, dimension)) return false;
         }
         Faction faction = factions.get(factionId);
         if (faction == null) return false;
-        faction.addClaim(new LandClaim(chunkX, chunkZ, net.minecraft.resources.ResourceLocation.parse(dimension)));
+        faction.addClaim(new LandClaim(chunkX, chunkZ, net.minecraft.resources.ResourceLocation.parse(dimension), dailyCost));
         setDirty();
         return true;
     }

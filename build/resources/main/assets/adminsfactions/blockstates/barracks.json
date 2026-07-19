@@ -1,5 +1,5 @@
 {
   "variants": {
-    "": { "model": "adminsfactions:block/barracks" }
+    "": { "model": "adminsfactions:block/barracks", "y": 180 }
   }
 }

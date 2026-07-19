@@ -2,6 +2,8 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.*;
+import com.admin82.factions.item.TemporaryMoveItem;
+import com.admin82.factions.registry.ModItems;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -46,6 +48,10 @@ public record RequestMoveTablePacket() implements CustomPacketPayload {
             if (table == null) return;
 
             manager.startPendingMove(player.getUUID(), faction.getId(), table.pos(), table.dimension());
+
+            TemporaryMoveItem.removeAll(player, ModItems.FACTION_TABLE.get());
+            player.getInventory().add(TemporaryMoveItem.create(ModItems.FACTION_TABLE.get(), "Faction Table"));
+
             player.displayClientMessage(
                     net.minecraft.network.chat.Component.literal(
                             "§eMOVE MODE ACTIVE — Place a new Faction Table at the desired location.\n" +

@@ -1,36 +1,3 @@
-/ldlib2_ui_editor
-/faction list
-/faction delete life
-/faction exchange list
-/faction exchange set
-/faction exchange set copper 1
-/faction exchange set
-/
-/faction war graceperiod
-/faction war vassals edit
-/faction delete life
-/ldlib2_client
-/gamemode creative
-/deop Player2
-/op Player2
-/faction war vassals edit
-/faction war vassals edit life free
-/faction war vassals edit life tax 10
-/faction war vassals edit life tax 1
-/deop Player2
-/op Player2
-/warden_spawn_tracker
-/faction war graceperiod set 1
-/gamemode survival
-/gamemode survival Player2
-/gamemode creative
-/gamemode creative Player2
-/gamemode spectator
-/gamemode creative
-/faction delete life
-/faction list
-/faction delete 121
-/faction list
 /faction delete 121
 /time set day
 /gamemode survival
@@ -41,4 +8,43 @@
 /gamemode creative Player2
 /faction war graceperiod set 10
 /gamemode survival
+/gamemode creative
+/paste LpDTfqYKXQN1eTUHaxXP
+/kill Player2
+/faction exchange list
+/give Dev adminsfactions:barracks
+/give Dev adminsfactions:outpost
+/faction delete life
+/kill Player2
+/gamemode creative Player2
+/faction exchange list
+/kill
+/gamemode creative
+/op Player2
+/deop Dev
+/op Player2
+/deop Dev
+/factionreturn
+/op Player2
+/deop
+/deop Dev
+/faction war AfterWarCooldownTime 1
+/faction war FactionTableCaptureKothTime 5
+/faction war AfterWarCooldownTime 1
+/faction delete death
+/faction war OutpostKothCaptureTime 5
+/faction war FactionTableCaptureKothTime 5
+/op Player2
+/deop Dev
+/faction delete life
+/time set day
+/weather clear
+/gamemode survival
+/gamemode creative
+/time set day
+/gamemode survival
+/time set day
+/give Dev minecraft:diamond_pickaxe
+/effect give Dev minecraft:regeneration infinite 10
+/weather clear
 /gamemode creative

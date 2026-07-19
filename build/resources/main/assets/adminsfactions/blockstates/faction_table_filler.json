@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "part=ne": { "model": "adminsfactions:block/faction_table_filler" },
+    "part=sw": { "model": "adminsfactions:block/faction_table_filler" },
+    "part=se": { "model": "adminsfactions:block/faction_table_filler" }
+  }
+}

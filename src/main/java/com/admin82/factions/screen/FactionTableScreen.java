@@ -81,4 +81,17 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
     public void updateEconomy(long wallet, long vault) {
         menu.updateEconomy(wallet, vault);
     }
+
+    /** Called by {@link com.admin82.factions.network.packet.SyncWarDemandsPacket}. */
+    public void updateWarDemands(java.util.UUID warId,
+                                 java.util.List<com.admin82.factions.war.WarDemand> demands) {
+        menu.updateWarDemands(warId, demands);
+    }
+
+    /** Called by {@link com.admin82.factions.network.packet.SyncEnemyClaimsPacket}. */
+    public void updateEnemyClaims(java.util.UUID targetFactionId,
+                                  java.util.List<String> claimKeys,
+                                  int coreCX, int coreCZ, String coreDim) {
+        menu.updateEnemyClaims(targetFactionId, claimKeys, coreCX, coreCZ, coreDim);
+    }
 }

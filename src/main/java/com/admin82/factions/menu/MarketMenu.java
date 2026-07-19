@@ -2,6 +2,7 @@ package com.admin82.factions.menu;
 
 import com.admin82.factions.economy.Currency;
 import com.admin82.factions.economy.MarketListing;
+import com.admin82.factions.economy.SoldListing;
 import com.admin82.factions.network.packet.MarketActionPacket;
 import com.admin82.factions.registry.ModMenuTypes;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
@@ -47,7 +48,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MarketMenu extends AbstractContainerMenu {
 
     // ── Server-pushed data ────────────────────────────────────────────────────
-    private final AtomicReference<List<MarketListing>> listingsRef = new AtomicReference<>(List.of());
+    private final AtomicReference<List<MarketListing>> listingsRef    = new AtomicReference<>(List.of());
+    private final AtomicReference<List<SoldListing>>   soldRef        = new AtomicReference<>(List.of());
     private final AtomicLong    walletRef       = new AtomicLong(0L);
     private final AtomicInteger myListingsCount = new AtomicInteger(0);
     private final AtomicInteger maxSlotsRef     = new AtomicInteger(1);
@@ -103,6 +105,13 @@ public class MarketMenu extends AbstractContainerMenu {
         }
     }
 
+    public void updateSoldListings(List<SoldListing> sold) {
+        soldRef.set(sold);
+        if (currentTab == Tab.MY_LISTINGS && createStep == CreateStep.LIST && myListArea != null) {
+            myListArea.clearAllChildren(); fillMyList(myListArea);
+        }
+    }
+
     @Override public ItemStack quickMoveStack(Player p, int i) { return ItemStack.EMPTY; }
     @Override public boolean stillValid(Player p) {
         return p.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0;
@@ -127,6 +136,7 @@ public class MarketMenu extends AbstractContainerMenu {
                 new Label().setText("§6§lFaction Market").layout(l -> l.flex(1)),
                 new Label().bindDataSource(SupplierDataSource.of(() ->
                         Component.literal("§7Wallet: §a" + Currency.format(walletRef.get()))))
+                        .layout(l -> l.width(140))
         );
 
         // Tab bar
@@ -317,11 +327,38 @@ public class MarketMenu extends AbstractContainerMenu {
     private void fillMyList(UIElement area) {
         var mc = Minecraft.getInstance();
         UUID myId = mc.player != null ? mc.player.getUUID() : null;
-        var mine  = listingsRef.get().stream().filter(l -> myId != null && myId.equals(l.sellerUUID)).toList();
-        if (mine.isEmpty()) {
+
+        // ── Sold listings (unclaimed proceeds) ─────────────────────────────────
+        var mySold = soldRef.get().stream()
+                .filter(s -> myId != null && myId.equals(s.sellerUUID)).toList();
+        for (SoldListing sale : mySold) {
+            var row = new UIElement();
+            row.layout(r -> r.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(22).width(440));
+            var icon = new ItemSlot(); icon.setItem(sale.item); icon.layout(r -> r.width(20).height(20));
+            var claimBtn = new Button().setText("§a✦ Claim")
+                    .setOnClick(e -> PacketDistributor.sendToServer(new MarketActionPacket(
+                            MarketActionPacket.Action.CLAIM_SOLD, sale.saleId, -1, 0, 0, false)))
+                    .layout(r -> r.width(56));
+            row.addChildren(
+                    icon,
+                    new Label().setText("§a[SOLD] §f" + sale.itemName).layout(r -> r.flex(1)),
+                    new Label().setText("§7Buyer: §e" + sale.buyerName).layout(r -> r.width(90)),
+                    new Label().setText("§a" + Currency.format(sale.proceeds)).layout(r -> r.width(70)),
+                    claimBtn
+            );
+            area.addChildren(row);
+        }
+        if (!mySold.isEmpty()) {
+            area.addChildren(new Label().setText("§8─────────────────────────────────────────────"));
+        }
+
+        // ── Active listings ────────────────────────────────────────────────────
+        var mine = listingsRef.get().stream().filter(l -> myId != null && myId.equals(l.sellerUUID)).toList();
+        if (mine.isEmpty() && mySold.isEmpty()) {
             area.addChildren(new Label().setText("§7No active listings. Click §aCreate New Listing§7 below."));
             return;
         }
+        if (mine.isEmpty()) return;
         for (int i = 0; i < ROWS - 1; i++) {
             int idx = i + myScroll;
             if (idx >= mine.size()) break;

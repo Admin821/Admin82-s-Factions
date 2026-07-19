@@ -27,7 +27,8 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
      * Lightweight kit entry for the selection screen.
      * Contains the kit name and a compact array of all 40 item slots.
      */
-    public record KitEntry(String name, ItemStack[] items) {}
+    /** A unique kit shown on the selection screen. {@code count} = how many copies remain to take. */
+    public record KitEntry(String name, ItemStack[] items, int count) {}
 
     public static final Type<OpenKitSelectionPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(AdminsFactions.MODID, "open_kit_selection"));
@@ -38,6 +39,7 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
                         buf.writeVarInt(pkt.kits().size());
                         for (KitEntry entry : pkt.kits()) {
                             buf.writeUtf(entry.name(), 64);
+                            buf.writeVarInt(entry.count());
                             // Write non-empty slots only (sparse)
                             int nonEmpty = 0;
                             for (int i = 0; i < entry.items().length; i++)
@@ -53,10 +55,11 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
                         }
                     },
                     buf -> {
-                        int count = buf.readVarInt();
+                        int kitCount = buf.readVarInt();
                         List<KitEntry> kits = new ArrayList<>();
-                        for (int k = 0; k < count; k++) {
+                        for (int k = 0; k < kitCount; k++) {
                             String name = buf.readUtf(64);
+                            int count = buf.readVarInt();
                             ItemStack[] items = new ItemStack[KitData.SLOT_COUNT];
                             for (int i = 0; i < KitData.SLOT_COUNT; i++) items[i] = ItemStack.EMPTY;
                             int nonEmpty = buf.readVarInt();
@@ -65,7 +68,7 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
                                 ItemStack stack = ItemStack.OPTIONAL_STREAM_CODEC.decode(buf);
                                 if (idx >= 0 && idx < KitData.SLOT_COUNT) items[idx] = stack;
                             }
-                            kits.add(new KitEntry(name, items));
+                            kits.add(new KitEntry(name, items, count));
                         }
                         return new OpenKitSelectionPacket(kits);
                     });
@@ -73,13 +76,24 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    /** Builds the packet from a list of KitData objects. */
+    /**
+     * Builds the packet from a list of KitData objects.
+     * Kits with the same name are deduplicated — one card is shown per unique name
+     * with a count badge showing how many copies remain to take.
+     */
     public static OpenKitSelectionPacket fromKits(List<KitData> kits) {
-        List<KitEntry> entries = new ArrayList<>();
+        // Preserve insertion order; track first-seen items and running counts
+        java.util.LinkedHashMap<String, KitEntry> seen = new java.util.LinkedHashMap<>();
         for (KitData kit : kits) {
-            entries.add(new KitEntry(kit.getName(), kit.getSlotsCopy()));
+            String name = kit.getName();
+            KitEntry existing = seen.get(name);
+            if (existing == null) {
+                seen.put(name, new KitEntry(name, kit.getSlotsCopy(), 1));
+            } else {
+                seen.put(name, new KitEntry(name, existing.items(), existing.count() + 1));
+            }
         }
-        return new OpenKitSelectionPacket(entries);
+        return new OpenKitSelectionPacket(new ArrayList<>(seen.values()));
     }
 
     public static void handle(OpenKitSelectionPacket pkt, IPayloadContext ctx) {

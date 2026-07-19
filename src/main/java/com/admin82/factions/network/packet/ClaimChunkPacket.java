@@ -73,13 +73,27 @@ public record ClaimChunkPacket(int chunkX, int chunkZ, String dimension) impleme
                 return;
             }
 
-            manager.claimChunk(faction.getId(), packet.chunkX(), packet.chunkZ(), packet.dimension());
+            // ── Economy gate: cost doubles for every chunk already owned ──────
+            EconomyManager eco = EconomyManager.get(player.server);
+            int claimCount = faction.getLandClaims().size();
+            long baseCost  = Config.CLAIM_COST_COPPER.get();
+            double rate    = eco.getClaimRateMultiplier();
+            long cost      = (long) (baseCost * Math.pow(rate, claimCount));
+            if (!eco.deductVault(faction.getId(), cost)) {
+                player.displayClientMessage(Component.literal(
+                        "§cNot enough funds in the faction vault!"
+                        + " §7Need §e" + com.admin82.factions.economy.Currency.format(cost)
+                        + " §7(vault: §e" + com.admin82.factions.economy.Currency.format(eco.getVault(faction.getId())) + "§7)"),
+                        true);
+                return;
+            }
+
+            manager.claimChunk(faction.getId(), packet.chunkX(), packet.chunkZ(), packet.dimension(), cost);
 
             // Vassal tax on claim cost
             VassalManager vmgr = VassalManager.get(player.server);
             if (vmgr.isVassal(faction.getId())) {
-                long claimCost = Config.CLAIM_COST_COPPER.get();
-                long tax = Math.max(1, claimCost * Config.VASSAL_TAX_PERCENT.get() / 100);
+                long tax = Math.max(1, cost * Config.VASSAL_TAX_PERCENT.get() / 100);
                 vmgr.accumulateTax(faction.getId(), tax);
             }
 

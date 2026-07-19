@@ -5,10 +5,15 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 
-public record LandClaim(int chunkX, int chunkZ, ResourceLocation dimension) {
+public record LandClaim(int chunkX, int chunkZ, ResourceLocation dimension, long dailyCost) {
+
+    /** Backward-compat constructor (zero daily cost). */
+    public LandClaim(int chunkX, int chunkZ, ResourceLocation dimension) {
+        this(chunkX, chunkZ, dimension, 0L);
+    }
 
     public LandClaim(ChunkPos pos, ResourceLocation dimension) {
-        this(pos.x, pos.z, dimension);
+        this(pos.x, pos.z, dimension, 0L);
     }
 
     public ChunkPos chunkPos() {
@@ -24,6 +29,7 @@ public record LandClaim(int chunkX, int chunkZ, ResourceLocation dimension) {
         tag.putInt("x", chunkX);
         tag.putInt("z", chunkZ);
         tag.putString("dim", dimension.toString());
+        tag.putLong("dailyCost", dailyCost);
         return tag;
     }
 
@@ -31,7 +37,8 @@ public record LandClaim(int chunkX, int chunkZ, ResourceLocation dimension) {
         return new LandClaim(
                 tag.getInt("x"),
                 tag.getInt("z"),
-                ResourceLocation.parse(tag.getString("dim"))
+                ResourceLocation.parse(tag.getString("dim")),
+                tag.getLong("dailyCost") // 0 for old data — treated as free
         );
     }
 
@@ -39,10 +46,11 @@ public record LandClaim(int chunkX, int chunkZ, ResourceLocation dimension) {
         buf.writeInt(chunkX);
         buf.writeInt(chunkZ);
         buf.writeResourceLocation(dimension);
+        buf.writeLong(dailyCost);
     }
 
     public static LandClaim fromNetwork(FriendlyByteBuf buf) {
-        return new LandClaim(buf.readInt(), buf.readInt(), buf.readResourceLocation());
+        return new LandClaim(buf.readInt(), buf.readInt(), buf.readResourceLocation(), buf.readLong());
     }
 
     @Override

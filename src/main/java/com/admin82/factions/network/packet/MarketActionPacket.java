@@ -6,6 +6,7 @@ import com.admin82.factions.menu.MarketMenu;
 import com.admin82.factions.Config;
 import com.admin82.factions.war.VassalManager;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -31,7 +32,7 @@ public record MarketActionPacket(
         boolean isAuction
 ) implements CustomPacketPayload {
 
-    public enum Action { CREATE, BUY, BID, CANCEL, REFRESH }
+    public enum Action { CREATE, BUY, BID, CANCEL, REFRESH, CLAIM_SOLD }
 
     public static final Type<MarketActionPacket> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "market_action"));
@@ -97,12 +98,12 @@ public record MarketActionPacket(
                 }
                 case BUY -> {
                     var listing = market.getListing(pkt.listingId());
-                    if (listing == null || listing.isAuction) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cListing not found."), true); break; }
-                    if (listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cYou cannot buy your own listing."), true); break; }
-                    if (!eco.deductWallet(sp.getUUID(), listing.price)) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cInsufficient funds."), true); break; }
+                    if (listing == null || listing.isAuction) { sp.displayClientMessage(Component.literal("§cListing not found."), true); break; }
+                    if (listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(Component.literal("§cYou cannot buy your own listing."), true); break; }
+                    if (!eco.deductWallet(sp.getUUID(), listing.price)) { sp.displayClientMessage(Component.literal("§cInsufficient funds."), true); break; }
 
                     long proceeds = listing.netProceeds(listing.price);
-                    // Vassal tax: if seller's faction is a vassal, divert a % of proceeds
+                    // Vassal tax
                     FactionManager fmgr = FactionManager.get(server);
                     var sellerFaction = fmgr.getFactionForPlayer(listing.sellerUUID);
                     VassalManager vmgr = VassalManager.get(server);
@@ -111,11 +112,38 @@ public record MarketActionPacket(
                         vmgr.accumulateTax(sellerFaction.getId(), tax);
                         proceeds -= tax;
                     }
-                    eco.addWallet(listing.sellerUUID, proceeds);
 
+                    // Give item to buyer
                     if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+
+                    // Create a SoldListing so the seller must claim proceeds
+                    String buyerName = sp.getGameProfile().getName();
+                    var sale = new com.admin82.factions.economy.SoldListing();
+                    sale.saleId     = java.util.UUID.randomUUID();
+                    sale.sellerUUID = listing.sellerUUID;
+                    sale.item       = listing.item.copy();
+                    sale.itemName   = listing.item.getHoverName().getString();
+                    sale.buyerName  = buyerName;
+                    sale.proceeds   = proceeds;
+                    sale.soldAt     = System.currentTimeMillis();
+                    market.addSoldListing(sale);
                     market.removeListing(listing.listingId);
-                    sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§aPurchased!"), true);
+
+                    sp.displayClientMessage(Component.literal("§aPurchased!"), true);
+
+                    // Notify seller if online
+                    final long fProceeds = proceeds;
+                    final long fPrice    = listing.price;
+                    ServerPlayer seller = server.getPlayerList().getPlayer(listing.sellerUUID);
+                    if (seller != null) {
+                        seller.displayClientMessage(Component.literal(
+                                "§a[Market] §e" + buyerName + " §cpurchased §f" + sale.itemName
+                                + " §cfor §e" + Currency.format(fPrice)
+                                + " §c(§a" + Currency.format(fProceeds) + " §cafter tax)§c."
+                                + " §eGo to §eManage Listings§e to claim your earnings!"), false);
+                        PacketDistributor.sendToPlayer(seller, new SyncSoldListingsPacket(
+                                market.getSoldListingsForPlayer(listing.sellerUUID)));
+                    }
                 }
                 case BID -> {
                     var listing = market.getListing(pkt.listingId());
@@ -130,12 +158,24 @@ public record MarketActionPacket(
                 }
                 case CANCEL -> {
                     var listing = market.getListing(pkt.listingId());
-                    if (listing == null || !listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cCannot cancel that listing."), true); break; }
+                    if (listing == null || !listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(Component.literal("§cCannot cancel that listing."), true); break; }
                     // Refund top bidder on auction cancel
                     if (listing.isAuction && listing.highestBidder != null) eco.addWallet(listing.highestBidder, listing.highestBid);
                     if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
                     market.removeListing(pkt.listingId());
-                    sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§aListing cancelled."), true);
+                    sp.displayClientMessage(Component.literal("§aListing cancelled."), true);
+                }
+                case CLAIM_SOLD -> {
+                    var sale = market.getSoldListingsForPlayer(sp.getUUID()).stream()
+                            .filter(s -> s.saleId.equals(pkt.listingId())).findFirst().orElse(null);
+                    if (sale == null) { sp.displayClientMessage(Component.literal("§cSale not found or already claimed."), true); break; }
+                    eco.addWallet(sp.getUUID(), sale.proceeds);
+                    market.claimSoldListing(pkt.listingId());
+                    sp.displayClientMessage(Component.literal("§aClaimed §e" + Currency.format(sale.proceeds)
+                            + " §afrom the sale of §f" + sale.itemName + "§a!"), true);
+                    // Sync updated sold listings back
+                    PacketDistributor.sendToPlayer(sp, new SyncSoldListingsPacket(
+                            market.getSoldListingsForPlayer(sp.getUUID())));
                 }
                 case REFRESH -> { /* no-op: re-sync below handles it */ }
             }
@@ -152,6 +192,9 @@ public record MarketActionPacket(
                 PacketDistributor.sendToPlayer(online, new SyncMarketPacket(
                         allListings, eco.getWallet(online.getUUID()),
                         market.countPlayerListings(online.getUUID()), onlineMaxSlots));
+                // Also push this player's sold listings
+                PacketDistributor.sendToPlayer(online, new SyncSoldListingsPacket(
+                        market.getSoldListingsForPlayer(online.getUUID())));
             }
         });
     }

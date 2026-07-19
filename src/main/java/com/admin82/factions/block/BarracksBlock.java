@@ -5,23 +5,31 @@ import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.item.TemporaryMoveItem;
 import com.admin82.factions.menu.BarracksMenu;
 import com.admin82.factions.network.packet.SyncBarracksPacket;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -40,6 +48,16 @@ public class BarracksBlock extends BaseEntityBlock {
     @Override
     public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
 
+    @Override
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.empty();
+    }
+
+    @Override
+    public boolean useShapeForLightOcclusion(BlockState state) {
+        return false;
+    }
+
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
@@ -52,8 +70,63 @@ public class BarracksBlock extends BaseEntityBlock {
     public void setPlacedBy(Level level, BlockPos pos, BlockState state,
                              @Nullable LivingEntity placer, ItemStack stack) {
         if (level.isClientSide || !(placer instanceof ServerPlayer player)) return;
+
+        // Barracks can only be placed in the Overworld
+        if (!level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
+            level.removeBlock(pos, false);
+            // Refund the barracks block as an item (state.getBlock() is the barracks block itself)
+            player.getInventory().add(new net.minecraft.world.item.ItemStack(state.getBlock()));
+            player.displayClientMessage(
+                    net.minecraft.network.chat.Component.literal(
+                            "§cBarracks can only be placed in the Overworld."), true);
+            return;
+        }
+
         FactionManager mgr = FactionManager.get((ServerLevel) level);
+
+        // ── Case 1: completing a barracks move ────────────────────────────────────────────
+        FactionManager.PendingMove pendingMove = mgr.getPendingBarracksMove(player.getUUID());
+        if (pendingMove != null) {
+            int chunkX = SectionPos.blockToSectionCoord(pos.getX());
+            int chunkZ = SectionPos.blockToSectionCoord(pos.getZ());
+            String dim = ((ServerLevel) level).dimension().location().toString();
+            Faction pendingFaction = mgr.getFaction(pendingMove.factionId());
+            if (pendingFaction == null || !pendingFaction.hasClaim(chunkX, chunkZ, dim)) {
+                level.removeBlock(pos, false);
+                player.getInventory().add(TemporaryMoveItem.create(state.getBlock().asItem(), "Barracks"));
+                player.displayClientMessage(
+                        Component.literal("§cBarracks can only be placed inside a chunk claimed by your faction!"), true);
+                return;
+            }
+
+            if (level.getBlockEntity(pos) instanceof BarracksBlockEntity be) {
+                be.setLinkedFactionId(pendingMove.factionId());
+            }
+
+            ResourceKey<net.minecraft.world.level.Level> oldDimKey = ResourceKey.create(
+                    Registries.DIMENSION, ResourceLocation.parse(pendingMove.dimension()));
+            ServerLevel oldLevel = ((ServerLevel) level).getServer().getLevel(oldDimKey);
+            if (oldLevel != null && !pendingMove.originalPos().equals(pos)) {
+                oldLevel.removeBlock(pendingMove.originalPos(), false);
+            }
+
+            mgr.setFactionBarracks(pendingMove.factionId(), pos, dim);
+            mgr.clearPendingBarracksMove(player.getUUID());
+            TemporaryMoveItem.removeAll(player, state.getBlock().asItem());
+            player.displayClientMessage(Component.literal("§aBarracks moved successfully!"), false);
+            return;
+        }
+
         Faction faction = mgr.getFactionForPlayer(player.getUUID());
+
+        // ── Case 2: faction already has a barracks (1-per-faction) ─────────────────────
+        if (faction != null && mgr.getFactionBarracks(faction.getId()) != null) {
+            level.removeBlock(pos, false);
+            player.getInventory().add(new net.minecraft.world.item.ItemStack(state.getBlock()));
+            player.displayClientMessage(
+                    Component.literal("§cYour faction already has a Barracks! Use the Kit Manager to move it."), true);
+            return;
+        }
 
         if (faction != null) {
             // Already in a faction — link immediately
@@ -86,10 +159,14 @@ public class BarracksBlock extends BaseEntityBlock {
         if (linkedId != null) {
             // Linked barracks: only faction members
             Faction faction = mgr.getFaction(linkedId);
-            if (faction == null || !faction.hasMember(player.getUUID())) {
-                String name = faction != null ? faction.getName() : "a disbanded faction";
+            if (faction == null) {
+                // Faction disbanded, clear the stale link so the block can be reclaimed
+                be.setLinkedFactionId(null);
+                mgr.removeFactionBarracks(linkedId);
+                linkedId = null; // fall through to unlinked path
+            } else if (!faction.hasMember(player.getUUID())) {
                 player.displayClientMessage(
-                        Component.literal("§cThis Barracks belongs to: §e" + name), true);
+                        Component.literal("§cThis Barracks belongs to: §e" + faction.getName()), true);
                 return InteractionResult.FAIL;
             }
         } else {

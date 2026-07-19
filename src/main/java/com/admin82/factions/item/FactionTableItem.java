@@ -1,5 +1,6 @@
 package com.admin82.factions.item;
 
+import com.admin82.factions.block.FactionTableBlock;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.menu.FactionTableMenu;
@@ -29,13 +30,12 @@ public class FactionTableItem extends BlockItem {
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        tooltip.add(Component.literal("§7Used to create and manage a Faction."));
-        tooltip.add(Component.literal("§7Right-click to open the faction menu."));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line1"));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("§8» Without a faction: opens the creation screen."));
-        tooltip.add(Component.literal("§8  The block is only placed after confirming."));
-        tooltip.add(Component.literal("§8» Only faction members can open a linked table."));
-        tooltip.add(Component.literal("§8» Ops (permission level 2+) can always break it."));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line2"));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line3"));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line4"));
+        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line5"));
     }
 
     @Override
@@ -55,6 +55,23 @@ public class FactionTableItem extends BlockItem {
 
             // Position must be free to place into
             if (!level.getBlockState(targetPos).canBeReplaced()) {
+                return InteractionResult.FAIL;
+            }
+
+            // ── Must have a free 2×2 footprint (east, south, south-east) ────────────
+            if (!FactionTableBlock.has2x2Space(level, targetPos)) {
+                player.displayClientMessage(
+                        Component.literal("§cNot enough space! The Faction Table needs a clear 2×2 area."), true);
+                return InteractionResult.FAIL;
+            }
+
+            // ── Must be placed outdoors (at or near the surface) and not covered ──
+            int surfaceY = ((ServerLevel) level).getHeight(
+                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    targetPos.getX(), targetPos.getZ());
+            if (targetPos.getY() < surfaceY - 1) {
+                player.displayClientMessage(
+                        Component.literal("§c[Faction Table] Must be placed at or above the surface — cannot be buried underground."), true);
                 return InteractionResult.FAIL;
             }
 

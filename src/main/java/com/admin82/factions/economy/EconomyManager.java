@@ -26,8 +26,16 @@ public class EconomyManager extends SavedData {
     private final Map<UUID, Long> playerWallets = new HashMap<>();
     /** Faction vault balances in copper. */
     private final Map<UUID, Long> factionVaults = new HashMap<>();
-    /** System-time (ms) when each faction's upkeep is next due. */
-    private final Map<UUID, Long> upkeepNextDue = new HashMap<>();
+    /** System-time (ms) when each faction's current upkeep period started. */
+    private final Map<UUID, Long> upkeepPeriodStart   = new HashMap<>();
+    /** Copper already charged in the current 24-hour upkeep period. */
+    private final Map<UUID, Long> upkeepChargedSoFar  = new HashMap<>();
+    /** Factions whose vault ran dry — claims still exist but have NO protection. */
+    private final Set<UUID>       insolventFactions    = new HashSet<>();
+    /** Multiplier for the land-claim cost exponent (default 1.4). -1 = use default. */
+    private double claimRateMultiplier     = -1;
+    /** Ramp added per 5-chunk distance band for outpost upkeep. -1 = use default (0.1). */
+    private double outpostDistanceRamp     = -1;
 
     // ── Singleton access ──────────────────────────────────────────────────────
 
@@ -84,26 +92,91 @@ public class EconomyManager extends SavedData {
 
     public void removeFactionData(UUID faction) {
         factionVaults.remove(faction);
-        upkeepNextDue.remove(faction);
+        upkeepPeriodStart.remove(faction);
+        upkeepChargedSoFar.remove(faction);
+        insolventFactions.remove(faction);
         setDirty();
     }
 
-    // ── Upkeep timers ─────────────────────────────────────────────────────────
+    // ── Claim rate multiplier ─────────────────────────────────────────────────
 
-    public long getUpkeepNextDue(UUID faction) {
-        return upkeepNextDue.getOrDefault(faction, 0L);
+    /**
+     * Returns the active claim-rate exponent multiplier.
+     * Values above 1.0 make deeds increasingly expensive.
+     * Default (when unset) is 1.4.
+     */
+    public double getClaimRateMultiplier() {
+        return claimRateMultiplier > 0 ? claimRateMultiplier : 1.4;
     }
 
-    public void setUpkeepNextDue(UUID faction, long timeMs) {
-        upkeepNextDue.put(faction, timeMs);
+    public void setClaimRateMultiplier(double rate) {
+        this.claimRateMultiplier = Math.max(1.0, rate);
         setDirty();
     }
 
     /**
-     * Returns {@code true} if the faction's vault has a positive balance,
-     * meaning they can still cover upcoming upkeep.
-     * A zero-vault faction is considered "no upkeep" for war and protection purposes.
+     * Returns the upkeep ramp added per 5-chunk Chebyshev distance band for outposts.
+     * Default 0.1 (each 5-chunk band adds +10% to base outpost upkeep).
      */
+    public double getOutpostDistanceRamp() {
+        return outpostDistanceRamp > 0 ? outpostDistanceRamp : 0.1;
+    }
+
+    public void setOutpostDistanceRamp(double ramp) {
+        this.outpostDistanceRamp = Math.max(0.0, ramp);
+        setDirty();
+    }
+
+    // ── Outpost teleport cost ─────────────────────────────────────────────────
+
+    /** Copper cost to teleport to a faction outpost from the Faction Table. Default 10 silver. */
+    private long tpCostToOutpostCopper = 1_000L;
+
+    public long getTpCostToOutpost() { return tpCostToOutpostCopper; }
+    public void setTpCostToOutpost(long copper) {
+        this.tpCostToOutpostCopper = Math.max(0, copper); setDirty();
+    }
+
+    // ── Upkeep: gradual drain + solvent/insolvent state ──────────────────────
+
+    public long getUpkeepPeriodStart(UUID faction) {
+        return upkeepPeriodStart.getOrDefault(faction, 0L);
+    }
+    public void setUpkeepPeriodStart(UUID faction, long ms) {
+        upkeepPeriodStart.put(faction, ms); setDirty();
+    }
+
+    public long getUpkeepChargedSoFar(UUID faction) {
+        return upkeepChargedSoFar.getOrDefault(faction, 0L);
+    }
+    public void setUpkeepChargedSoFar(UUID faction, long copper) {
+        upkeepChargedSoFar.put(faction, Math.max(0, copper)); setDirty();
+    }
+
+    /**
+     * Returns {@code true} if the faction's claims are currently protected by upkeep.
+     * Returns {@code false} if the vault ran dry (insolvent) — land is still claimed
+     * but offers no protection to the owning faction.
+     */
+    public boolean isProtected(UUID factionId) {
+        return !insolventFactions.contains(factionId);
+    }
+
+    /** Marks the faction as insolvent: claims exist but are unprotected. */
+    public void setInsolvent(UUID factionId) {
+        insolventFactions.add(factionId); setDirty();
+    }
+
+    /** Marks the faction as solvent: claims are protected again. */
+    public void setSolvent(UUID factionId) {
+        insolventFactions.remove(factionId); setDirty();
+    }
+
+    /**
+     * Legacy method kept for compatibility.
+     * Use {@link #isProtected(UUID)} for protection checks.
+     */
+    @Deprecated
     public boolean hasUpkeep(UUID faction) {
         return getVault(faction) > 0;
     }
@@ -208,14 +281,35 @@ public class EconomyManager extends SavedData {
         }
         tag.put("factionVaults", vaultList);
 
-        var upkeepList = new ListTag();
-        for (var e : upkeepNextDue.entrySet()) {
+        var periodStartList = new ListTag();
+        for (var e : upkeepPeriodStart.entrySet()) {
             var entry = new CompoundTag();
             entry.putUUID("id", e.getKey());
-            entry.putLong("nextDue", e.getValue());
-            upkeepList.add(entry);
+            entry.putLong("start", e.getValue());
+            periodStartList.add(entry);
         }
-        tag.put("upkeepNextDue", upkeepList);
+        tag.put("upkeepPeriodStart", periodStartList);
+
+        var chargedList = new ListTag();
+        for (var e : upkeepChargedSoFar.entrySet()) {
+            var entry = new CompoundTag();
+            entry.putUUID("id", e.getKey());
+            entry.putLong("charged", e.getValue());
+            chargedList.add(entry);
+        }
+        tag.put("upkeepChargedSoFar", chargedList);
+
+        var insolventList = new ListTag();
+        for (UUID fid : insolventFactions) {
+            var entry = new CompoundTag();
+            entry.putUUID("id", fid);
+            insolventList.add(entry);
+        }
+        tag.put("insolventFactions", insolventList);
+
+        if (claimRateMultiplier > 0)   tag.putDouble("claimRateMultiplier", claimRateMultiplier);
+        if (outpostDistanceRamp >= 0)   tag.putDouble("outpostDistanceRamp", outpostDistanceRamp);
+        tag.putLong("tpCostToOutpost", tpCostToOutpostCopper);
 
         return tag;
     }
@@ -232,11 +326,26 @@ public class EconomyManager extends SavedData {
             var entry = vaultList.getCompound(i);
             manager.factionVaults.put(entry.getUUID("id"), entry.getLong("copper"));
         }
-        var upkeepList = tag.getList("upkeepNextDue", Tag.TAG_COMPOUND);
-        for (int i = 0; i < upkeepList.size(); i++) {
-            var entry = upkeepList.getCompound(i);
-            manager.upkeepNextDue.put(entry.getUUID("id"), entry.getLong("nextDue"));
+        var periodStartList = tag.getList("upkeepPeriodStart", Tag.TAG_COMPOUND);
+        for (int i = 0; i < periodStartList.size(); i++) {
+            var entry = periodStartList.getCompound(i);
+            manager.upkeepPeriodStart.put(entry.getUUID("id"), entry.getLong("start"));
         }
+        var chargedList = tag.getList("upkeepChargedSoFar", Tag.TAG_COMPOUND);
+        for (int i = 0; i < chargedList.size(); i++) {
+            var entry = chargedList.getCompound(i);
+            manager.upkeepChargedSoFar.put(entry.getUUID("id"), entry.getLong("charged"));
+        }
+        var insolventList = tag.getList("insolventFactions", Tag.TAG_COMPOUND);
+        for (int i = 0; i < insolventList.size(); i++) {
+            manager.insolventFactions.add(insolventList.getCompound(i).getUUID("id"));
+        }
+        if (tag.contains("claimRateMultiplier"))
+            manager.claimRateMultiplier = tag.getDouble("claimRateMultiplier");
+        if (tag.contains("outpostDistanceRamp"))
+            manager.outpostDistanceRamp = tag.getDouble("outpostDistanceRamp");
+        if (tag.contains("tpCostToOutpost"))
+            manager.tpCostToOutpostCopper = tag.getLong("tpCostToOutpost");
         return manager;
     }
 }

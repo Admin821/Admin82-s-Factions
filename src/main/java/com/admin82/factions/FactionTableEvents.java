@@ -2,11 +2,19 @@ package com.admin82.factions;
 
 import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.blockentity.OutpostManagerBlockEntity;
+import com.admin82.factions.block.FactionTableFillerBlock;
+import com.admin82.factions.registry.ModBlocks;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionMember;
 import com.admin82.factions.faction.FactionPermission;
 import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.item.TemporaryMoveItem;
+import com.admin82.factions.outpost.OutpostData;
+import com.admin82.factions.outpost.OutpostEntry;
+import com.admin82.factions.war.ResourceWarAccess;
+import com.admin82.factions.war.WarManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
@@ -14,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -28,26 +37,50 @@ import java.util.UUID;
 public class FactionTableEvents {
 
     /**
-     * Prevents any player (except server ops) from manually breaking a linked Faction Table.
-     * The only way to remove a linked table is via Disband Faction or the Move Table flow.
+     * Prevents linked Faction Tables and Barracks from being manually broken.
+     * The only way to remove linked blocks is via disband cleanup or the move flows.
      */
     @SubscribeEvent
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
 
-        // Protect linked Faction Tables
+        // ── Protect Faction Table filler blocks ──────────────────────────────────────────
+        BlockState brokenState = event.getState();
+        if (brokenState.is(ModBlocks.FACTION_TABLE_FILLER.get())) {
+            BlockPos mainPos = brokenState.getValue(FactionTableFillerBlock.PART).getMainPos(event.getPos());
+            if (level.getBlockEntity(mainPos) instanceof FactionTableBlockEntity mainBe) {
+                UUID linkedId = mainBe.getLinkedFactionId();
+                if (linkedId != null && FactionManager.get(level).getFaction(linkedId) != null) {
+                    Player player = event.getPlayer();
+                    if (player.hasPermissions(2)) {
+                        FactionCommands.performDisband(level.getServer(), linkedId,
+                                Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
+                    } else {
+                        player.displayClientMessage(
+                                Component.literal("§cFaction Tables cannot be broken. Use the faction menu to move it or disband the faction."), true);
+                    }
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+            // Unlinked or stale-linked filler — allow break; FactionTableFillerBlock.onRemove cascades to main block.
+            return;
+        }
+
+        // ── Protect linked Faction Tables ─────────────────────────────────────────────────
         if (level.getBlockEntity(event.getPos()) instanceof FactionTableBlockEntity be) {
             UUID linkedId = be.getLinkedFactionId();
             if (linkedId == null) return;
+            if (FactionManager.get(level).getFaction(linkedId) == null) return;
             Player player = event.getPlayer();
-            if (player.hasPermissions(2)) {
+                if (player.hasPermissions(2)) {
                 FactionCommands.performDisband(level.getServer(), linkedId,
-                        Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
+                    Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
                 return;
-            }
+                }
             event.setCanceled(true);
             player.displayClientMessage(
-                    Component.literal("§cFaction Tables cannot be broken. Use the faction menu to move or disband."), true);
+                Component.literal("§cFaction Tables cannot be broken. Use the faction menu to move it or disband the faction."), true);
             return;
         }
 
@@ -55,12 +88,46 @@ public class FactionTableEvents {
         if (level.getBlockEntity(event.getPos()) instanceof BarracksBlockEntity barrBe) {
             UUID linkedId = barrBe.getLinkedFactionId();
             if (linkedId == null) return;
+            if (FactionManager.get(level).getFaction(linkedId) == null) return;
             Player player = event.getPlayer();
-            if (player.hasPermissions(2)) return; // ops can break it
             event.setCanceled(true);
             player.displayClientMessage(
-                    Component.literal("§cBarracks cannot be broken while linked to a faction."), true);
+                Component.literal("§cBarracks cannot be broken. Use the Kit Manager to move it or disband the faction."), true);
         }
+    }
+
+    /**
+     * Protects placed Outpost manager blocks from being broken by non-operators.
+     * When an operator breaks one, the outpost is immediately deleted and its
+     * tracked structure blocks are removed from the world.
+     */
+    @SubscribeEvent
+    public static void onOutpostBlockBreak(BlockEvent.BreakEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        if (!(level.getBlockEntity(event.getPos()) instanceof OutpostManagerBlockEntity)) return;
+
+        Player player = event.getPlayer();
+        if (!player.hasPermissions(2)) {
+            event.setCanceled(true);
+            player.displayClientMessage(
+                    Component.literal("§cOutpost blocks cannot be broken. Only server operators may remove them."), true);
+            return;
+        }
+
+        // Op is breaking the outpost — delete it cleanly
+        String dim = level.dimension().location().toString();
+        OutpostData outposts = OutpostData.get(level.getServer());
+        OutpostEntry entry = outposts.getOutpostAtPos(event.getPos(), dim);
+        if (entry != null) {
+            // Remove all registered structure blocks from the world
+            for (net.minecraft.core.BlockPos bp : entry.structureBlocks) {
+                level.removeBlock(bp, false);
+            }
+            outposts.removeOutpost(entry.id);
+            player.displayClientMessage(
+                    Component.literal("§a[Admin] Outpost deleted and structure removed."), false);
+        }
+        // Allow the actual block break to continue normally
     }
 
     /** Cancels any in-progress move mode when the player logs out. */
@@ -71,6 +138,8 @@ public class FactionTableEvents {
         manager.clearPendingMove(player.getUUID());
         manager.clearPendingCreation(player.getUUID());
         manager.clearPendingBarracks(player.getUUID());
+        manager.clearPendingBarracksMove(player.getUUID());
+        removeTemporaryMoveItems(player);
     }
 
     /** Cancels move mode and pending creation when the player dies. */
@@ -82,8 +151,13 @@ public class FactionTableEvents {
             manager.clearPendingMove(player.getUUID());
             player.displayClientMessage(Component.literal("§cMove mode cancelled (you died)."), false);
         }
+        if (manager.getPendingBarracksMove(player.getUUID()) != null) {
+            manager.clearPendingBarracksMove(player.getUUID());
+            player.displayClientMessage(Component.literal("§cBarracks move mode cancelled (you died)."), false);
+        }
         manager.clearPendingCreation(player.getUUID());
         manager.clearPendingBarracks(player.getUUID());
+        removeTemporaryMoveItems(player);
     }
 
     /** Cancels move mode and pending creation when the player changes dimension. */
@@ -95,7 +169,17 @@ public class FactionTableEvents {
             manager.clearPendingMove(player.getUUID());
             player.displayClientMessage(Component.literal("§cMove mode cancelled (dimension change)."), false);
         }
+        if (manager.getPendingBarracksMove(player.getUUID()) != null) {
+            manager.clearPendingBarracksMove(player.getUUID());
+            player.displayClientMessage(Component.literal("§cBarracks move mode cancelled (dimension change)."), false);
+        }
         manager.clearPendingCreation(player.getUUID());
+        removeTemporaryMoveItems(player);
+    }
+
+    private static void removeTemporaryMoveItems(ServerPlayer player) {
+        TemporaryMoveItem.removeAll(player, com.admin82.factions.registry.ModItems.FACTION_TABLE.get());
+        TemporaryMoveItem.removeAll(player, com.admin82.factions.registry.ModItems.BARRACKS.get());
     }
 
     // ── Land claim protection ──────────────────────────────────────────────────
@@ -113,7 +197,7 @@ public class FactionTableEvents {
         int cz = SectionPos.blockToSectionCoord(pos.getZ());
         String dim = level.dimension().location().toString();
         for (Faction f : mgr.getAllFactions().values()) {
-            if (f.hasClaim(cx, cz, dim) && (eco.hasUpkeep(f.getId()) || f.isInGracePeriod())) return f;
+            if (f.hasClaim(cx, cz, dim) && (eco.isProtected(f.getId()) || f.isInGracePeriod())) return f;
         }
         return null;
     }
@@ -133,6 +217,20 @@ public class FactionTableEvents {
 
         FactionMember m = owner.getMember(player.getUUID());
         if (m == null || !owner.getRolePermission(m.getRole(), FactionPermission.MEMBER_INTERACT)) {
+
+            // Allow Resource-War winners to open containers in enemy territory
+            if (m == null) {
+                WarManager warmgr = WarManager.get(level.getServer());
+                ResourceWarAccess rwa = warmgr.getResourceWarAccess(owner.getId());
+                if (rwa != null && !rwa.isExpired()) {
+                    Faction playerFaction = FactionManager.get(level.getServer())
+                            .getFactionForPlayer(player.getUUID());
+                    if (playerFaction != null && playerFaction.getId().equals(rwa.winnerFactionId)) {
+                        return; // resource war winner — allow interaction
+                    }
+                }
+            }
+
             event.setCanceled(true);
             player.displayClientMessage(
                     Component.literal("§cThis land is claimed by §e" + owner.getName() + "§c."), true);
@@ -151,13 +249,38 @@ public class FactionTableEvents {
         EconomyManager eco = EconomyManager.get(level.getServer());
         String dim = level.dimension().location().toString();
         event.getAffectedBlocks().removeIf(pos -> {
+            if (isLinkedCoreBlockProtected(level, mgr, pos)) return true;
+
             int cx = SectionPos.blockToSectionCoord(pos.getX());
             int cz = SectionPos.blockToSectionCoord(pos.getZ());
             for (Faction f : mgr.getAllFactions().values()) {
-                if (f.hasClaim(cx, cz, dim) && (eco.hasUpkeep(f.getId()) || f.isInGracePeriod())) return true;
+                if (f.hasClaim(cx, cz, dim) && (eco.isProtected(f.getId()) || f.isInGracePeriod())) return true;
             }
             return false;
         });
+    }
+
+    private static boolean isLinkedCoreBlockProtected(ServerLevel level, FactionManager mgr, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof FactionTableBlockEntity tableBe) {
+            UUID linkedId = tableBe.getLinkedFactionId();
+            return linkedId != null && mgr.getFaction(linkedId) != null;
+        }
+
+        if (level.getBlockEntity(pos) instanceof BarracksBlockEntity barracksBe) {
+            UUID linkedId = barracksBe.getLinkedFactionId();
+            return linkedId != null && mgr.getFaction(linkedId) != null;
+        }
+
+        BlockState state = level.getBlockState(pos);
+        if (state.is(ModBlocks.FACTION_TABLE_FILLER.get())) {
+            BlockPos mainPos = state.getValue(FactionTableFillerBlock.PART).getMainPos(pos);
+            if (level.getBlockEntity(mainPos) instanceof FactionTableBlockEntity tableBe) {
+                UUID linkedId = tableBe.getLinkedFactionId();
+                return linkedId != null && mgr.getFaction(linkedId) != null;
+            }
+        }
+
+        return false;
     }
 
     /**

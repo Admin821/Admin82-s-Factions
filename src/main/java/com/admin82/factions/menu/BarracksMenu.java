@@ -3,6 +3,7 @@ package com.admin82.factions.menu;
 import com.admin82.factions.barracks.BarracksData;
 import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.network.packet.BarracksActionPacket;
+import com.admin82.factions.network.packet.RequestMoveBarracksPacket;
 import com.admin82.factions.registry.ModMenuTypes;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.slot.ItemHandlerSlot;
@@ -49,6 +50,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
     private static final int STAGING_OFFSET = 0;            // staging slots 0-39
     private static final int PLAYER_INV_OFFSET = KitData.SLOT_COUNT; // slots 40-75
+    private static final int MAX_KITS = 3;
 
     // ── Shared state (both sides) ─────────────────────────────────────────────
 
@@ -603,7 +605,22 @@ public class BarracksMenu extends AbstractContainerMenu {
             }
         });
 
-        panel.addChildren(buildQuickTakeBar());
+        // ── Move Barracks button (faction owners only) ─────────────────────────────────
+        var moveRow = new UIElement();
+        moveRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).width(416)
+                .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(YogaAlign.CENTER));
+        var moveBtn = new Button()
+                .setText("§e⇄ Move Barracks")
+                .setOnClick(e -> PacketDistributor.sendToServer(new RequestMoveBarracksPacket()));
+        moveBtn.layout(l -> l.width(140).height(20));
+        moveBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev ->
+                ev.hoverTooltips = HoverTooltips.empty().append(
+                        Component.literal("§e§lMove Barracks"),
+                        Component.literal("§7Gives you a Barracks item to place at a new location."),
+                        Component.literal("§8The new position must be in a chunk claimed by your faction."),
+                        Component.literal("§cFaction owners only.")));
+        moveRow.addChildren(moveBtn);
+        panel.addChildren(moveRow, buildQuickTakeBar());
         return panel;
     }
 
@@ -756,7 +773,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         var infoLabel = new Label();
         infoLabel.bindDataSource(SupplierDataSource.of(() ->
-                Component.literal("§7Kits available: §e" + kitNamesRef.get().size())));
+            Component.literal("§7Kit slots left: §e" + Math.max(0, MAX_KITS - kitNamesRef.get().size()) + "§7/" + MAX_KITS)));
         infoLabel.layout(l -> l.flex(1).height(20));
         var quickTakeBtn = new Button()
                 .setText("§d▶ Quick Take Kit")

@@ -2,3 +2,14 @@
 /time set dat
 /time set day
 /deop Player2
+/kill
+/op Dev
+/deop
+/deop Player2
+/op Dev
+/deop Player2
+/op Dev
+/deop Player2
+/factionreturn
+/op Dev
+/deop Player2

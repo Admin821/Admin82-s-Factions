@@ -111,7 +111,7 @@ public class KitSelectionScreen extends Screen {
                             .bounds(gridStartX() + gridWidth() - 60, footerY, 60, 20).build());
         }
         addRenderableWidget(
-                Button.builder(Component.literal("§7Close (fight with what you have)"),
+                Button.builder(Component.literal("§7No Kit (fight with what you have)"),
                         btn -> onClose())
                         .bounds(width / 2 - 110, footerY, 220, 20).build());
     }
@@ -221,6 +221,11 @@ public class KitSelectionScreen extends Screen {
         g.drawCenteredString(font, "§e§l" + kit.name(),
                 cx + CARD_W / 2, cy + 5, 0xFFFFFF);
 
+        // Count badge — top-right corner shows how many copies can still be taken
+        String countStr = "×" + kit.count();
+        int countColor = kit.count() >= 3 ? 0xFF55FF55 : kit.count() == 2 ? 0xFFFFAA00 : 0xFFFF5555;
+        g.drawString(font, countStr, cx + CARD_W - font.width(countStr) - 4, cy + 5, countColor, true);
+
         int itemY = cy + 18;
 
         // ── Armor + offhand row ──────────────────────────────────────────────
@@ -286,10 +291,16 @@ public class KitSelectionScreen extends Screen {
     @Override
     public boolean isPauseScreen() { return false; }
 
-    /** ESC closes without selecting a kit. */
+    /** Prevent ESC from closing this screen — players must pick a kit or click No Kit. */
+    @Override
+    public boolean shouldCloseOnEsc() { return false; }
+
+    /** Block Escape and the inventory key (E) from dismissing the kit picker. */
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256) { onClose(); return true; }
+        if (keyCode == 256) return true; // Escape — consume, do not close
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.options.keyInventory.matches(keyCode, scanCode)) return true; // E — consume, do not close
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

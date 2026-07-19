@@ -4,8 +4,11 @@ import com.admin82.factions.faction.*;
 import com.admin82.factions.network.packet.*;
 import com.admin82.factions.registry.ModMenuTypes;
 import com.admin82.factions.economy.Currency;
+import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.Config;
 import com.admin82.factions.network.packet.VaultActionPacket;
+import com.admin82.factions.war.WarDemand;
+import com.admin82.factions.war.WarType;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -74,11 +77,42 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private float   mapAccumDragY = 0f;
 
     // ── Wars tab state ──────────────────────────────────────────────────────────
-    private enum WarsSubView { LIST, SELECT_ATTACKERS }
+    private enum WarsSubView { LIST, SELECT_WAR_TYPE, CONFIRM_ALL_OUT, SELECT_TERRITORY, SELECT_ATTACKERS, NEGOTIATIONS, COMPOSE_DEMAND }
     private WarsSubView  warsSubView           = WarsSubView.LIST;
     @Nullable private FactionSummary warsTarget = null;
     private final Set<UUID> warsSelectedAttackers = new HashSet<>();
     @Nullable private UIElement warsPanel = null;
+    @Nullable private WarType            warsSelectedType     = null;
+    @Nullable private FactionSummary     warsNegotiateTarget  = null;
+    private final AtomicReference<java.util.List<WarDemand>> warDemandsRef
+            = new AtomicReference<>(java.util.List.of());
+    // Compose-demand working fields (arrays so lambdas can mutate)
+    private final long[]    composeMoney      = {0L};
+    private final String[]  composeItemId     = {""};
+    private final int[]     composeItemCount  = {1};
+    private final int[]     composeLandChunks = {0};
+    private final boolean[] composeVassal     = {false};
+    // ── Territory-war selection state ─────────────────────────────────────────
+    private final AtomicReference<java.util.List<String>> enemyClaimKeysRef
+            = new AtomicReference<>(java.util.List.of());
+    /** Chunk keys ("cx,cz,dim") the player has selected as territorial prizes. */
+    private final Set<String> warsSelectedChunks = new LinkedHashSet<>();
+    private int    enemyCoreCX  = 0;
+    private int    enemyCoreCZ  = 0;
+    private String enemyCoreDim = "";
+    private int    warMapOffsetX  = 0;
+    private int    warMapOffsetZ  = 0;
+    private int    warMapViewSize = 9;
+    private boolean warMapDragging = false;
+    private float   warMapDragDist = 0f;
+    private float   warMapLastX    = 0f;
+    private float   warMapLastZ    = 0f;
+    private float   warMapAccumX   = 0f;
+    private float   warMapAccumZ   = 0f;
+    @Nullable private UIElement         warTerrainMapGrid;
+    @Nullable private TerrainMapTexture warTerrainTexture;
+    @Nullable private String            warInspectedChunkKey;
+    @Nullable private UIElement         warChunkInfoPanel;
 
     // ── Vassal tab state (populated from server buf at menu open) ──────────────
     boolean vassalIsVassal      = false;
@@ -92,6 +126,25 @@ public class FactionTableMenu extends AbstractContainerMenu {
     @Nullable private UIElement permArea;
     @Nullable private UIElement memberDetailArea;
     @Nullable private UIElement mapGrid;
+    private int selectedChunkX = Integer.MIN_VALUE;
+    private int selectedChunkZ = Integer.MIN_VALUE;
+    @Nullable private UIElement chunkInfoContainer;
+
+    // ── Outpost list state ────────────────────────────────────────────────────
+    private final java.util.concurrent.atomic.AtomicReference<
+            java.util.List<com.admin82.factions.network.packet.SyncOutpostsPacket.OutpostItem>>
+            outpostListRef = new java.util.concurrent.atomic.AtomicReference<>(java.util.List.of());
+    @Nullable private com.admin82.factions.network.packet.SyncOutpostsPacket.OutpostItem outpostTpPending = null;
+    private final java.util.concurrent.atomic.AtomicLong outpostTpCostRef = new java.util.concurrent.atomic.AtomicLong(1_000L);
+    @Nullable private UIElement territoryContentArea; // swappable map vs outpost-list
+    private boolean showingOutpostList = false;
+
+    // ── Vault sub-view state ──────────────────────────────────────────────────
+    @Nullable private UIElement                         vaultContentArea;
+    @Nullable private VaultActionPacket.Action          pendingVaultAction;
+    @Nullable private java.util.function.LongSupplier  pendingVaultTotal;
+    @Nullable private String                            pendingVaultTitle;
+    @Nullable private String                            pendingVaultVerb;
     @Nullable private TerrainMapTexture terrainMapTexture;
     @Nullable @SuppressWarnings("rawtypes") private Selector inviteSelectorRef;
     @Nullable private Player playerRef;
@@ -139,6 +192,35 @@ public class FactionTableMenu extends AbstractContainerMenu {
     public void updateEconomy(long wallet, long vault) {
         playerWalletRef.set(wallet);
         factionVaultRef.set(vault);
+    }
+
+    /** Called by SyncWarDemandsPacket to refresh the negotiations view. */
+    public void updateWarDemands(java.util.UUID warId, java.util.List<WarDemand> demands) {
+        warDemandsRef.set(demands);
+        if ((warsSubView == WarsSubView.NEGOTIATIONS || warsSubView == WarsSubView.COMPOSE_DEMAND)
+                && playerRef != null) {
+            fillWarsPanel(playerRef);
+        }
+    }
+
+    /** Called by SyncEnemyClaimsPacket — populates the Territory-War selection map. */
+    public void updateEnemyClaims(java.util.UUID targetFactionId,
+                                  java.util.List<String> claimKeys,
+                                  int coreCX, int coreCZ, String coreDim) {
+        enemyClaimKeysRef.set(claimKeys);
+        enemyCoreCX  = coreCX;
+        enemyCoreCZ  = coreCZ;
+        enemyCoreDim = coreDim;
+        // Centre the war map on the enemy territory
+        if (tablePos != null) {
+            int playerCoreX = net.minecraft.core.SectionPos.blockToSectionCoord(tablePos.getX());
+            int playerCoreZ = net.minecraft.core.SectionPos.blockToSectionCoord(tablePos.getZ());
+            warMapOffsetX = coreCX - playerCoreX;
+            warMapOffsetZ = coreCZ - playerCoreZ;
+        }
+        if (warsSubView == WarsSubView.SELECT_TERRITORY && playerRef != null) {
+            fillWarsPanel(playerRef);
+        }
     }
 
     public void updateFaction(@Nullable Faction f) { factionRef.set(f); }
@@ -254,9 +336,9 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // ── Two-row tab bar ───────────────────────────────────────────────────────
         // Row 1 — core faction management
-        final Tab[] row1 = { Tab.OVERVIEW, Tab.MEMBERS, Tab.PERMISSIONS, Tab.TERRITORY, Tab.WARS };
+        final Tab[] row1 = { Tab.OVERVIEW, Tab.MEMBERS, Tab.PERMISSIONS, Tab.LEADERBOARD, Tab.WARS };
         // Row 2 — economy and external relations
-        final Tab[] row2 = { Tab.UPKEEP, Tab.VAULT, Tab.LEADERBOARD, Tab.VASSAL };
+        final Tab[] row2 = { Tab.UPKEEP, Tab.VAULT, Tab.TERRITORY, Tab.VASSAL };
 
         var tabBar1 = new UIElement();
         tabBar1.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(21).width(420).gapAll(2).paddingHorizontal(2));
@@ -327,8 +409,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                 new Label().bindDataSource(SupplierDataSource.of(() -> {
                     var f = factionRef.get(); if (f == null) return Component.empty();
                     return Component.literal("§fMembers: §e" + f.getMembers().size()
-                            + "   §fTerritory: §e" + f.getLandClaims().size()
-                            + "   §fPower: §a" + f.getPower());
+                            + "   §fTerritory: §e" + f.getLandClaims().size());
                 })),
                 new Label().bindDataSource(SupplierDataSource.of(() -> {
                     var f = factionRef.get(); if (f == null) return Component.empty();
@@ -534,9 +615,9 @@ public class FactionTableMenu extends AbstractContainerMenu {
         final int     coreZ    = SectionPos.blockToSectionCoord(tablePos.getZ());
         final boolean canClaim = isOfficer(player);
 
-        // Stats
+        // ── Stats + Outpost toggle button row ─────────────────────────────────
         var statsRow = new UIElement();
-        statsRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).width(408).height(18));
+        statsRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).width(408).height(18).gapAll(4));
         statsRow.addChildren(
                 new Label().bindDataSource(SupplierDataSource.of(() -> {
                     var f = factionRef.get();
@@ -545,67 +626,96 @@ public class FactionTableMenu extends AbstractContainerMenu {
                 new Label().setText("§7Core: §e" + coreX + "," + coreZ).layout(l -> l.width(100))
         );
 
-        // Legend
+        // Outpost toggle button
+        var outpostBtn = new Button()
+                .setText("§d⚑ Outposts")
+                .setOnClick(e -> {
+                    if (showingOutpostList) showTerritoryMap(coreX, coreZ, canClaim);
+                    else                   showOutpostList();
+                });
+        outpostBtn.layout(l -> l.width(80).height(16));
+        statsRow.addChildren(outpostBtn);
+
+        // Legend (only shown in map view — hidden in outpost view via same area)
         var legend = new Label().setText("§6■§rCore  §9■§rMine  §c■§rOther  §8■§rFree  §8drag·scroll");
 
-        // Map grid — fixed GRID_PX × GRID_PX; cell size computed from mapViewSize
+        // ── Swappable content area ────────────────────────────────────────────
+        territoryContentArea = new UIElement();
+        territoryContentArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        showTerritoryMap(coreX, coreZ, canClaim); // default: show map
+
+        panel.addChildren(statsRow, legend, territoryContentArea);
+        return panel;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private void rebuildMap(int coreX, int coreZ, boolean canClaim) {
+        if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
+    }
+
+    // ── Outpost list receiver (called by SyncOutpostsPacket handler) ──────────
+
+    public void updateOutpostList(
+            java.util.List<com.admin82.factions.network.packet.SyncOutpostsPacket.OutpostItem> items,
+            long tpCostCopper) {
+        outpostListRef.set(items);
+        outpostTpCostRef.set(tpCostCopper);
+        // If the outpost list panel is already visible, refresh it
+        if (showingOutpostList) showOutpostList();
+    }
+
+    /**
+     * Swaps the territory content area to show the live map + chunk info panel.
+     */
+    @OnlyIn(Dist.CLIENT)
+    private void showTerritoryMap(int coreX, int coreZ, boolean canClaim) {
+        if (territoryContentArea == null) return;
+        showingOutpostList = false;
+        territoryContentArea.clearAllChildren();
+
+        var mapRow = new UIElement();
+        mapRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
         mapGrid = new UIElement();
         mapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(YogaAlign.CENTER));
         terrainMapTexture = new TerrainMapTexture(GRID_PX);
         mapGrid.style(s -> s.background(terrainMapTexture));
         fillMapCells(mapGrid, coreX, coreZ, canClaim);
 
-        // ── Drag-to-pan ───────────────────────────────────────────────────────
+        // Drag-to-pan
         mapGrid.addEventListener(UIEvents.MOUSE_DOWN, ev -> {
-            mapIsDragging = true;
-            mapDragDist   = 0f;
-            mapLastDragX  = ev.x;
-            mapLastDragY  = ev.y;
-            mapAccumDragX = 0f;
-            mapAccumDragY = 0f;
+            mapIsDragging = true; mapDragDist = 0f;
+            mapLastDragX = ev.x; mapLastDragY = ev.y;
+            mapAccumDragX = 0f; mapAccumDragY = 0f;
         });
-        mapGrid.addEventListener(UIEvents.MOUSE_UP, ev -> {
-            mapIsDragging = false;
-        });
+        mapGrid.addEventListener(UIEvents.MOUSE_UP, ev -> mapIsDragging = false);
         mapGrid.addEventListener(UIEvents.MOUSE_MOVE, ev -> {
             if (!mapIsDragging) return;
-            float dx = mapLastDragX - ev.x;
-            float dz = mapLastDragY - ev.y;
-            mapLastDragX  = ev.x;
-            mapLastDragY  = ev.y;
-            mapDragDist  += Math.abs(dx) + Math.abs(dz);
-            mapAccumDragX += dx;
-            mapAccumDragY += dz;
+            float dx = mapLastDragX - ev.x, dz = mapLastDragY - ev.y;
+            mapLastDragX = ev.x; mapLastDragY = ev.y;
+            mapDragDist += Math.abs(dx) + Math.abs(dz);
+            mapAccumDragX += dx; mapAccumDragY += dz;
             boolean moved = false;
-            int ppc = Math.max(1, GRID_PX / mapViewSize); // pixels per chunk at current zoom
+            int ppc = Math.max(1, GRID_PX / mapViewSize);
             while (mapAccumDragX >=  ppc) { mapOffsetX++; mapAccumDragX -= ppc; moved = true; }
             while (mapAccumDragX <= -ppc) { mapOffsetX--; mapAccumDragX += ppc; moved = true; }
             while (mapAccumDragY >=  ppc) { mapOffsetZ++; mapAccumDragY -= ppc; moved = true; }
             while (mapAccumDragY <= -ppc) { mapOffsetZ--; mapAccumDragY += ppc; moved = true; }
             if (moved) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
         });
-
-        // ── Scroll-to-zoom (mouse wheel) ──────────────────────────────────────
         mapGrid.addEventListener(UIEvents.MOUSE_WHEEL, ev -> {
-            if      (ev.deltaY > 0) mapViewSize = Math.max(5,  mapViewSize - 2); // scroll up  = zoom in
-            else if (ev.deltaY < 0) mapViewSize = Math.min(17, mapViewSize + 2); // scroll down = zoom out
-            mapGrid.clearAllChildren();
-            fillMapCells(mapGrid, coreX, coreZ, canClaim);
+            if      (ev.deltaY > 0) mapViewSize = Math.max(5,  mapViewSize - 2);
+            else if (ev.deltaY < 0) mapViewSize = Math.min(17, mapViewSize + 2);
+            mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim);
         });
-
-        // ── Live tracking — claim changes only (player pos shown via live label, not cell) ──
         int[] lastCC = {-1};
         mapGrid.addEventListener(UIEvents.TICK, ev -> {
-            // If the mouse was released outside the map, clear the drag state
             if (mapIsDragging) {
                 long win = Minecraft.getInstance().getWindow().getWindow();
                 if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(win, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)
                         != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
-                    mapIsDragging = false;
-                    mapDragDist   = 0f;
+                    mapIsDragging = false; mapDragDist = 0f;
                 }
             }
-            // Rebuild only when claim count changes (position already shown via SupplierDataSource)
             Faction fTick = factionRef.get();
             int cc = fTick != null ? fTick.getLandClaims().size() : 0;
             if (cc != lastCC[0]) {
@@ -615,13 +725,252 @@ public class FactionTableMenu extends AbstractContainerMenu {
             }
         });
 
-        panel.addChildren(statsRow, legend, mapGrid);
-        return panel;
+        chunkInfoContainer = new UIElement();
+        chunkInfoContainer.layout(l -> l.width(162).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        refreshChunkInfoPanel(coreX, coreZ, canClaim);
+
+        mapRow.addChildren(mapGrid, chunkInfoContainer);
+        territoryContentArea.addChildren(mapRow);
     }
 
+    /**
+     * Swaps the territory content area to show the outpost list.
+     */
     @OnlyIn(Dist.CLIENT)
-    private void rebuildMap(int coreX, int coreZ, boolean canClaim) {
-        if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
+    private void showOutpostList() {
+        if (territoryContentArea == null) return;
+        showingOutpostList = true;
+        territoryContentArea.clearAllChildren();
+
+        // ── Teleport confirmation view ────────────────────────────────────────
+        if (outpostTpPending != null) {
+            var item = outpostTpPending;
+            long cost = outpostTpCostRef.get();
+            String costStr = com.admin82.factions.economy.Currency.format(cost);
+            territoryContentArea.addChildren(
+                    new Label().setText("§d§l⤏ Teleport to Outpost"),
+                    new Label().setText("§7Location: §fX:" + item.pos().getX() + " Y:" + item.pos().getY() + " Z:" + item.pos().getZ()),
+                    new Label().setText("§7This will cost §e" + costStr + " §7(physical coins from your inventory)."),
+                    new Label().setText("§8You must have sufficient coins on you to confirm.")
+            );
+            var btnRow = new UIElement();
+            btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).paddingTop(6));
+            btnRow.addChildren(
+                    new Button().setText("§a✔ Confirm Teleport")
+                            .setOnClick(e -> {
+                                PacketDistributor.sendToServer(
+                                        new com.admin82.factions.network.packet.OutpostActionPacket(
+                                                com.admin82.factions.network.packet.OutpostActionPacket.Action.TELEPORT,
+                                                item.id()));
+                                outpostTpPending = null;
+                                net.minecraft.client.Minecraft.getInstance().setScreen(null);
+                            })
+                            .layout(l -> l.flex(1)),
+                    new Button().setText("§c✘ Cancel")
+                            .setOnClick(e -> { outpostTpPending = null; showOutpostList(); })
+                            .layout(l -> l.width(80))
+            );
+            territoryContentArea.addChildren(btnRow);
+            return;
+        }
+
+        var list = outpostListRef.get();
+
+        if (list.isEmpty()) {
+            territoryContentArea.addChildren(
+                    new Label().setText("§7Your faction has no outposts."),
+                    new Label().setText("§8Place an Outpost item to create one.")
+            );
+            return;
+        }
+
+        // Column header
+        var header = new UIElement();
+        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(14).width(396).paddingHorizontal(2));
+        header.addChildren(
+                new Label().setText("§8Coordinates").layout(l -> l.width(130)),
+                new Label().setText("§8Dimension").layout(l -> l.width(80)),
+                new Label().setText("§8Status").layout(l -> l.width(80)),
+                new Label().setText("§8Capture").layout(l -> l.flex(1))
+        );
+        territoryContentArea.addChildren(header);
+
+        // Rows
+        for (var item : list) {
+            var row = new UIElement();
+            row.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).width(396).paddingHorizontal(2).paddingBottom(4));
+
+            // Main info row
+            var infoRow = new UIElement();
+            infoRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(12).width(396));
+
+            String coordStr = "§fX:" + item.pos().getX() + " Y:" + item.pos().getY() + " Z:" + item.pos().getZ();
+            String dimStr   = simplifyDim(item.dimension());
+            String statusStr;
+            if (item.disintegrating())                         statusStr = "§c⚠ Degrading";
+            else if (!item.capturingFactionName().isEmpty())   statusStr = "§e⚔ Contested";
+            else                                               statusStr = "§a● Active";
+
+            infoRow.addChildren(
+                    new Label().setText(coordStr).layout(l -> l.width(130)),
+                    new Label().setText("§7" + dimStr).layout(l -> l.width(80)),
+                    new Label().setText(statusStr).layout(l -> l.width(80))
+            );
+
+            // Teleport button (only if not disintegrating)
+            if (!item.disintegrating()) {
+                final var fItem = item;
+                long tpCost = outpostTpCostRef.get();
+                var tpBtn = new Button().setText("§d⤏")
+                        .setOnClick(e -> { outpostTpPending = fItem; showOutpostList(); });
+                tpBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev ->
+                        ev.hoverTooltips = HoverTooltips.empty().append(
+                                Component.literal("§d⤏ Teleport to Outpost"),
+                                Component.literal("§7Cost: §e" + com.admin82.factions.economy.Currency.format(tpCost) + " §7(physical coins)")));
+                tpBtn.layout(l -> l.width(20).height(14));
+                infoRow.addChildren(tpBtn);
+            }
+
+            // Capture bar (only when being captured)
+            if (!item.capturingFactionName().isEmpty() && item.captureTimeSeconds() > 0) {
+                float pct    = Math.min(1f, item.captureProgress() / item.captureTimeSeconds());
+                int   secsLeft = (int)(item.captureTimeSeconds() - item.captureProgress());
+                String capInfo = "§c" + item.capturingFactionName()
+                        + " §8— §e" + (int)(pct * 100) + "% §8(" + secsLeft + "s left)";
+                infoRow.addChildren(new Label().setText(capInfo).layout(l -> l.flex(1)));
+            } else {
+                infoRow.addChildren(new Label().setText("").layout(l -> l.flex(1)));
+            }
+
+            row.addChildren(infoRow);
+            // Thin divider
+            row.addChildren(new Label().setText("§8─────────────────────────────────────────────────").layout(l -> l.height(8)));
+            territoryContentArea.addChildren(row);
+        }
+    }
+
+    /** Rebuilds the right-side chunk info panel based on the currently selected chunk. */
+    @OnlyIn(Dist.CLIENT)
+    private void refreshChunkInfoPanel(int coreX, int coreZ, boolean canClaim) {
+        if (chunkInfoContainer == null) return;
+        chunkInfoContainer.clearAllChildren();
+        chunkInfoContainer.addChildren(new Label().setText("§8─── Chunk Info ───"));
+
+        if (selectedChunkX == Integer.MIN_VALUE) {
+            chunkInfoContainer.addChildren(
+                new Label().setText("§8Left-click a chunk"),
+                new Label().setText("§8to inspect it.")
+            );
+            return;
+        }
+
+        chunkInfoContainer.addChildren(
+            new Label().setText("§7X: §f" + selectedChunkX + "  Z: §f" + selectedChunkZ)
+        );
+
+        Faction myFaction = factionRef.get();
+        boolean isCore  = selectedChunkX == coreX && selectedChunkZ == coreZ;
+        boolean isMine  = myFaction != null && myFaction.hasClaim(selectedChunkX, selectedChunkZ, tableDim);
+        boolean isOther = otherClaimedChunks.get().contains(selectedChunkX + "," + selectedChunkZ + "," + tableDim);
+
+        if (isCore) {
+            chunkInfoContainer.addChildren(
+                new Label().setText("§6■ Core chunk"),
+                new Label().setText("§7Your faction base.")
+            );
+            return;
+        }
+
+        if (isMine) {
+            chunkInfoContainer.addChildren(new Label().setText("§9■ Owned by you"));
+            // Show protection status based on vault balance ref (synced from server)
+            if (factionVaultRef.get() <= 0) {
+                chunkInfoContainer.addChildren(new Label().setText("§c⚠ UNPROTECTED"));
+                chunkInfoContainer.addChildren(new Label().setText("§cDeposit coins to restore."));
+            } else {
+                chunkInfoContainer.addChildren(new Label().setText("§a✓ Protected"));
+            }
+            if (canClaim) {
+                int fSelX = selectedChunkX, fSelZ = selectedChunkZ;
+                var unclaimBtn = new Button().setText("§c▶ Unclaim")
+                    .setOnClick(e -> {
+                        PacketDistributor.sendToServer(new UnclaimChunkPacket(fSelX, fSelZ, tableDim));
+                        selectedChunkX = Integer.MIN_VALUE; selectedChunkZ = Integer.MIN_VALUE;
+                        refreshChunkInfoPanel(coreX, coreZ, canClaim);
+                        if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
+                    });
+                unclaimBtn.layout(l -> l.width(130).height(18));
+                chunkInfoContainer.addChildren(unclaimBtn);
+            }
+            return;
+        }
+
+        if (isOther) {
+            chunkInfoContainer.addChildren(
+                new Label().setText("§c■ Enemy territory"),
+                new Label().setText("§7Owned by another"),
+                new Label().setText("§7faction.")
+            );
+            return;
+        }
+
+        // Free chunk — check adjacency
+        boolean adj = false;
+        if (myFaction != null) {
+            adj = (Math.abs(selectedChunkX - coreX) == 1 && selectedChunkZ == coreZ)
+                || (selectedChunkX == coreX && Math.abs(selectedChunkZ - coreZ) == 1)
+                || (selectedChunkX == coreX && selectedChunkZ == coreZ);
+            if (!adj) {
+                for (int[] d : new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) {
+                    if (myFaction.hasClaim(selectedChunkX + d[0], selectedChunkZ + d[1], tableDim)) {
+                        adj = true; break;
+                    }
+                }
+            }
+        }
+
+        if (!canClaim || !adj) {
+            chunkInfoContainer.addChildren(new Label().setText("§8■ Free land"));
+            if (!adj) {
+                chunkInfoContainer.addChildren(
+                    new Label().setText("§cNot adjacent to"),
+                    new Label().setText("§cyour territory.")
+                );
+            } else {
+                chunkInfoContainer.addChildren(new Label().setText("§7Requires officer+"));
+            }
+            return;
+        }
+
+        // Claimable — show deed cost
+        int claimCount = myFaction != null ? myFaction.getLandClaims().size() : 0;
+        long baseCost  = Config.CLAIM_COST_COPPER.get();
+        long cost      = (long) (baseCost * Math.pow(1.4, claimCount));
+        long vault     = factionVaultRef.get();
+        boolean canAfford = vault >= cost;
+
+        chunkInfoContainer.addChildren(
+            new Label().setText("§a■ Claimable"),
+            new Label().setText("§7Deed: §e" + com.admin82.factions.economy.Currency.format(cost)),
+            new Label().setText("§7Vault: §" + (canAfford ? "a" : "c") + com.admin82.factions.economy.Currency.format(vault))
+        );
+        int fSelX = selectedChunkX, fSelZ = selectedChunkZ;
+        var purchaseBtn = new Button()
+            .setText(canAfford ? "§a▶ Purchase Deed" : "§c✗ Can't afford")
+            .setOnClick(e -> {
+                if (!canAfford) return;
+                PacketDistributor.sendToServer(new ClaimChunkPacket(fSelX, fSelZ, tableDim));
+                selectedChunkX = Integer.MIN_VALUE; selectedChunkZ = Integer.MIN_VALUE;
+                refreshChunkInfoPanel(coreX, coreZ, canClaim);
+                if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
+            });
+        purchaseBtn.layout(l -> l.width(130).height(18));
+        chunkInfoContainer.addChildren(purchaseBtn);
+    }
+
+    /** Chunk deed cost: starts at {@code baseCost} and grows ×1.4 for each chunk already owned. */
+    private static long computeClaimCost(long baseCost, int ownedChunks) {
+        return (long) (baseCost * Math.pow(1.4, ownedChunks));
     }
 
     private Button mkNavBtn(String text, int width, UIEventListener onClick) {
@@ -727,13 +1076,27 @@ public class FactionTableMenu extends AbstractContainerMenu {
                 for (int col = 0; col < mapViewSize; col++) {
                     int cx = viewCX - halfView + col;
                     int cz = viewCZ - halfView + row;
+                    // isCore: ONLY the viewer's own faction table chunk (never an enemy's).
+                    // isMine / isOther are mutually exclusive; isCore implies isMine.
+                    // Enemy table chunks always arrive in `others` and render as plain red —
+                    // no special color is ever applied to reveal an enemy's table location.
                     boolean isCore2  = cx == coreX && cz == coreZ;
                     boolean isMine2  = myClaims.contains(cx + "," + cz + "," + tableDim);
                     boolean isOther2 = others.contains(cx + "," + cz + "," + tableDim);
                     if (isCore2 || isMine2 || isOther2) {
+                        // Core = gold only for the VIEWER's own table; everything in `others`
+                        // is uniform red regardless of whether it is another faction's table.
                         int rgb = isCore2 ? 0xffcc00 : isMine2 ? 0x33bbff : 0xff4444;
                         terrainMapTexture.drawChunkBorder(col * fcs, row * fcs, fcs, rgb, borderPx);
                     }
+                }
+            }
+            // Selected chunk — white outline drawn on top of all other borders
+            if (selectedChunkX != Integer.MIN_VALUE) {
+                int selC = selectedChunkX - (viewCX - halfView);
+                int selR = selectedChunkZ - (viewCZ - halfView);
+                if (selC >= 0 && selC < mapViewSize && selR >= 0 && selR < mapViewSize) {
+                    terrainMapTexture.drawChunkBorder(selC * fcs, selR * fcs, fcs, 0xFFFFFF, borderPx + 1);
                 }
             }
             terrainMapTexture.upload();
@@ -763,23 +1126,19 @@ public class FactionTableMenu extends AbstractContainerMenu {
                 // Claim / unclaim via MOUSE_UP + drag-distance guard
                 final boolean fIsMine = isMine, fIsOther = isOther, fIsClaimable = isClaimable;
                 int fCx = cx, fCz = cz;
-                if (!isCore && canClaim) {
-                    cell.addEventListener(UIEvents.MOUSE_UP, ev -> {
-                        if (mapDragDist > 5f) return;
-                        if (fIsMine) {
-                            PacketDistributor.sendToServer(new UnclaimChunkPacket(fCx, fCz, tableDim));
-                        } else if (!fIsOther && fIsClaimable) {
-                            PacketDistributor.sendToServer(new ClaimChunkPacket(fCx, fCz, tableDim));
-                        }
-                    });
-                    // Tooltip: explain why a free chunk can't be claimed
-                    if (!isMine && !isOther && !isClaimable) {
-                        cell.addEventListener(UIEvents.HOVER_TOOLTIPS, ev ->
-                                ev.hoverTooltips = HoverTooltips.empty().append(
-                                        Component.literal("§cNot adjacent to your territory."),
-                                        Component.literal("§7Claims must connect to your base or existing land.")));
+                // Left-click selects the chunk and shows info/actions in the right panel
+                cell.addEventListener(UIEvents.MOUSE_UP, ev -> {
+                    if (mapDragDist > 5f) return;
+                    if (selectedChunkX == fCx && selectedChunkZ == fCz) {
+                        selectedChunkX = Integer.MIN_VALUE;
+                        selectedChunkZ = Integer.MIN_VALUE;
+                    } else {
+                        selectedChunkX = fCx;
+                        selectedChunkZ = fCz;
                     }
-                }
+                    refreshChunkInfoPanel(coreX, coreZ, canClaim);
+                    if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
+                });
                 rowEl.addChildren(cell);
             }
             grid.addChildren(rowEl);
@@ -1052,20 +1411,51 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private void fillWarsPanel(Player player) {
         if (warsPanel == null) return;
         warsPanel.clearAllChildren();
-        if (warsSubView == WarsSubView.SELECT_ATTACKERS) buildAttackerSelectView(player);
-        else buildWarsListView(player);
+        switch (warsSubView) {
+            case SELECT_WAR_TYPE  -> buildWarTypeSelectView(player);
+            case CONFIRM_ALL_OUT  -> buildAllOutConfirmView(player);
+            case SELECT_TERRITORY -> buildTerritorySelectView(player);
+            case SELECT_ATTACKERS -> buildAttackerSelectView(player);
+            case NEGOTIATIONS     -> buildNegotiationsView(player);
+            case COMPOSE_DEMAND   -> buildComposeDemandView(player);
+            default               -> buildWarsListView(player);
+        }
     }
 
     private void buildWarsListView(Player player) {
         // ── Active wars summary ───────────────────────────────────────────────
         Faction myFaction = factionRef.get();
+        boolean canWar = isOfficer(player);
         warsPanel.addChildren(new Label().setText("§6§l⚔ Wars"));
         if (myFaction != null && !myFaction.getWars().isEmpty()) {
             warsPanel.addChildren(new Label().setText("§7── Your Active Wars ──"));
             for (WarEntry we : myFaction.getWars()) {
                 var wr = new UIElement();
-                wr.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(18).width(404));
-                wr.addChildren(new Label().setText("§c⚔ At war with: §e" + we.targetFactionName()).layout(l -> l.flex(1)));
+                wr.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(20).width(404));
+                String typeTag = we.warType() != null ? " §8[" + we.warType().displayName + "§8]" : "";
+                wr.addChildren(new Label().setText("§c⚔ §e" + we.targetFactionName() + typeTag).layout(l -> l.flex(1)));
+                if (canWar) {
+                    // Always show the negotiate button for active wars.
+                    // Use FactionSummary from allFactions if available, otherwise create from WarEntry.
+                    FactionSummary fts = allFactions.get().stream()
+                            .filter(s -> s.id().equals(we.targetFactionId()))
+                            .findFirst()
+                            .orElseGet(() -> new FactionSummary(
+                                    we.targetFactionId(), we.targetFactionName(), 0, 0, 0L));
+                    var negotiateBtn = new Button().setText("§e⚑ Negotiate")
+                            .setOnClick(e -> {
+                                warsNegotiateTarget = fts;
+                                warsSubView = WarsSubView.NEGOTIATIONS;
+                                PacketDistributor.sendToServer(new OpenNegotiationsPacket(fts.id()));
+                                fillWarsPanel(player);
+                            });
+                    negotiateBtn.layout(l -> l.width(78));
+                    negotiateBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev ->
+                            ev.hoverTooltips = HoverTooltips.empty().append(
+                                    Component.literal("§e⚑ Wartime Negotiations"),
+                                    Component.literal("§7Send demands to end the war early.")));
+                    wr.addChildren(negotiateBtn);
+                }
                 warsPanel.addChildren(wr);
             }
         } else {
@@ -1111,7 +1501,6 @@ public class FactionTableMenu extends AbstractContainerMenu {
             row.addChildren(
                     new Label().setText((atWar ? "§c" : "§e") + s.name()).layout(l -> l.width(110)),
                     new Label().setText("§7" + s.memberCount() + "mbr").layout(l -> l.width(42)),
-                    new Label().setText("§aPow:" + s.power()).layout(l -> l.width(56)),
                     new Label().setText("§b" + s.onlineCount() + " on").layout(l -> l.flex(1))
             );
             if (canWar) {
@@ -1121,14 +1510,13 @@ public class FactionTableMenu extends AbstractContainerMenu {
                     var wageBtn = new Button().setText("§c⚔ Wage War")
                             .setOnClick(e -> {
                                 warsTarget = s;
-                                warsSelectedAttackers.clear();
-                                warsSelectedAttackers.add(player.getUUID()); // pre-select self
-                                warsSubView = WarsSubView.SELECT_ATTACKERS;
+                                warsSelectedType = null;
+                                warsSubView = WarsSubView.SELECT_WAR_TYPE;
                                 fillWarsPanel(player);
                             });
                     wageBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
                             Component.literal("§c⚔ Wage War on §e" + s.name()),
-                            Component.literal("§7Power: §a" + s.power() + "  §7Members: §e" + s.memberCount()),
+                            Component.literal("§7Members: §e" + s.memberCount()),
                             Component.literal("§7Attackers get §c" + com.admin82.factions.Config.WAR_ATTACKER_LIVES.get() + " lives §7each.")));
                     wageBtn.layout(l -> l.width(72));
                     row.addChildren(wageBtn);
@@ -1144,6 +1532,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         warsPanel.addChildren(
                 new Label().setText("§6§l⚔ Select War Party"),
+                new Label().setText("§7War type: " + (warsSelectedType != null ? warsSelectedType.displayName : "§eFaction Fight")),
                 new Label().setText("§7Declaring war on: §c"
                         + (warsTarget != null ? warsTarget.name() : "?")
                         + "  §8— click a member card to toggle selection")
@@ -1210,7 +1599,9 @@ public class FactionTableMenu extends AbstractContainerMenu {
                             if (warsTarget != null && !warsSelectedAttackers.isEmpty()) {
                                 PacketDistributor.sendToServer(
                                         new com.admin82.factions.network.packet.WageWarPacket(
-                                                warsTarget.id(), new ArrayList<>(warsSelectedAttackers)));
+                                                warsTarget.id(), new ArrayList<>(warsSelectedAttackers),
+                                                warsSelectedType != null ? warsSelectedType : WarType.FIGHT,
+                                                new ArrayList<>(warsSelectedChunks)));
                             }
                             warsSubView = WarsSubView.LIST;
                             fillWarsPanel(player);
@@ -1218,6 +1609,574 @@ public class FactionTableMenu extends AbstractContainerMenu {
                         .layout(l -> l.flex(1)),
                 new Button().setText("§c✗ Cancel")
                         .setOnClick(e -> { warsSubView = WarsSubView.LIST; fillWarsPanel(player); })
+                        .layout(l -> l.width(80))
+        );
+        warsPanel.addChildren(btnRow);
+    }
+
+    // ── Terms of War type selection ───────────────────────────────────────────
+
+    private void buildWarTypeSelectView(Player player) {
+        warsPanel.addChildren(
+                new Label().setText("§6§l⚑ Terms of War"),
+                new Label().setText("§7Choose the type of war against §c"
+                        + (warsTarget != null ? warsTarget.name() : "?") + "§7:")
+        );
+        for (WarType type : WarType.values()) {
+            final WarType ft = type;
+            var btn = new Button()
+                    .setText(type.displayName)
+                    .setOnClick(e -> {
+                        warsSelectedType = ft;
+                        if (ft == WarType.TERRITORY) {
+                            // Fetch the enemy's claims and show the territory selection map
+                            warsSelectedChunks.clear();
+                            enemyClaimKeysRef.set(java.util.List.of());
+                            if (warsTarget != null) {
+                                PacketDistributor.sendToServer(
+                                        new com.admin82.factions.network.packet.RequestEnemyClaimsPacket(
+                                                warsTarget.id()));
+                            }
+                            warsSubView = WarsSubView.SELECT_TERRITORY;
+                        } else if (ft == WarType.ALL_OUT) {
+                            // Show a mandatory confirmation screen before this devastating war
+                            warsSubView = WarsSubView.CONFIRM_ALL_OUT;
+                        } else {
+                            warsSelectedAttackers.clear();
+                            warsSelectedAttackers.add(player.getUUID());
+                            warsSubView = WarsSubView.SELECT_ATTACKERS;
+                        }
+                        fillWarsPanel(player);
+                    });
+            btn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty()
+                    .append(Component.literal(ft.displayName))
+                    .append(Component.literal(ft.description)));
+            btn.layout(l -> l.width(300).height(22).alignSelf(org.appliedenergistics.yoga.YogaAlign.CENTER));
+            warsPanel.addChildren(btn);
+        }
+        warsPanel.addChildren(
+                new Button().setText("§7← Back")
+                        .setOnClick(e -> { warsSubView = WarsSubView.LIST; fillWarsPanel(player); })
+                        .layout(l -> l.width(80))
+        );
+    }
+
+    // ── All Out War — mandatory confirmation ─────────────────────────────────
+
+    private void buildAllOutConfirmView(Player player) {
+        var target = warsTarget != null ? warsTarget.name() : "?";
+        warsPanel.addChildren(
+                new Label().setText("§c§l⚠  ALL OUT WAR  ⚠").lss("horizontal-align", "center"),
+                new Label().setText("§7Target: §c" + target).lss("horizontal-align", "center")
+        );
+
+        var warningBox = new UIElement();
+        warningBox.layout(l -> l.width(400).paddingAll(8).gapAll(5).flexDirection(YogaFlexDirection.COLUMN));
+        warningBox.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#aa000055)");
+        warningBox.addChildren(
+                new Label().setText("§eThe LOSER of this war — attacker or defender — will:"),
+                new Label().setText("§c  ✗  Lose §lALL§r§c claimed territory (transferred to the winner)"),
+                new Label().setText("§c  ✗  Have their entire faction vault seized by the winner"),
+                new Label().setText("§c  ✗  Have their faction permanently §lDISBANDED"),
+                new Label().setText("§8─────────────────────────────────────────────"),
+                new Label().setText("§e⚠  Both sides risk total destruction. This cannot be undone.")
+        );
+        warsPanel.addChildren(warningBox);
+
+        var btnRow = new UIElement();
+        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).paddingTop(10));
+        btnRow.addChildren(
+                new Button().setText("§c⚔ Accept — Wage All Out War on " + target)
+                        .setOnClick(e -> {
+                            warsSelectedAttackers.clear();
+                            warsSelectedAttackers.add(player.getUUID());
+                            warsSubView = WarsSubView.SELECT_ATTACKERS;
+                            fillWarsPanel(player);
+                        })
+                        .layout(l -> l.flex(1)),
+                new Button().setText("§7✗ Decline")
+                        .setOnClick(e -> { warsSubView = WarsSubView.SELECT_WAR_TYPE; fillWarsPanel(player); })
+                        .layout(l -> l.width(80))
+        );
+        warsPanel.addChildren(btnRow);
+    }
+
+    // ── Territory-War chunk-selection map ────────────────────────────────────
+
+    @OnlyIn(Dist.CLIENT)
+    private void buildTerritorySelectView(Player player) {
+        if (warsTarget == null) { warsSubView = WarsSubView.SELECT_WAR_TYPE; fillWarsPanel(player); return; }
+
+        int playerCoreX = SectionPos.blockToSectionCoord(tablePos.getX());
+        int playerCoreZ = SectionPos.blockToSectionCoord(tablePos.getZ());
+        int selCount    = warsSelectedChunks.size();
+
+        warsPanel.addChildren(
+                new Label().setText("§6§l⚑ Territory Selection — §c" + warsTarget.name()),
+                new Label().bindDataSource(SupplierDataSource.of(() ->
+                        Component.literal("§7Selected: §a" + warsSelectedChunks.size()
+                                + " chunk" + (warsSelectedChunks.size() == 1 ? "" : "s")
+                                + "  §8— Click red enemy chunks to inspect")))
+        );
+
+        // ── Map + info panel ───────────────────────────────────────────────
+        // Always build the map structure so it displays immediately. If enemy-claim
+        // data hasn't arrived yet, fillWarMapCells renders blank terrain; the map
+        // updates via fillWarsPanel once SyncEnemyClaimsPacket triggers updateEnemyClaims.
+        var mapRow = new UIElement();
+        mapRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+
+        // Map
+        warTerrainMapGrid = new UIElement();
+        warTerrainMapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(YogaAlign.CENTER));
+        if (warTerrainTexture == null)
+            warTerrainTexture = new TerrainMapTexture(GRID_PX);
+        warTerrainMapGrid.style(s -> s.background(warTerrainTexture));
+        fillWarMapCells(playerCoreX, playerCoreZ);
+
+            // Drag-to-pan events
+            warTerrainMapGrid.addEventListener(UIEvents.MOUSE_DOWN, ev -> {
+                warMapDragging = true; warMapDragDist = 0f;
+                warMapLastX = ev.x; warMapLastZ = ev.y;
+                warMapAccumX = 0f; warMapAccumZ = 0f;
+            });
+            warTerrainMapGrid.addEventListener(UIEvents.MOUSE_UP, ev -> warMapDragging = false);
+            warTerrainMapGrid.addEventListener(UIEvents.MOUSE_MOVE, ev -> {
+                if (!warMapDragging) return;
+                float dx = warMapLastX - ev.x, dz = warMapLastZ - ev.y;
+                warMapLastX = ev.x; warMapLastZ = ev.y;
+                warMapDragDist += Math.abs(dx) + Math.abs(dz);
+                warMapAccumX += dx; warMapAccumZ += dz;
+                boolean moved = false;
+                int ppc = Math.max(1, GRID_PX / warMapViewSize);
+                while (warMapAccumX >=  ppc) { warMapOffsetX++; warMapAccumX -= ppc; moved = true; }
+                while (warMapAccumX <= -ppc) { warMapOffsetX--; warMapAccumX += ppc; moved = true; }
+                while (warMapAccumZ >=  ppc) { warMapOffsetZ++; warMapAccumZ -= ppc; moved = true; }
+                while (warMapAccumZ <= -ppc) { warMapOffsetZ--; warMapAccumZ += ppc; moved = true; }
+                if (moved) fillWarMapCells(playerCoreX, playerCoreZ);
+            });
+            warTerrainMapGrid.addEventListener(UIEvents.MOUSE_WHEEL, ev -> {
+                if      (ev.deltaY > 0) warMapViewSize = Math.max(5,  warMapViewSize - 2);
+                else if (ev.deltaY < 0) warMapViewSize = Math.min(17, warMapViewSize + 2);
+                fillWarMapCells(playerCoreX, playerCoreZ);
+            });
+            warTerrainMapGrid.addEventListener(UIEvents.TICK, ev -> {
+                if (warMapDragging) {
+                    long win = Minecraft.getInstance().getWindow().getWindow();
+                    if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(win, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)
+                            != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
+                        warMapDragging = false; warMapDragDist = 0f;
+                    }
+                }
+            });
+
+            warChunkInfoPanel = new UIElement();
+            warChunkInfoPanel.layout(l -> l.width(162).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+            refreshWarChunkInfo(playerCoreX, playerCoreZ);
+
+            mapRow.addChildren(warTerrainMapGrid, warChunkInfoPanel);
+            warsPanel.addChildren(mapRow);
+
+        // ── Legend row ────────────────────────────────────────────────────────
+        warsPanel.addChildren(new Label().setText(
+                "§c■§r Enemy  §a■§r Selected  §9■§r Yours  §8drag · scroll"));
+
+        // ── Bottom buttons ────────────────────────────────────────────────────
+        var btnRow = new UIElement();
+        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingTop(2));
+        btnRow.addChildren(
+                new Button().setText(selCount > 0
+                                ? "§a⚔ Wage War for §e" + selCount + "§a chunk" + (selCount == 1 ? "" : "s") + " of Land"
+                                : "§7← Pick enemy chunks to continue")
+                        .setOnClick(e -> {
+                            if (warsSelectedChunks.isEmpty()) return;
+                            warsSelectedAttackers.clear();
+                            warsSelectedAttackers.add(player.getUUID());
+                            warsSubView = WarsSubView.SELECT_ATTACKERS;
+                            fillWarsPanel(player);
+                        })
+                        .layout(l -> l.flex(1)),
+                new Button().setText("§7← Back")
+                        .setOnClick(e -> { warsSubView = WarsSubView.SELECT_WAR_TYPE; fillWarsPanel(player); })
+                        .layout(l -> l.width(80))
+        );
+        warsPanel.addChildren(btnRow);
+    }
+
+    /** Builds/refreshes the right-side chunk inspection panel in the territory-selection view. */
+    @OnlyIn(Dist.CLIENT)
+    private void refreshWarChunkInfo(int playerCoreX, int playerCoreZ) {
+        if (warChunkInfoPanel == null) return;
+        warChunkInfoPanel.clearAllChildren();
+        warChunkInfoPanel.addChildren(new Label().setText("§8─── Chunk Info ───"));
+
+        if (warInspectedChunkKey == null) {
+            warChunkInfoPanel.addChildren(
+                    new Label().setText("§8Click an enemy"),
+                    new Label().setText("§8chunk to inspect it.")
+            );
+            return;
+        }
+
+        String[] p = warInspectedChunkKey.split(",", 3);
+        int icx = Integer.parseInt(p[0]), icz = Integer.parseInt(p[1]);
+
+        warChunkInfoPanel.addChildren(
+                new Label().setText("§7X: §f" + icx + "  Z: §f" + icz)
+        );
+
+        // Determine chunk category
+        String coreKey   = enemyCoreCX + "," + enemyCoreCZ + "," + enemyCoreDim;
+        boolean isCore   = warInspectedChunkKey.equals(coreKey);
+        boolean isEnemy  = enemyClaimKeysRef.get().contains(warInspectedChunkKey);
+        boolean isSel    = warsSelectedChunks.contains(warInspectedChunkKey);
+
+        if (!isEnemy) {
+            // Own claim or free chunk — just show info, not claimable
+            Set<String> myClaims = new HashSet<>();
+            Faction myF = factionRef.get();
+            if (myF != null) for (LandClaim c : myF.getLandClaims())
+                myClaims.add(c.chunkX() + "," + c.chunkZ() + "," + c.dimension().toString());
+            if (myClaims.contains(warInspectedChunkKey)) {
+                warChunkInfoPanel.addChildren(new Label().setText("§9■ Your territory"));
+            } else {
+                warChunkInfoPanel.addChildren(new Label().setText("§8■ Unclaimed land"));
+            }
+            return;
+        }
+
+        warChunkInfoPanel.addChildren(
+                new Label().setText("§cOwned by:"),
+                new Label().setText("§e" + (warsTarget != null ? warsTarget.name() : "?"))
+        );
+
+        if (isCore) {
+            warChunkInfoPanel.addChildren(
+                    new Label().setText("§c🔒 Core Chunk"),
+                    new Label().setText("§8This is the enemy's"),
+                    new Label().setText("§8faction base."),
+                    new Label().setText("§cCannot be claimed.")
+            );
+            return;
+        }
+
+        // Claimable enemy chunk
+        final String fKey = warInspectedChunkKey;
+        if (isSel) {
+            warChunkInfoPanel.addChildren(
+                    new Label().setText("§a✔ In war claims")
+            );
+            var removeBtn = new Button().setText("§c✗ Remove")
+                    .setOnClick(e -> {
+                        warsSelectedChunks.remove(fKey);
+                        refreshWarChunkInfo(playerCoreX, playerCoreZ);
+                        fillWarMapCells(playerCoreX, playerCoreZ);
+                    });
+            removeBtn.layout(l -> l.width(140).height(18));
+            warChunkInfoPanel.addChildren(removeBtn);
+        } else {
+            warChunkInfoPanel.addChildren(
+                    new Label().setText("§7Claimable on victory")
+            );
+            var addBtn = new Button().setText("§a✔ Claim Territory")
+                    .setOnClick(e -> {
+                        warsSelectedChunks.add(fKey);
+                        refreshWarChunkInfo(playerCoreX, playerCoreZ);
+                        fillWarMapCells(playerCoreX, playerCoreZ);
+                    });
+            addBtn.layout(l -> l.width(140).height(18));
+            warChunkInfoPanel.addChildren(addBtn);
+        }
+
+        // Show total selected so far
+        warChunkInfoPanel.addChildren(
+                new Label().setText("§8─────────────"),
+                new Label().setText("§7Total: §a" + warsSelectedChunks.size() + " selected")
+        );
+    }
+
+    /** Renders the war territory-selection map grid (separate from the territory tab map). */
+    @OnlyIn(Dist.CLIENT)
+    private void fillWarMapCells(int playerCoreX, int playerCoreZ) {
+        if (warTerrainMapGrid == null || warTerrainTexture == null) return;
+        warTerrainMapGrid.clearAllChildren();
+
+        var   mc    = Minecraft.getInstance();
+        Level level = mc.level;
+
+        int viewCX   = playerCoreX + warMapOffsetX;
+        int viewCZ   = playerCoreZ + warMapOffsetZ;
+        int halfView = warMapViewSize / 2;
+
+        // Build O(1) lookup sets
+        java.util.List<String> enemyKeys = enemyClaimKeysRef.get();
+        Set<String> enemySet  = new HashSet<>(enemyKeys);
+        String      coreKey   = enemyCoreCX + "," + enemyCoreCZ + "," + enemyCoreDim;
+
+        Set<String> myClaims = new HashSet<>();
+        Faction myFaction = factionRef.get();
+        if (myFaction != null)
+            for (LandClaim c : myFaction.getLandClaims())
+                myClaims.add(c.chunkX() + "," + c.chunkZ() + "," + c.dimension().toString());
+
+        int cellPx = Math.max(8, GRID_PX / warMapViewSize);
+        int actual = cellPx * warMapViewSize;
+        final int fcs = cellPx;
+        warTerrainMapGrid.layout(l -> l.width(actual).height(actual).alignSelf(YogaAlign.CENTER));
+
+        // ── Step 1: terrain + border texture ──────────────────────────────────
+        warTerrainTexture.clear();
+        for (int row = 0; row < warMapViewSize; row++) {
+            for (int col = 0; col < warMapViewSize; col++) {
+                int cx = viewCX - halfView + col, cz = viewCZ - halfView + row;
+                boolean loaded = level != null && level.hasChunk(cx, cz);
+                for (int py = 0; py < fcs; py++) {
+                    for (int px = 0; px < fcs; px++) {
+                        int ix = col * fcs + px, iy = row * fcs + py;
+                        if (ix >= GRID_PX || iy >= GRID_PX) continue;
+                        warTerrainTexture.setPixel(ix, iy, loaded
+                                ? computeBlockColor(level, cx * 16 + (px * 16) / fcs, cz * 16 + (py * 16) / fcs)
+                                : 0x404040);
+                    }
+                }
+            }
+        }
+        // Grid lines
+        for (int i = 0; i <= warMapViewSize; i++) {
+            int pos = i * fcs;
+            if (pos < GRID_PX) { warTerrainTexture.drawHLine(pos, 0, actual - 1); warTerrainTexture.drawVLine(pos, 0, actual - 1); }
+        }
+        // Claim borders
+        int bpx = Math.max(1, fcs / 7);
+        for (int row = 0; row < warMapViewSize; row++) {
+            for (int col = 0; col < warMapViewSize; col++) {
+                int cx = viewCX - halfView + col, cz = viewCZ - halfView + row;
+                String key = cx + "," + cz + "," + tableDim;
+                boolean isCore     = key.equals(coreKey);
+                boolean isSelected = warsSelectedChunks.contains(key);
+                boolean isEnemy    = enemySet.contains(key);
+                boolean isMine     = myClaims.contains(key);
+
+                int colour;
+                if (isCore)                             colour = 0x881111; // dark red = locked core
+                else if (isEnemy && isSelected)         colour = 0x00dd44; // green = selected
+                else if (isEnemy)                       colour = 0xff3333; // red = enemy/claimable
+                else if (isMine)                        colour = 0x3399ff; // blue = own
+                else                                    continue;
+
+                warTerrainTexture.drawChunkBorder(col * fcs, row * fcs, fcs, colour, bpx);
+            }
+        }
+        // White outline on currently-inspected chunk
+        if (warInspectedChunkKey != null) {
+            String[] ip = warInspectedChunkKey.split(",", 3);
+            try {
+                int icx = Integer.parseInt(ip[0]), icz = Integer.parseInt(ip[1]);
+                int selC = icx - (viewCX - halfView);
+                int selR = icz - (viewCZ - halfView);
+                if (selC >= 0 && selC < warMapViewSize && selR >= 0 && selR < warMapViewSize)
+                    warTerrainTexture.drawChunkBorder(selC * fcs, selR * fcs, fcs, 0xFFFFFF, bpx + 1);
+            } catch (NumberFormatException ignored) {}
+        }
+        warTerrainTexture.upload();
+
+        // ── Step 2: transparent click cells ────────────────────────────────────
+        for (int row = 0; row < warMapViewSize; row++) {
+            var rowEl = new UIElement();
+            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(fcs));
+            for (int col = 0; col < warMapViewSize; col++) {
+                int cx = viewCX - halfView + col, cz = viewCZ - halfView + row;
+                String key = cx + "," + cz + "," + tableDim;
+                boolean isEnemy = enemySet.contains(key); // core or regular enemy chunk
+
+                var cell = new UIElement();
+                cell.layout(l -> l.width(fcs).height(fcs));
+
+                // Any enemy chunk (including core) can be inspected on click;
+                // double-click (two fast clicks) quick-adds it to the selection.
+                if (isEnemy) {
+                    final String fKey = key;
+                    final int fcx = cx, fcz = cz;
+                    final long[] lastClickTime = {0L};
+                    cell.addEventListener(UIEvents.MOUSE_UP, ev -> {
+                        if (warMapDragDist > 5f) return;
+                        long now = System.currentTimeMillis();
+                        boolean isDoubleClick = (now - lastClickTime[0]) < 350L;
+                        lastClickTime[0] = now;
+
+                        String coreKey2 = enemyCoreCX + "," + enemyCoreCZ + "," + enemyCoreDim;
+                        if (isDoubleClick && !fKey.equals(coreKey2)) {
+                            // Double-click: immediately toggle chunk in selection
+                            if (warsSelectedChunks.contains(fKey)) warsSelectedChunks.remove(fKey);
+                            else warsSelectedChunks.add(fKey);
+                            refreshWarChunkInfo(playerCoreX, playerCoreZ);
+                        } else {
+                            // Single-click: inspect
+                            if (fKey.equals(warInspectedChunkKey)) warInspectedChunkKey = null;
+                            else                                    warInspectedChunkKey = fKey;
+                            refreshWarChunkInfo(playerCoreX, playerCoreZ);
+                        }
+                        fillWarMapCells(playerCoreX, playerCoreZ);
+                    });
+                }
+                rowEl.addChildren(cell);
+            }
+            warTerrainMapGrid.addChildren(rowEl);
+        }
+    }
+
+    // ── Wartime Negotiations view ─────────────────────────────────────────────
+
+    private void buildNegotiationsView(Player player) {
+        Faction myFaction = factionRef.get();
+        UUID myId = myFaction != null ? myFaction.getId() : null;
+        warsPanel.addChildren(
+                new Label().setText("§6§l⚑ Wartime Negotiations"),
+                new Label().setText("§7War with: §c"
+                        + (warsNegotiateTarget != null ? warsNegotiateTarget.name() : "?"))
+        );
+
+        java.util.List<WarDemand> demands = warDemandsRef.get();
+        if (demands.isEmpty()) {
+            warsPanel.addChildren(new Label().setText("§8No demands have been sent yet."));
+        } else {
+            for (WarDemand d : demands) {
+                boolean isIncoming = myId != null && myId.equals(d.receiverFactionId);
+                var row = new UIElement();
+                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4)
+                        .paddingBottom(3).width(404));
+                String statusColor = switch (d.status) {
+                    case ACCEPTED        -> "§a";
+                    case REJECTED, EXPIRED -> "§c";
+                    default              -> "§7";
+                };
+                String dir = isIncoming
+                        ? "§cINBOUND §7from §c" + d.senderFactionName
+                        : "§eSENT §7to §e" + d.receiverFactionName;
+                var col = new UIElement();
+                col.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+                col.addChildren(
+                        new Label().setText(dir + "  " + statusColor + d.status.name()),
+                        new Label().setText("§7Terms: " + d.termsSummary())
+                );
+                row.addChildren(col);
+                if (isIncoming && d.status == WarDemand.Status.PENDING && isOfficer(player)) {
+                    final java.util.UUID fDemandId = d.demandId;
+                    row.addChildren(
+                            new Button().setText("§aAccept")
+                                    .setOnClick(e -> PacketDistributor.sendToServer(
+                                            new RespondWarDemandPacket(fDemandId, true)))
+                                    .layout(l -> l.width(50)),
+                            new Button().setText("§cReject")
+                                    .setOnClick(e -> PacketDistributor.sendToServer(
+                                            new RespondWarDemandPacket(fDemandId, false)))
+                                    .layout(l -> l.width(50))
+                    );
+                }
+                warsPanel.addChildren(row);
+            }
+        }
+
+        var btnRow = new UIElement();
+        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingTop(6));
+        if (isOfficer(player)) {
+            btnRow.addChildren(
+                    new Button().setText("§e+ Send Demand")
+                            .setOnClick(e -> { warsSubView = WarsSubView.COMPOSE_DEMAND; fillWarsPanel(player); })
+                            .layout(l -> l.flex(1))
+            );
+        }
+        btnRow.addChildren(
+                new Button().setText("§7← Back")
+                        .setOnClick(e -> { warsSubView = WarsSubView.LIST; fillWarsPanel(player); })
+                        .layout(l -> l.width(80))
+        );
+        warsPanel.addChildren(btnRow);
+    }
+
+    // ── Compose demand view ───────────────────────────────────────────────────
+
+    private void buildComposeDemandView(Player player) {
+        warsPanel.addChildren(
+                new Label().setText("§6§l⚑ Compose Demand"),
+                new Label().setText("§7Demanding from: §c"
+                        + (warsNegotiateTarget != null ? warsNegotiateTarget.name() : "?"))
+        );
+
+        // Money
+        warsPanel.addChildren(new Label().setText("§eVault payment (copper, 0 = none):"));
+        var moneyField = new TextField()
+                .setValue(String.valueOf(composeMoney[0]))
+                .bindObserver(v -> { try { composeMoney[0] = Long.parseLong(v.trim()); }
+                                     catch (NumberFormatException ignored) {} });
+        moneyField.layout(l -> l.width(200));
+        warsPanel.addChildren(moneyField);
+
+        // Items
+        warsPanel.addChildren(new Label().setText("§eItem (e.g. minecraft:diamond × count, blank = none):"));
+        var itemRow = new UIElement();
+        itemRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4));
+        var itemIdField = new TextField()
+                .setValue(composeItemId[0])
+                .bindObserver(v -> composeItemId[0] = v.trim());
+        itemIdField.layout(l -> l.width(160));
+        var itemCountField = new TextField()
+                .setValue(String.valueOf(composeItemCount[0]))
+                .bindObserver(v -> { try { composeItemCount[0] = Math.max(1, Integer.parseInt(v.trim())); }
+                                     catch (NumberFormatException ignored) {} });
+        itemCountField.layout(l -> l.width(50));
+        itemRow.addChildren(itemIdField, new Label().setText("§7 ×"), itemCountField);
+        warsPanel.addChildren(itemRow);
+
+        // Land
+        warsPanel.addChildren(new Label().setText("§eLand chunks to release (0 = none):"));
+        var landField = new TextField()
+                .setValue(String.valueOf(composeLandChunks[0]))
+                .bindObserver(v -> { try { composeLandChunks[0] = Math.max(0, Integer.parseInt(v.trim())); }
+                                     catch (NumberFormatException ignored) {} });
+        landField.layout(l -> l.width(80));
+        warsPanel.addChildren(landField);
+
+        // Vassal toggle
+        var vassalRow = new UIElement();
+        vassalRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(22));
+        vassalRow.addChildren(
+                new Label().setText("§eRequire becoming your vassal:").layout(l -> l.flex(1)),
+                new com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle()
+                        .setOn(composeVassal[0])
+                        .setOnToggleChanged(on -> composeVassal[0] = on)
+                        .layout(l -> l.width(50))
+        );
+        warsPanel.addChildren(vassalRow);
+
+        // Buttons
+        var btnRow = new UIElement();
+        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).paddingTop(6));
+        btnRow.addChildren(
+                new Button().setText("§a⚑ Send Demand")
+                        .setOnClick(e -> {
+                            if (warsNegotiateTarget != null) {
+                                PacketDistributor.sendToServer(new SendWarDemandPacket(
+                                        warsNegotiateTarget.id(),
+                                        composeMoney[0],
+                                        composeItemId[0],
+                                        composeItemCount[0],
+                                        composeLandChunks[0],
+                                        composeVassal[0]
+                                ));
+                                // Reset fields
+                                composeMoney[0]      = 0L;
+                                composeItemId[0]     = "";
+                                composeItemCount[0]  = 1;
+                                composeLandChunks[0] = 0;
+                                composeVassal[0]     = false;
+                            }
+                            warsSubView = WarsSubView.NEGOTIATIONS;
+                            fillWarsPanel(player);
+                        })
+                        .layout(l -> l.flex(1)),
+                new Button().setText("§7← Back")
+                        .setOnClick(e -> { warsSubView = WarsSubView.NEGOTIATIONS; fillWarsPanel(player); })
                         .layout(l -> l.width(80))
         );
         warsPanel.addChildren(btnRow);
@@ -1286,7 +2245,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         var claims = faction.getLandClaims();
         int numClaims = claims.size();
-        long dailyCost = (long) numClaims * Currency.UPKEEP_PER_CLAIM_PER_DAY;
+        long dailyCost = claims.stream().mapToLong(com.admin82.factions.faction.LandClaim::dailyCost).sum();
 
         // Deed list header
         var listHeader = new UIElement();
@@ -1322,7 +2281,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                                 .layout(l -> l.flex(1)),
                         new Label().setText("§7" + simplifyDim(claim.dimension().toString()))
                                 .layout(l -> l.width(80)),
-                        new Label().setText("§e" + Currency.format(Currency.UPKEEP_PER_CLAIM_PER_DAY))
+                        new Label().setText("§e" + Currency.format(claim.dailyCost()))
                                 .layout(l -> l.width(56))
                 );
                 deedArea.addChildren(row);
@@ -1347,8 +2306,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // Summary
         panel.addChildren(new Label().setText(
-                "§fClaims: §e" + numClaims + " §7× §e" + Currency.format(Currency.UPKEEP_PER_CLAIM_PER_DAY)
-                        + "§7/day = §e" + Currency.format(dailyCost) + "§7/day total"));
+                "§fTotal upkeep: §e" + Currency.format(dailyCost) + "§7/day  (§e" + numClaims + " §7chunk" + (numClaims == 1 ? "" : "s") + ")"));
 
         // Vault balance (live)
         panel.addChildren(new Label().bindDataSource(SupplierDataSource.of(() ->
@@ -1366,13 +2324,13 @@ public class FactionTableMenu extends AbstractContainerMenu {
         timerLabel.layout(l -> l.width(404));
         timerLabel.addEventListener(UIEvents.TICK, ev -> {
             long vault  = factionVaultRef.get();
-            long daily  = (long) faction.getLandClaims().size() * Currency.UPKEEP_PER_CLAIM_PER_DAY;
-            if (faction.getLandClaims().isEmpty()) {
-                timerLabel.setText("§aNo claims — no upkeep required.");
+            long daily  = faction.getLandClaims().stream().mapToLong(com.admin82.factions.faction.LandClaim::dailyCost).sum();
+            if (daily == 0) {
+                timerLabel.setText("§aNo upkeep required.");
                 return;
             }
-            if (vault <= 0 || daily <= 0) {
-                timerLabel.setText("§c⚠ Vault empty — claims will be released on next upkeep cycle!");
+            if (vault <= 0) {
+                timerLabel.setText("§c⚠ Vault empty — land claims are §lUNPROTECTED§c until funds are deposited!");
                 return;
             }
             // Base seconds from vault balance
@@ -1392,7 +2350,10 @@ public class FactionTableMenu extends AbstractContainerMenu {
             timerLabel.setText(txt);
         });
         panel.addChildren(timerLabel);
+        panel.addChildren(new Label().setText("§8─────────────────────────────────────────"));
         panel.addChildren(new Label().setText("§8(Based on current vault balance ÷ daily cost)"));
+        panel.addChildren(new Label().setText("§8Claims are NOT released when the vault empties."));
+        panel.addChildren(new Label().setText("§8They become unprotected until funds are restored."));
 
         return panel;
     }
@@ -1411,90 +2372,169 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private UIElement buildVaultPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(10).gapAll(8).flexDirection(YogaFlexDirection.COLUMN));
-
-        panel.addChildren(new Label().setText("§6§lFaction Bank"));
-
-        // Wallet section
-        panel.addChildren(new Label().setText("§7── Personal Wallet ──"));
-        panel.addChildren(new Label().bindDataSource(SupplierDataSource.of(() ->
-                Component.literal("§fBalance: §a" + Currency.format(playerWalletRef.get())))));
-
-        long[] walletQty  = {0};
-        String[] walletCoin = {"Copper"};
-        var walletFields = new UIElement();
-        walletFields.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(24));
-        TextField walletAmtField = new TextField();
-        walletAmtField.setValue("0");
-        walletAmtField.bindObserver(v -> { try { walletQty[0] = Math.max(0, Long.parseLong(v.trim())); } catch (NumberFormatException ignored) {} });
-        walletAmtField.layout(l -> l.width(80));
-        var walletCoinSel = new Selector<String>();
-        walletCoinSel.setCandidates(java.util.List.of("Copper", "Silver", "Gold", "Platinum"));
-        walletCoinSel.setValue("Copper");
-        walletCoinSel.setOnValueChanged(v -> walletCoin[0] = v);
-        walletCoinSel.layout(l -> l.width(86).height(24));
-        var depositWalletBtn = new Button().setText("§aDeposit").setOnClick(e -> {
-            long amt = walletQty[0] * vaultCoinMult(walletCoin[0]);
-            if (amt > 0) PacketDistributor.sendToServer(new VaultActionPacket(VaultActionPacket.Action.DEPOSIT_WALLET, amt));
-        });
-        depositWalletBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
-                Component.literal("§aDeposit physical coins"),
-                Component.literal("§7Takes coin items from your inventory."),
-                Component.literal("§7Adds to virtual wallet balance.")));
-        depositWalletBtn.layout(l -> l.width(70));
-        var withdrawWalletBtn = new Button().setText("§eWithdraw").setOnClick(e -> {
-            long amt = walletQty[0] * vaultCoinMult(walletCoin[0]);
-            if (amt > 0) PacketDistributor.sendToServer(new VaultActionPacket(VaultActionPacket.Action.WITHDRAW_WALLET, amt));
-        });
-        withdrawWalletBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
-                Component.literal("§eWithdraw to physical coins"),
-                Component.literal("§7Converts wallet balance into coin items.")));
-        withdrawWalletBtn.layout(l -> l.width(76));
-        walletFields.addChildren(walletAmtField, walletCoinSel, depositWalletBtn, withdrawWalletBtn);
-
-        // Faction vault section
-        panel.addChildren(new Label().setText("§7── Faction Vault ──"));
-        panel.addChildren(new Label().bindDataSource(SupplierDataSource.of(() ->
-                Component.literal("§fVault: §a" + Currency.format(factionVaultRef.get())))));
-
-        long[] vaultQty  = {0};
-        String[] vaultCoin = {"Copper"};
-        var vaultFields = new UIElement();
-        vaultFields.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(24));
-        TextField vaultAmtField = new TextField();
-        vaultAmtField.setValue("0");
-        vaultAmtField.bindObserver(v -> { try { vaultQty[0] = Math.max(0, Long.parseLong(v.trim())); } catch (NumberFormatException ignored) {} });
-        vaultAmtField.layout(l -> l.width(80));
-        var vaultCoinSel = new Selector<String>();
-        vaultCoinSel.setCandidates(java.util.List.of("Copper", "Silver", "Gold", "Platinum"));
-        vaultCoinSel.setValue("Copper");
-        vaultCoinSel.setOnValueChanged(v -> vaultCoin[0] = v);
-        vaultCoinSel.layout(l -> l.width(86).height(24));
-        var depositFactionBtn = new Button().setText("§aDeposit").setOnClick(e -> {
-            long amt = vaultQty[0] * vaultCoinMult(vaultCoin[0]);
-            if (amt > 0) PacketDistributor.sendToServer(new VaultActionPacket(VaultActionPacket.Action.DEPOSIT_FACTION, amt));
-        });
-        depositFactionBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
-                Component.literal("§aDeposit to Faction Vault"),
-                Component.literal("§7Transfers from your wallet to the faction vault."),
-                Component.literal("§7Used for upkeep and faction expenses.")));
-        depositFactionBtn.layout(l -> l.width(70));
-        var withdrawFactionBtn = new Button().setText("§eWithdraw").setOnClick(e -> {
-            long amt = vaultQty[0] * vaultCoinMult(vaultCoin[0]);
-            if (amt > 0) PacketDistributor.sendToServer(new VaultActionPacket(VaultActionPacket.Action.WITHDRAW_FACTION, amt));
-        });
-        withdrawFactionBtn.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
-                Component.literal("§eWithdraw from Faction Vault"),
-                Component.literal("§7Requires VAULT_WITHDRAW permission or owner.")));
-        withdrawFactionBtn.layout(l -> l.width(76));
-        vaultFields.addChildren(vaultAmtField, vaultCoinSel, depositFactionBtn, withdrawFactionBtn);
-
-        panel.addChildren(walletFields, vaultFields);
-
-        // Upkeep info
-        panel.addChildren(new Label().setText("§8Upkeep: §720 copper / claim / 24h. Faction vault covers it."));
-
+        panel.layout(l -> l.flex(1).paddingAll(10).flexDirection(YogaFlexDirection.COLUMN));
+        vaultContentArea = new UIElement();
+        vaultContentArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(8));
+        showVaultMain(player);
+        panel.addChildren(vaultContentArea);
         return panel;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private void showVaultMain(Player player) {
+        if (vaultContentArea == null) return;
+        vaultContentArea.clearAllChildren();
+
+        vaultContentArea.addChildren(new Label().setText("§6§lFaction Bank"));
+
+        // ── Personal Wallet ───────────────────────────────────────────────────
+        vaultContentArea.addChildren(new Label().setText("§7── Personal Wallet ──"));
+        vaultContentArea.addChildren(new Label().bindDataSource(SupplierDataSource.of(() ->
+                Component.literal("§fBalance: §a" + Currency.format(playerWalletRef.get())))));
+        var walletBtnRow = new UIElement();
+        walletBtnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).height(20));
+        var depWalletBtn = new Button().setText("§aDeposit").setOnClick(e ->
+                showVaultAction(player, "Deposit to Wallet", "Deposit",
+                        VaultActionPacket.Action.DEPOSIT_WALLET,
+                        () -> EconomyManager.countCoinsInInventory(player)));
+        depWalletBtn.layout(l -> l.width(90).height(20));
+        var wdWalletBtn = new Button().setText("§eWithdraw").setOnClick(e ->
+                showVaultAction(player, "Withdraw from Wallet", "Withdraw",
+                        VaultActionPacket.Action.WITHDRAW_WALLET,
+                        playerWalletRef::get));
+        wdWalletBtn.layout(l -> l.width(90).height(20));
+        walletBtnRow.addChildren(depWalletBtn, wdWalletBtn);
+        vaultContentArea.addChildren(walletBtnRow);
+
+        // ── Faction Vault ─────────────────────────────────────────────────────
+        vaultContentArea.addChildren(new Label().setText("§7── Faction Vault ──"));
+        vaultContentArea.addChildren(new Label().bindDataSource(SupplierDataSource.of(() ->
+                Component.literal("§fVault: §a" + Currency.format(factionVaultRef.get())))));
+        var vaultBtnRow = new UIElement();
+        vaultBtnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).height(20));
+        var depVaultBtn = new Button().setText("§aDeposit").setOnClick(e ->
+                showVaultAction(player, "Deposit to Faction Vault", "Deposit",
+                        VaultActionPacket.Action.DEPOSIT_FACTION,
+                        playerWalletRef::get));
+        depVaultBtn.layout(l -> l.width(90).height(20));
+        var wdVaultBtn = new Button().setText("§eWithdraw").setOnClick(e ->
+                showVaultAction(player, "Withdraw from Faction Vault", "Withdraw",
+                        VaultActionPacket.Action.WITHDRAW_FACTION,
+                        factionVaultRef::get));
+        wdVaultBtn.layout(l -> l.width(90).height(20));
+        vaultBtnRow.addChildren(depVaultBtn, wdVaultBtn);
+        vaultContentArea.addChildren(vaultBtnRow);
+
+        vaultContentArea.addChildren(new Label().setText("§8Upkeep: §7deed price per chunk per 24h. Core chunk = 1 silver/day."));
+    }
+
+    /** Shows the All / Half / Custom action sub-menu. */
+    @OnlyIn(Dist.CLIENT)
+    private void showVaultAction(Player player, String title, String verb,
+                                 VaultActionPacket.Action action,
+                                 java.util.function.LongSupplier totalFn) {
+        if (vaultContentArea == null) return;
+        pendingVaultAction = action;
+        pendingVaultVerb   = verb;
+        pendingVaultTotal  = totalFn;
+        pendingVaultTitle  = title;
+
+        vaultContentArea.clearAllChildren();
+        vaultContentArea.addChildren(
+            new Label().setText("§6§l" + title),
+            new Label().setText("§7How much would you like to " + verb.toLowerCase() + "?"),
+            new Label().setText("§8─────────────────────────────────────────")
+        );
+
+        long total = totalFn.getAsLong();
+        long half  = total / 2;
+
+        var allBtn = new Button()
+            .setText(total > 0
+                    ? "§a▶ " + verb + " All  §7(§e" + Currency.format(total) + "§7)"
+                    : "§8▶ " + verb + " All  §8(nothing available)")
+            .setOnClick(e -> {
+                long amt = totalFn.getAsLong();
+                if (amt > 0) { PacketDistributor.sendToServer(new VaultActionPacket(action, amt)); showVaultMain(player); }
+            });
+        allBtn.layout(l -> l.width(300).height(20));
+
+        var halfBtn = new Button()
+            .setText(half > 0
+                    ? "§7▶ " + verb + " Half  §8(§e" + Currency.format(half) + "§8)"
+                    : "§8▶ " + verb + " Half  §8(nothing available)")
+            .setOnClick(e -> {
+                long amt = totalFn.getAsLong() / 2;
+                if (amt > 0) { PacketDistributor.sendToServer(new VaultActionPacket(action, amt)); showVaultMain(player); }
+            });
+        halfBtn.layout(l -> l.width(300).height(20));
+
+        var customBtn = new Button().setText("§b▶ Custom Amount...")
+            .setOnClick(e -> showVaultCustom(player, title, action));
+        customBtn.layout(l -> l.width(300).height(20));
+
+        var backBtn = new Button().setText("§7◀ Back").setOnClick(e -> showVaultMain(player));
+        backBtn.layout(l -> l.width(80).height(20));
+
+        vaultContentArea.addChildren(
+            allBtn, halfBtn, customBtn,
+            new Label().setText("§8─────────────────────────────────────────"),
+            backBtn
+        );
+    }
+
+    /** Shows the custom-amount number + coin dropdown input view. */
+    @OnlyIn(Dist.CLIENT)
+    private void showVaultCustom(Player player, String title, VaultActionPacket.Action action) {
+        if (vaultContentArea == null) return;
+        vaultContentArea.clearAllChildren();
+        vaultContentArea.addChildren(
+            new Label().setText("§6§l" + title + " — Custom Amount"),
+            new Label().setText("§7Enter an amount:")
+        );
+
+        long[] qty  = {0};
+        String[] coin = {"Copper"};
+
+        var inputRow = new UIElement();
+        inputRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(24));
+
+        var field = new TextField();
+        field.setValue("0");
+        field.bindObserver(v -> { try { qty[0] = Math.max(0, Long.parseLong(v.trim())); } catch (NumberFormatException ignored) {} });
+        field.layout(l -> l.width(100));
+
+        @SuppressWarnings("unchecked")
+        var coinSel = new Selector<String>();
+        coinSel.setCandidates(java.util.List.of("Copper", "Silver", "Gold", "Platinum"));
+        coinSel.setValue("Copper");
+        coinSel.setOnValueChanged(v -> coin[0] = v);
+        coinSel.layout(l -> l.width(90).height(24));
+
+        inputRow.addChildren(field, coinSel);
+
+        var confirmBtn = new Button().setText("§aConfirm").setOnClick(e -> {
+            long amt = qty[0] * vaultCoinMult(coin[0]);
+            if (amt > 0) PacketDistributor.sendToServer(new VaultActionPacket(action, amt));
+            showVaultMain(player);
+        });
+        confirmBtn.layout(l -> l.width(100).height(20));
+
+        var backBtn = new Button().setText("§7◀ Back").setOnClick(e -> {
+            if (pendingVaultAction != null && pendingVaultVerb != null && pendingVaultTotal != null) {
+                showVaultAction(player, title, pendingVaultVerb, pendingVaultAction, pendingVaultTotal);
+            } else {
+                showVaultMain(player);
+            }
+        });
+        backBtn.layout(l -> l.width(80).height(20));
+
+        vaultContentArea.addChildren(
+            inputRow,
+            new Label().setText("§8─────────────────────────────────────────"),
+            confirmBtn,
+            backBtn
+        );
     }
 
     /** Converts a coin-type dropdown selection to its copper multiplier. */

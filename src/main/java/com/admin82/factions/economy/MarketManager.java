@@ -4,10 +4,13 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.neoforged.neoforge.network.PacketDistributor;
+import com.admin82.factions.network.packet.SyncSoldListingsPacket;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -17,7 +20,8 @@ public class MarketManager extends SavedData {
 
     private static final String DATA_NAME = "adminsfactions_market";
 
-    private final List<MarketListing> listings = new ArrayList<>();
+    private final List<MarketListing> listings     = new ArrayList<>();
+    private final List<SoldListing>   soldListings  = new ArrayList<>();
 
     // ── Singleton ─────────────────────────────────────────────────────────────
 
@@ -59,6 +63,23 @@ public class MarketManager extends SavedData {
         return (int) listings.stream().filter(l -> l.sellerUUID.equals(playerUUID)).count();
     }
 
+    // ── Sold listings (unclaimed proceeds) ─────────────────────────────
+
+    public void addSoldListing(SoldListing sale) {
+        soldListings.add(sale);
+        setDirty();
+    }
+
+    public List<SoldListing> getSoldListingsForPlayer(UUID playerUUID) {
+        return soldListings.stream().filter(s -> s.sellerUUID.equals(playerUUID)).toList();
+    }
+
+    public boolean claimSoldListing(UUID saleId) {
+        boolean removed = soldListings.removeIf(s -> s.saleId.equals(saleId));
+        if (removed) setDirty();
+        return removed;
+    }
+
     /**
      * Process any listings that have expired.
      * Delivers items/payment to players if online; stores pending delivery in EconomyManager otherwise.
@@ -73,10 +94,26 @@ public class MarketManager extends SavedData {
             toRemove.add(listing.listingId);
 
             if (listing.isAuction && listing.highestBidder != null) {
-                // Auction sold: deliver item to winner, payment to seller
+                // Auction sold: deliver item to winner, create a claimable SoldListing for seller
                 deliverItem(server, listing.highestBidder, listing.item);
                 long proceeds = listing.netProceeds(listing.highestBid);
-                eco.addWallet(listing.sellerUUID, proceeds);
+
+                String buyerName = resolvePlayerName(server, listing.highestBidder);
+                SoldListing sale = makeSoldListing(listing.sellerUUID, listing.item, buyerName, proceeds);
+                soldListings.add(sale);
+
+                // Notify seller if online
+                ServerPlayer seller = server.getPlayerList().getPlayer(listing.sellerUUID);
+                if (seller != null) {
+                    seller.displayClientMessage(Component.literal(
+                            "§a[Market] §eAuction ended! §e" + buyerName
+                            + " §cwon §f" + sale.itemName
+                            + " §cfor §e" + Currency.format(listing.highestBid)
+                            + " §c(§a" + Currency.format(proceeds) + " §cafter tax)§c."
+                            + " §eGo to Manage Listings to claim your earnings!"), false);
+                    PacketDistributor.sendToPlayer(seller, new SyncSoldListingsPacket(
+                            getSoldListingsForPlayer(listing.sellerUUID)));
+                }
             } else if (!listing.unpaidUpkeep) {
                 // Return unsold item to seller
                 deliverItem(server, listing.sellerUUID, listing.item);
@@ -101,24 +138,48 @@ public class MarketManager extends SavedData {
         // If offline, item is lost (simplification — could add a mailbox system later)
     }
 
+    private static SoldListing makeSoldListing(UUID sellerUUID, ItemStack item,
+                                               String buyerName, long proceeds) {
+        var sale = new SoldListing();
+        sale.saleId     = UUID.randomUUID();
+        sale.sellerUUID = sellerUUID;
+        sale.item       = item.copy();
+        sale.itemName   = item.getHoverName().getString();
+        sale.buyerName  = buyerName;
+        sale.proceeds   = proceeds;
+        sale.soldAt     = System.currentTimeMillis();
+        return sale;
+    }
+
+    /** Resolves a player's display name; falls back to UUID string. */
+    private static String resolvePlayerName(MinecraftServer server, UUID uuid) {
+        ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
+        if (sp != null) return sp.getGameProfile().getName();
+        return server.getProfileCache()
+                .get(uuid)
+                .map(com.mojang.authlib.GameProfile::getName)
+                .orElse(uuid.toString().substring(0, 8));
+    }
+
     // ── Serialization ─────────────────────────────────────────────────────────
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider reg) {
         var list = new ListTag();
-        for (var listing : listings) {
-            list.add(listing.save(reg));
-        }
+        for (var listing : listings) list.add(listing.save(reg));
         tag.put("listings", list);
+        var sold = new ListTag();
+        for (var sale : soldListings) sold.add(sale.save(reg));
+        tag.put("soldListings", sold);
         return tag;
     }
 
     private static MarketManager load(CompoundTag tag, HolderLookup.Provider reg) {
         var manager = new MarketManager();
         var list = tag.getList("listings", Tag.TAG_COMPOUND);
-        for (int i = 0; i < list.size(); i++) {
-            manager.listings.add(MarketListing.load(list.getCompound(i), reg));
-        }
+        for (int i = 0; i < list.size(); i++) manager.listings.add(MarketListing.load(list.getCompound(i), reg));
+        var sold = tag.getList("soldListings", Tag.TAG_COMPOUND);
+        for (int i = 0; i < sold.size(); i++) manager.soldListings.add(SoldListing.load(sold.getCompound(i), reg));
         return manager;
     }
 }

@@ -19,9 +19,9 @@ import java.util.UUID;
  */
 public record SyncWarStatePacket(
         UUID   warId,
-        int    phase,             // WarPhase.ordinal()
+        int    phase,
         int    graceSecondsLeft,
-        float  captureProgress,   // seconds accrued (0 .. captureTimeSeconds)
+        float  captureProgress,
         int    captureTimeSeconds,
         int    myLives,
         boolean isAttacker,
@@ -31,7 +31,14 @@ public record SyncWarStatePacket(
         int    totalDefenderLives,
         int    defenderTableX,
         int    defenderTableZ,
-        String defenderDimension
+        String defenderDimension,
+        // Outpost-phase fields
+        boolean outpostPhase,
+        int     captureTargetX,
+        int     captureTargetZ,
+        String  captureTargetDim,
+        // Defender counter-attack progress
+        float   defenderCaptureProgress
 ) implements CustomPacketPayload {
 
     public static final Type<SyncWarStatePacket> TYPE = new Type<>(
@@ -54,6 +61,11 @@ public record SyncWarStatePacket(
                 buf.writeInt(pkt.defenderTableX());
                 buf.writeInt(pkt.defenderTableZ());
                 buf.writeUtf(pkt.defenderDimension());
+                buf.writeBoolean(pkt.outpostPhase());
+                buf.writeInt(pkt.captureTargetX());
+                buf.writeInt(pkt.captureTargetZ());
+                buf.writeUtf(pkt.captureTargetDim());
+                buf.writeFloat(pkt.defenderCaptureProgress());
             },
             buf -> new SyncWarStatePacket(
                     buf.readUUID(),
@@ -69,7 +81,12 @@ public record SyncWarStatePacket(
                     buf.readVarInt(),
                     buf.readInt(),
                     buf.readInt(),
-                    buf.readUtf(256)
+                    buf.readUtf(256),
+                    buf.readBoolean(),
+                    buf.readInt(),
+                    buf.readInt(),
+                    buf.readUtf(256),
+                    buf.readFloat()  // defenderCaptureProgress
             )
     );
 

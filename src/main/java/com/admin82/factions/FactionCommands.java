@@ -2,11 +2,16 @@ package com.admin82.factions;
 
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.economy.Currency;
+import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.economy.ExchangeManager;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.admin82.factions.network.packet.SyncFactionDataPacket;
+import com.admin82.factions.outpost.OutpostData;
+import com.admin82.factions.outpost.OutpostEntry;
 import com.mojang.authlib.GameProfile;
+import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -135,7 +140,19 @@ public class FactionCommands {
                     .then(Commands.literal("list")
                         .executes(ctx -> cmdExchangeList(ctx.getSource()))))
 
-                // /faction war graceperiod set <seconds>
+                    // /faction war dotp <true|false>
+                    .then(Commands.literal("dotp")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("enabled", BoolArgumentType.bool())
+                            .executes(ctx -> cmdWarDoTp(ctx.getSource(),
+                                    BoolArgumentType.getBool(ctx, "enabled")))))
+                    // /faction war doboundary <true|false>
+                    .then(Commands.literal("doboundary")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("enabled", BoolArgumentType.bool())
+                            .executes(ctx -> cmdWarDoBoundary(ctx.getSource(),
+                                    BoolArgumentType.getBool(ctx, "enabled")))))
+                    // /faction war graceperiod set <seconds>
                 .then(Commands.literal("war")
                     .then(Commands.literal("graceperiod")
                         .then(Commands.literal("set")
@@ -148,6 +165,36 @@ public class FactionCommands {
                         .then(Commands.argument("chunks", IntegerArgumentType.integer(1, 50))
                             .executes(ctx -> cmdWarSetTpDistance(ctx.getSource(),
                                     IntegerArgumentType.getInteger(ctx, "chunks")))))
+                    // /faction war blockbreaklimit <count>
+                    .then(Commands.literal("blockbreaklimit")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("limit", IntegerArgumentType.integer(1, 1000))
+                            .executes(ctx -> cmdWarBlockBreakLimit(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "limit")))))
+                    // /faction war AfterWarCooldownTime <seconds>
+                    .then(Commands.literal("AfterWarCooldownTime")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 604800))
+                            .executes(ctx -> cmdWarAfterWarCooldown(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "seconds")))))
+                    // /faction war PercentageOfOnlinePlayersForWar <0-100>
+                    .then(Commands.literal("PercentageOfOnlinePlayersForWar")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("percent", IntegerArgumentType.integer(0, 100))
+                            .executes(ctx -> cmdWarOnlinePercentage(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "percent")))))
+                    // /faction war FactionTableCaptureKothTime <seconds>
+                    .then(Commands.literal("FactionTableCaptureKothTime")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 86400))
+                            .executes(ctx -> cmdWarTableKothTime(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "seconds")))))
+                    // /faction war OutpostKothCaptureTime <seconds>
+                    .then(Commands.literal("OutpostKothCaptureTime")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 86400))
+                            .executes(ctx -> cmdWarOutpostKothTime(ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "seconds")))))
                     // /faction war vassals edit <faction> free
                     // /faction war vassals edit <faction> tax <amount>
                     .then(Commands.literal("vassals")
@@ -162,7 +209,29 @@ public class FactionCommands {
                                         .executes(ctx -> cmdVassalTax(ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "faction"),
                                                 LongArgumentType.getLong(ctx, "amount")))))))))
+
+                // /faction economy claimrates <multiplier>
+                .then(Commands.literal("economy")
+                    .then(Commands.literal("claimrates")
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(1.0, 10.0))
+                            .executes(ctx -> cmdEconomyClaimRates(
+                                    ctx.getSource(),
+                                    DoubleArgumentType.getDouble(ctx, "value")))))
+                    .then(Commands.literal("outpostramp")
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0, 5.0))
+                            .executes(ctx -> cmdEconomyOutpostRamp(
+                                    ctx.getSource(),
+                                    DoubleArgumentType.getDouble(ctx, "value")))))
+                    .then(Commands.literal("TpCostToOutpost")
+                        .then(Commands.argument("silver", IntegerArgumentType.integer(0, 10000))
+                            .executes(ctx -> cmdEconomyTpCostToOutpost(
+                                    ctx.getSource(),
+                                    IntegerArgumentType.getInteger(ctx, "silver"))))))
         );
+        // /factionreturn — teleports any faction member to their barracks (no op needed)
+        event.getDispatcher().register(
+                Commands.literal("factionreturn")
+                        .executes(ctx -> cmdReturnToBase(ctx.getSource())));
     }
 
     // ── /faction list ─────────────────────────────────────────────────────────
@@ -179,8 +248,7 @@ public class FactionCommands {
             src.sendSuccess(() -> Component.literal(
                     "§e" + f.getName()
                     + " §7[" + f.getMembers().size() + " members"
-                    + ", " + f.getLandClaims().size() + " chunks"
-                    + ", pow " + f.getPower() + "]"), false);
+                    + ", " + f.getLandClaims().size() + " chunks]"), false);
         }
         return factions.size();
     }
@@ -199,8 +267,7 @@ public class FactionCommands {
             src.sendSuccess(() -> Component.literal("§7" + faction.getDescription()), false);
         src.sendSuccess(() -> Component.literal(
                 "§fMembers: §e" + faction.getMembers().size()
-                + "  §fChunks: §e" + faction.getLandClaims().size()
-                + "  §fPower: §a" + faction.getPower()), false);
+                + "  §fChunks: §e" + faction.getLandClaims().size()), false);
         for (FactionMember m : faction.getMembers()) {
             src.sendSuccess(() -> Component.literal(
                     "§8  [§7" + m.getRole().getId() + "§8] §f" + m.getPlayerName()), false);
@@ -373,6 +440,20 @@ public class FactionCommands {
                 + " chunk" + (chunks == 1 ? "" : "s") + "§a from defender territory."), true);
         return chunks;
     }
+
+    private static int cmdWarDoTp(CommandSourceStack src, boolean enabled) {
+        WarManager.get(src.getServer()).setWarTpEnabled(enabled);
+        src.sendSuccess(() -> Component.literal("§aAttacker teleport on grace-end is now §e"
+                + (enabled ? "enabled" : "disabled") + "§a."), true);
+        return 1;
+    }
+
+    private static int cmdWarDoBoundary(CommandSourceStack src, boolean enabled) {
+        WarManager.get(src.getServer()).setWarBoundaryEnabled(enabled);
+        src.sendSuccess(() -> Component.literal("§aWar boundary enforcement is now §e"
+                + (enabled ? "enabled" : "disabled") + "§a."), true);
+        return 1;
+    }
     // ── /faction war ─────────────────────────────────────────────────────────
 
     private static int cmdWarGraceperiodSet(CommandSourceStack src, int seconds) {
@@ -383,6 +464,40 @@ public class FactionCommands {
         WarManager.get(src.getServer()).setGracePeriodSeconds(seconds);
         src.sendSuccess(() -> Component.literal("§aWar grace period set to §e" + seconds + "s§a. "
                 + "(Config default: §7" + Config.WAR_GRACE_PERIOD_SECONDS.get() + "s§a.)"), true);
+        return seconds;
+    }
+
+    private static int cmdWarAfterWarCooldown(CommandSourceStack src, int seconds) {
+        WarManager.get(src.getServer()).setAfterWarCooldownSeconds(seconds);
+        long hrs = seconds / 3600, mins = (seconds % 3600) / 60;
+        String fmt = hrs > 0 ? hrs + "h " + mins + "m" : mins + "m " + (seconds % 60) + "s";
+        src.sendSuccess(() -> Component.literal("§aPost-war re-declaration cooldown set to §e" + seconds
+                + "s §8(" + fmt + ")§a."), true);
+        return seconds;
+    }
+
+    private static int cmdWarOnlinePercentage(CommandSourceStack src, int percent) {
+        WarManager.get(src.getServer()).setMinOnlinePercentageForWar(percent);
+        src.sendSuccess(() -> Component.literal("§aMinimum online % for war declaration set to §e"
+                + percent + "%§a."), true);
+        return percent;
+    }
+
+    private static int cmdWarTableKothTime(CommandSourceStack src, int seconds) {
+        WarManager warmgr = WarManager.get(src.getServer());
+        warmgr.setTableKothTime(seconds);
+        src.getServer().overworld().getDataStorage().save();
+        src.sendSuccess(() -> Component.literal("§aFaction table KOTH capture time set to §e"
+                + seconds + "s§a."), true);
+        return seconds;
+    }
+
+    private static int cmdWarOutpostKothTime(CommandSourceStack src, int seconds) {
+        WarManager warmgr = WarManager.get(src.getServer());
+        warmgr.setOutpostKothTime(seconds);
+        src.getServer().overworld().getDataStorage().save();
+        src.sendSuccess(() -> Component.literal("§aOutpost KOTH capture time set to §e"
+                + seconds + "s§a."), true);
         return seconds;
     }
 
@@ -451,8 +566,50 @@ public class FactionCommands {
                     ResourceLocation.parse(table.dimension()));
             ServerLevel tableLevel = server.getLevel(dimKey);
             if (tableLevel != null) {
+                // Force-load the chunk so removeBlock actually reaches the block entity
+                tableLevel.getChunkSource().getChunk(
+                        net.minecraft.core.SectionPos.blockToSectionCoord(table.pos().getX()),
+                        net.minecraft.core.SectionPos.blockToSectionCoord(table.pos().getZ()), true);
                 tableLevel.removeBlock(table.pos(), false);
             }
+        }
+
+        // Remove the faction barracks block from the world
+        FactionManager.TableLocation barracks = manager.getFactionBarracks(factionId);
+        if (barracks != null) {
+            ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
+                    ResourceLocation.parse(barracks.dimension()));
+            ServerLevel barrLevel = server.getLevel(dimKey);
+            if (barrLevel != null) {
+                barrLevel.getChunkSource().getChunk(
+                        net.minecraft.core.SectionPos.blockToSectionCoord(barracks.pos().getX()),
+                        net.minecraft.core.SectionPos.blockToSectionCoord(barracks.pos().getZ()), true);
+                barrLevel.removeBlock(barracks.pos(), false);
+            }
+            manager.removeFactionBarracks(factionId);
+        }
+
+        // Remove all outposts belonging to this faction
+        OutpostData outpostData = OutpostData.get(server);
+        for (OutpostEntry outpost : new java.util.ArrayList<>(outpostData.getOutpostsForFaction(factionId))) {
+            // Find the level
+            net.minecraft.server.level.ServerLevel outpostLevel = null;
+            for (net.minecraft.server.level.ServerLevel lvl : server.getAllLevels()) {
+                if (lvl.dimension().location().toString().equals(outpost.dimension)) {
+                    outpostLevel = lvl; break;
+                }
+            }
+            if (outpostLevel != null) {
+                for (net.minecraft.core.BlockPos bp : new java.util.ArrayList<>(outpost.structureBlocks))
+                    outpostLevel.removeBlock(bp, false);
+                outpostLevel.removeBlock(outpost.managerPos, false);
+            }
+            // Unclaim the outpost's chunk
+            manager.unclaimChunk(factionId,
+                    net.minecraft.core.SectionPos.blockToSectionCoord(outpost.managerPos.getX()),
+                    net.minecraft.core.SectionPos.blockToSectionCoord(outpost.managerPos.getZ()),
+                    outpost.dimension);
+            outpostData.removeOutpost(outpost.id);
         }
 
         // Notify and desync all online members
@@ -502,5 +659,64 @@ public class FactionCommands {
         if (online != null) return online.getGameProfile().getName();
         return server.getProfileCache().get(uuid)
                 .map(GameProfile::getName).orElse(fallback);
+    }
+
+    private static int cmdWarBlockBreakLimit(CommandSourceStack src, int limit) {
+        com.admin82.factions.war.WarManager.get(src.getServer()).setBlockBreakLimit(limit);
+        src.sendSuccess(() -> Component.literal(
+                "§aResource-War block-break limit set to §e" + limit + "§a blocks."), true);
+        return limit;
+    }
+
+    // ── /faction economy claimrates <value> ──────────────────────────────────
+
+    private static int cmdEconomyClaimRates(CommandSourceStack src, double rate) {
+        EconomyManager.get(src.getServer()).setClaimRateMultiplier(rate);
+        src.sendSuccess(() -> Component.literal(
+                "§aClaim deed cost rate set to §e" + rate
+                + "§a. Each additional deed costs base × " + rate + "^n."), true);
+        return 1;
+    }
+
+    // ── /faction economy outpostramp <value> ───────────────────────────────────
+
+    private static int cmdEconomyOutpostRamp(CommandSourceStack src, double ramp) {
+        EconomyManager.get(src.getServer()).setOutpostDistanceRamp(ramp);
+        src.sendSuccess(() -> Component.literal(
+                "§aOutpost distance ramp set to §e" + ramp
+                + "§a per 5-chunk band (e.g. 10 chunks away = +" + (int)(2 * ramp * 100) + "%)." ), true);
+        return 1;
+    }
+
+    private static int cmdEconomyTpCostToOutpost(CommandSourceStack src, int silver) {
+        long copper = (long) silver * com.admin82.factions.economy.Currency.COPPER_PER_SILVER;
+        EconomyManager.get(src.getServer()).setTpCostToOutpost(copper);
+        src.sendSuccess(() -> Component.literal("§aOutpost teleport cost set to §e" + silver + " silver§a."), true);
+        return silver;
+    }
+
+    private static int cmdReturnToBase(CommandSourceStack src) {
+        if (!(src.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)) {
+            src.sendFailure(Component.literal("§cThis command can only be used by players."));
+            return 0;
+        }
+        FactionManager fmgr = FactionManager.get(src.getServer());
+        Faction faction = fmgr.getFactionForPlayer(player.getUUID());
+        if (faction == null) { src.sendFailure(Component.literal("§cYou are not in a faction.")); return 0; }
+        FactionManager.TableLocation barracks = fmgr.getFactionBarracks(faction.getId());
+        if (barracks == null) { src.sendFailure(Component.literal("§cYour faction has no barracks.")); return 0; }
+        net.minecraft.server.level.ServerLevel targetLevel = null;
+        for (net.minecraft.server.level.ServerLevel lvl : src.getServer().getAllLevels()) {
+            if (lvl.dimension().location().toString().equals(barracks.dimension())) { targetLevel = lvl; break; }
+        }
+        if (targetLevel == null) return 0;
+        net.minecraft.core.BlockPos bp = barracks.pos();
+        int spawnX = bp.getX(), spawnZ = bp.getZ() + 2;
+        int spawnY = targetLevel.getHeight(
+                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawnX, spawnZ);
+        final net.minecraft.server.level.ServerLevel fl = targetLevel;
+        player.teleportTo(fl, spawnX + 0.5, spawnY, spawnZ + 0.5, player.getYRot(), player.getXRot());
+        src.sendSuccess(() -> Component.literal("§a✔ Teleported to §e" + faction.getName() + " §aBarracks!"), false);
+        return 1;
     }
 }

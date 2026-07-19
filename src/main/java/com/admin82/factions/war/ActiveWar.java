@@ -15,6 +15,7 @@ public class ActiveWar {
     public final UUID    attackerFactionId;
     public final UUID    defenderFactionId;
     public WarPhase      phase;
+    public WarType       warType;           // terms chosen by the attacker before the war
     public long          graceEndsAt;       // epoch ms when grace ends
 
     /** Committed players: UUID → lives remaining. 0 = eliminated. */
@@ -29,13 +30,36 @@ public class ActiveWar {
     public BlockPos defenderTablePos;
     public String   defenderDimension;
 
+    /** Location of the ATTACKING faction table (counter-capture target for defenders). */
+    @javax.annotation.Nullable public BlockPos attackerTablePos;
+    public String   attackerDimension = "";
+    /** Defenders' capture progress toward the attacker's faction table. */
+    public float    defenderCaptureProgress = 0f;
+
+    /** When {@code true} the current capture target is the defender's outpost, not the table. */
+    public boolean  outpostPhase  = false;
+    /** Outpost block position during the outpost phase (null when not in outpost phase). */
+    @javax.annotation.Nullable
+    public BlockPos outpostPos;
+    public String   outpostDim    = "";
+    /** UUID of the {@link com.admin82.factions.outpost.OutpostEntry} being contested. */
+    @javax.annotation.Nullable
+    public java.util.UUID outpostId;
+
+    /**
+     * For {@link WarType#TERRITORY} wars: the chunk keys ("cx,cz,dim") the attacker
+     * pre-selected as their territorial prize.  Auto-transferred on attacker victory.
+     */
+    public final List<String> targetChunkKeys = new ArrayList<>();
+
     public ActiveWar(UUID warId, UUID attackerFactionId, UUID defenderFactionId,
-                     WarPhase phase, long graceEndsAt,
+                     WarPhase phase, WarType warType, long graceEndsAt,
                      BlockPos defenderTablePos, String defenderDimension) {
         this.warId             = warId;
         this.attackerFactionId = attackerFactionId;
         this.defenderFactionId = defenderFactionId;
         this.phase             = phase;
+        this.warType           = warType != null ? warType : WarType.FIGHT;
         this.graceEndsAt       = graceEndsAt;
         this.defenderTablePos  = defenderTablePos;
         this.defenderDimension = defenderDimension;
@@ -69,11 +93,26 @@ public class ActiveWar {
         tag.putUUID("attackerFactionId", attackerFactionId);
         tag.putUUID("defenderFactionId", defenderFactionId);
         tag.putInt("phase",              phase.ordinal());
+        tag.putInt("warType",            warType.ordinal());
         tag.putLong("graceEndsAt",       graceEndsAt);
         tag.putFloat("captureProgress",  captureProgress);
         tag.putLong("lastTickMs",        lastTickMs);
         tag.putLong("defenderTablePos",  defenderTablePos.asLong());
         tag.putString("defenderDim",     defenderDimension);
+        if (attackerTablePos != null) tag.putLong("attackerTablePos", attackerTablePos.asLong());
+        tag.putString("attackerDim",     attackerDimension);
+        tag.putFloat("defenderCaptureProgress", defenderCaptureProgress);
+        tag.putBoolean("outpostPhase",   outpostPhase);
+        if (outpostPos != null) tag.putLong("outpostPos", outpostPos.asLong());
+        tag.putString("outpostDim",      outpostDim);
+        if (outpostId != null) tag.putUUID("outpostId", outpostId);
+        if (attackerTablePos != null) tag.putLong("attackerTablePos", attackerTablePos.asLong());
+        tag.putString("attackerDim", attackerDimension);
+        tag.putFloat("defCapProg", defenderCaptureProgress);
+
+        net.minecraft.nbt.ListTag chunkList = new net.minecraft.nbt.ListTag();
+        targetChunkKeys.forEach(k -> chunkList.add(net.minecraft.nbt.StringTag.valueOf(k)));
+        tag.put("targetChunkKeys", chunkList);
 
         CompoundTag al = new CompoundTag();
         attackerLives.forEach((uuid, lives) -> al.putInt(uuid.toString(), lives));
@@ -92,12 +131,25 @@ public class ActiveWar {
                 tag.getUUID("attackerFactionId"),
                 tag.getUUID("defenderFactionId"),
                 WarPhase.values()[Math.min(tag.getInt("phase"), WarPhase.values().length - 1)],
+                WarType.fromOrdinal(tag.getInt("warType")),
                 tag.getLong("graceEndsAt"),
                 BlockPos.of(tag.getLong("defenderTablePos")),
                 tag.getString("defenderDim")
         );
         war.captureProgress = tag.getFloat("captureProgress");
         war.lastTickMs      = tag.getLong("lastTickMs");
+        war.outpostPhase    = tag.contains("outpostPhase") && tag.getBoolean("outpostPhase");
+        if (tag.contains("outpostPos")) war.outpostPos = BlockPos.of(tag.getLong("outpostPos"));
+        war.outpostDim      = tag.contains("outpostDim") ? tag.getString("outpostDim") : "";
+        if (tag.hasUUID("outpostId")) war.outpostId = tag.getUUID("outpostId");
+        if (tag.contains("attackerTablePos")) war.attackerTablePos = BlockPos.of(tag.getLong("attackerTablePos"));
+        war.attackerDimension = tag.contains("attackerDim") ? tag.getString("attackerDim") : "";
+        war.defenderCaptureProgress = tag.contains("defCapProg") ? tag.getFloat("defCapProg") : 0f;
+
+        if (tag.contains("targetChunkKeys")) {
+            var chunkList = tag.getList("targetChunkKeys", net.minecraft.nbt.Tag.TAG_STRING);
+            for (int i = 0; i < chunkList.size(); i++) war.targetChunkKeys.add(chunkList.getString(i));
+        }
 
         CompoundTag al = tag.getCompound("attackerLives");
         al.getAllKeys().forEach(k -> war.attackerLives.put(UUID.fromString(k), al.getInt(k)));

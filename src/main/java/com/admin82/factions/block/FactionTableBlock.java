@@ -3,7 +3,9 @@ package com.admin82.factions.block;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.registry.ModBlocks;
 import com.admin82.factions.registry.ModItems;
+import com.admin82.factions.item.TemporaryMoveItem;
 import com.admin82.factions.faction.FactionSummary;
 import com.admin82.factions.menu.FactionTableMenu;
 import com.admin82.factions.network.packet.SyncAllFactionsPacket;
@@ -30,7 +32,10 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.network.chat.Component;
 
 import javax.annotation.Nullable;
@@ -51,16 +56,29 @@ public class FactionTableBlock extends BaseEntityBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof FactionTableBlockEntity factionBe) {
             ServerLevel serverLevel = (ServerLevel) level;
+
+            // Faction tables only function in the Overworld
+            if (!level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
+                player.displayClientMessage(
+                        Component.literal("§cFaction Tables can only be used in the Overworld."), true);
+                return InteractionResult.FAIL;
+            }
+
             FactionManager manager = FactionManager.get(serverLevel);
             UUID linkedId = factionBe.getLinkedFactionId();
 
             // If the table is linked, only members of that faction may open it
             if (linkedId != null) {
                 Faction linkedFaction = manager.getFaction(linkedId);
-                if (linkedFaction == null || !linkedFaction.hasMember(player.getUUID())) {
-                    String name = linkedFaction != null ? linkedFaction.getName() : "a disbanded faction";
+                if (linkedFaction == null) {
+                    // Faction was disbanded but block wasn't removed (e.g. chunk was unloaded).
+                    // Clear the stale link so the block can be reclaimed.
+                    factionBe.setLinkedFactionId(null);
+                    manager.removeFactionTable(linkedId);
+                    linkedId = null; // fall through to unlinked path
+                } else if (!linkedFaction.hasMember(player.getUUID())) {
                     player.displayClientMessage(
-                            Component.literal("§cThis Faction Table belongs to: §e" + name), true);
+                            Component.literal("§cThis Faction Table belongs to: §e" + linkedFaction.getName()), true);
                     return InteractionResult.FAIL;
                 }
             }
@@ -117,15 +135,28 @@ public class FactionTableBlock extends BaseEntityBlock {
                                 .filter(p -> f.getId().equals(manager.getPlayerFactionId(p.getUUID())))
                                 .count();
                         long wealth = ecoMgr.getFactionVaultBalance(f.getId());
-                        return new FactionSummary(f.getId(), f.getName(), f.getMembers().size(), f.getPower(), online, wealth);
+                        return new FactionSummary(f.getId(), f.getName(), f.getMembers().size(), online, wealth);
                     })
                     .sorted(Comparator.comparing(FactionSummary::name))
                     .collect(Collectors.toList());
-            List<String> otherClaims = manager.getAllFactions().values().stream()
-                    .filter(f -> !f.getId().equals(ownFactionId))
-                    .flatMap(f -> f.getLandClaims().stream())
-                    .map(c -> c.chunkX() + "," + c.chunkZ() + "," + c.dimension().toString())
-                    .collect(Collectors.toList());
+            List<String> otherClaims = new java.util.ArrayList<>();
+            for (com.admin82.factions.faction.Faction f : manager.getAllFactions().values()) {
+                if (f.getId().equals(ownFactionId)) continue;
+                // Regular land claims
+                for (com.admin82.factions.faction.LandClaim c : f.getLandClaims()) {
+                    otherClaims.add(c.chunkX() + "," + c.chunkZ() + "," + c.dimension().toString());
+                }
+                // Defensive: always include the table chunk even if the land-claim record
+                // is missing (e.g. legacy data). This ensures enemy tables never appear as
+                // free/unclaimed land on the viewer's map — only the chunk key is sent,
+                // NOT the block position, so no table location is leaked.
+                FactionManager.TableLocation tbl = manager.getFactionTable(f.getId());
+                if (tbl != null) {
+                    int tcx = net.minecraft.core.SectionPos.blockToSectionCoord(tbl.pos().getX());
+                    int tcz = net.minecraft.core.SectionPos.blockToSectionCoord(tbl.pos().getZ());
+                    otherClaims.add(tcx + "," + tcz + "," + tbl.dimension());
+                }
+            }
             List<String> availablePlayers = ((ServerPlayer) player).server.getPlayerList().getPlayers().stream()
                     .filter(p -> manager.getFactionForPlayer(p.getUUID()) == null)
                     .map(p -> p.getGameProfile().getName())
@@ -137,6 +168,29 @@ public class FactionTableBlock extends BaseEntityBlock {
             long vaultBal  = faction != null ? ecoMgr.getVault(faction.getId()) : 0L;
             PacketDistributor.sendToPlayer((ServerPlayer) player,
                     new com.admin82.factions.network.packet.SyncEconomyPacket(walletBal, vaultBal));
+
+            // Send outpost list for this faction
+            if (faction != null) {
+                com.admin82.factions.outpost.OutpostData outpostData =
+                        com.admin82.factions.outpost.OutpostData.get(serverLevel.getServer());
+                java.util.List<com.admin82.factions.network.packet.SyncOutpostsPacket.OutpostItem> outpostItems
+                        = new java.util.ArrayList<>();
+                for (com.admin82.factions.outpost.OutpostEntry e :
+                        outpostData.getOutpostsForFaction(faction.getId())) {
+                    com.admin82.factions.faction.Faction capFaction =
+                            e.capturingFactionId != null
+                                    ? manager.getAllFactions().get(e.capturingFactionId) : null;
+                    outpostItems.add(new com.admin82.factions.network.packet.SyncOutpostsPacket.OutpostItem(
+                            e.id,
+                            e.managerPos, e.dimension, e.disintegrating,
+                            e.captureProgress,
+                            (float) com.admin82.factions.war.WarManager.get(serverLevel.getServer()).getOutpostKothTime(),
+                            capFaction != null ? capFaction.getName() : ""));
+                }
+                long tpCost = com.admin82.factions.economy.EconomyManager.get(serverLevel.getServer()).getTpCostToOutpost();
+                PacketDistributor.sendToPlayer((ServerPlayer) player,
+                        new com.admin82.factions.network.packet.SyncOutpostsPacket(outpostItems, tpCost));
+            }
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
@@ -151,6 +205,24 @@ public class FactionTableBlock extends BaseEntityBlock {
         super.setPlacedBy(level, pos, state, placer, stack);
         if (!(level instanceof ServerLevel serverLevel)) return;
         if (!(placer instanceof ServerPlayer player)) return;
+
+        // Faction tables can only exist in the Overworld
+        if (!level.dimension().equals(net.minecraft.world.level.Level.OVERWORLD)) {
+            serverLevel.removeBlock(pos, false);
+            player.getInventory().add(new ItemStack(ModItems.FACTION_TABLE.get()));
+            player.displayClientMessage(
+                    net.minecraft.network.chat.Component.literal(
+                            "§cFaction Tables can only be placed in the Overworld."), true);
+            return;
+        }
+        // ── Validate 2×2 footprint ────────────────────────────────────────────────────────────
+        if (!has2x2Space(level, pos)) {
+            serverLevel.removeBlock(pos, false);
+            player.getInventory().add(new ItemStack(ModItems.FACTION_TABLE.get()));
+            player.displayClientMessage(
+                    Component.literal("§cNot enough space! The Faction Table needs a clear 2×2 area."), true);
+            return;
+        }
         if (!(serverLevel.getBlockEntity(pos) instanceof FactionTableBlockEntity be)) return;
 
         FactionManager manager = FactionManager.get(serverLevel);
@@ -165,7 +237,7 @@ public class FactionTableBlock extends BaseEntityBlock {
             Faction pendingFaction = manager.getFaction(pending.factionId());
             if (pendingFaction == null || !pendingFaction.hasClaim(chunkX, chunkZ, dim)) {
                 serverLevel.removeBlock(pos, false);
-                player.getInventory().add(new ItemStack(ModItems.FACTION_TABLE.get()));
+                player.getInventory().add(TemporaryMoveItem.create(ModItems.FACTION_TABLE.get(), "Faction Table"));
                 player.displayClientMessage(
                         Component.literal("§cYou can only place the Faction Table inside a chunk claimed by your faction!"), true);
                 return;
@@ -183,7 +255,9 @@ public class FactionTableBlock extends BaseEntityBlock {
 
             manager.setFactionTable(pending.factionId(), pos, dim);
             manager.clearPendingMove(player.getUUID());
+            TemporaryMoveItem.removeAll(player, ModItems.FACTION_TABLE.get());
             player.displayClientMessage(Component.literal("§aFaction Table moved successfully!"), false);
+            placeFillers(level, pos);
             return;
         }
 
@@ -204,6 +278,7 @@ public class FactionTableBlock extends BaseEntityBlock {
         }
         // Case 4: no faction at all — handled by FactionTableItem which opens Create Faction UI
         //   without placing the block. If somehow we reach here (e.g. /setblock), leave unlinked.
+        placeFillers(level, pos);
     }
 
     @Override
@@ -214,6 +289,63 @@ public class FactionTableBlock extends BaseEntityBlock {
     @Override
     public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
+    }
+
+    // Prevent this block from occluding the faces of adjacent blocks.
+    // Without this, the terrain directly below the table becomes invisible
+    // because Minecraft culls the ground block's top face.
+    @Override
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.empty();
+    }
+
+    @Override
+    public boolean useShapeForLightOcclusion(BlockState state) {
+        return false;
+    }
+
+    // ── Multi-block removal cascade ───────────────────────────────────────────
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos,
+                         BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())) {
+            // Main block removed — cascade-remove all three filler blocks.
+            BlockPos[] fillerPos = { pos.east(), pos.south(), pos.east().south() };
+            FactionTableFillerBlock.Part[] parts = {
+                FactionTableFillerBlock.Part.NE,
+                FactionTableFillerBlock.Part.SW,
+                FactionTableFillerBlock.Part.SE
+            };
+            for (int i = 0; i < fillerPos.length; i++) {
+                BlockState fs = level.getBlockState(fillerPos[i]);
+                if (fs.is(ModBlocks.FACTION_TABLE_FILLER.get())
+                        && fs.getValue(FactionTableFillerBlock.PART) == parts[i]) {
+                    level.removeBlock(fillerPos[i], false);
+                }
+            }
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    // ── 2×2 helpers (used by FactionTableItem, CreateFactionPacket, etc.) ─────
+
+    /** Returns {@code true} when the east, south, and south-east positions are all replaceable. */
+    public static boolean has2x2Space(Level level, BlockPos mainPos) {
+        return level.getBlockState(mainPos.east()).canBeReplaced()
+            && level.getBlockState(mainPos.south()).canBeReplaced()
+            && level.getBlockState(mainPos.east().south()).canBeReplaced();
+    }
+
+    /** Places the three invisible filler blocks that complete the 2×2 footprint. */
+    public static void placeFillers(Level level, BlockPos mainPos) {
+        FactionTableFillerBlock filler = ModBlocks.FACTION_TABLE_FILLER.get();
+        level.setBlock(mainPos.east(),
+                filler.defaultBlockState().setValue(FactionTableFillerBlock.PART, FactionTableFillerBlock.Part.NE), 3);
+        level.setBlock(mainPos.south(),
+                filler.defaultBlockState().setValue(FactionTableFillerBlock.PART, FactionTableFillerBlock.Part.SW), 3);
+        level.setBlock(mainPos.east().south(),
+                filler.defaultBlockState().setValue(FactionTableFillerBlock.PART, FactionTableFillerBlock.Part.SE), 3);
     }
 }
 

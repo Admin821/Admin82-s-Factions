@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BBB",
+    "HAS",
+    "BBB"
+  ],
+  "key": {
+    "B": {
+      "item": "minecraft:stone_bricks"
+    },
+    "H": {
+      "tag": "minecraft:head_armor"
+    },
+    "A": {
+      "item": "minecraft:armor_stand"
+    },
+    "S": {
+      "tag": "minecraft:swords"
+    }
+  },
+  "result": {
+    "id": "adminsfactions:barracks",
+    "count": 1
+  }
+}

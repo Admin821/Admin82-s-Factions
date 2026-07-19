@@ -76,7 +76,12 @@ public class WarHudOverlay {
             title = "⚔ " + state.attackerFactionName() + " vs " + state.defenderFactionName()
                     + "  [Grace: " + state.graceSecondsLeft() + "s]";
         } else if (phase == WarPhase.ACTIVE) {
-            title = "⚔ " + state.attackerFactionName() + " vs " + state.defenderFactionName();
+            if (state.outpostPhase()) {
+                title = "⚔ " + state.attackerFactionName() + " vs " + state.defenderFactionName()
+                        + "  §c⛑ Destroy the Outpost first!";
+            } else {
+                title = "⚔ " + state.attackerFactionName() + " vs " + state.defenderFactionName();
+            }
         } else {
             title = state.isAttacker()
                     ? (state.captureProgress() >= state.captureTimeSeconds() ? "⚔ VICTORY — Base Captured!" : "⚔ DEFEAT — Eliminated.")
@@ -100,10 +105,27 @@ public class WarHudOverlay {
             if (filled > 0) gfx.fill(x, y, x + filled, y + barH, 0xFF000000 | barColor);
             gfx.fill(x + filled, y, x + barW, y + barH, 0xFF333333);
 
-            String pctStr = (int) (pct * 100) + "%";
-            int pw = mc.font.width(pctStr);
-            gfx.drawString(mc.font, pctStr, x + (barW - pw) / 2, y + 1, 0xFFFFFFFF, true);
+            // Label inside/above the bar
+            String atkLabel = state.outpostPhase() ? "⛑ Outpost" : state.attackerFactionName() + " → " + state.defenderFactionName() + " " + (int)(pct * 100) + "%";
+            int pw = mc.font.width(atkLabel);
+            gfx.drawString(mc.font, atkLabel, x + (barW - pw) / 2, y + 1,
+                    state.outpostPhase() ? 0xFFFF8800 : 0xFFFFFFFF, true);
             y += barH + 4;
+
+            // ── Defender counter-attack bar (only in main phase, not outpost) ──
+            if (!state.outpostPhase() && state.defenderCaptureProgress() > 0) {
+                float defPct = state.captureTimeSeconds() > 0
+                        ? Math.min(1f, state.defenderCaptureProgress() / state.captureTimeSeconds()) : 0f;
+                int defFilled = (int)(barW * defPct);
+                gfx.fill(x - 1, y - 1, x + barW + 1, y + barH + 1, 0xCC000000);
+                int defColor = defPct < 0.5f ? lerp(0xFF3333, 0xFFAA00, defPct * 2f) : lerp(0xFFAA00, 0x33FF33, (defPct - 0.5f) * 2f);
+                if (defFilled > 0) gfx.fill(x, y, x + defFilled, y + barH, 0xFF000000 | defColor);
+                gfx.fill(x + defFilled, y, x + barW, y + barH, 0xFF333333);
+                String defLabel = state.defenderFactionName() + " → " + state.attackerFactionName() + " " + (int)(defPct * 100) + "%";
+                int dw = mc.font.width(defLabel);
+                gfx.drawString(mc.font, defLabel, x + (barW - dw) / 2, y + 1, 0xFFCCCCFF, true);
+                y += barH + 4;
+            }
         }
 
         // ── Lives row ─────────────────────────────────────────────────────────
@@ -136,7 +158,22 @@ public class WarHudOverlay {
 
         // Check dimension
         String playerDim = player.level().dimension().location().toString();
-        if (!playerDim.equals(state.defenderDimension())) {
+        // Attackers go to defender's capture target; defenders counter-attack toward attacker's table.
+        String targetDim;
+        int    targetX;
+        int    targetZ;
+        if (state.isAttacker()) {
+            targetDim = state.captureTargetDim().isEmpty() ? state.defenderDimension() : state.captureTargetDim();
+            targetX   = state.captureTargetX() != 0 || state.captureTargetZ() != 0 ? state.captureTargetX() : state.defenderTableX();
+            targetZ   = state.captureTargetX() != 0 || state.captureTargetZ() != 0 ? state.captureTargetZ() : state.defenderTableZ();
+        } else {
+            // Defenders: compass points to the attacker's base they should counter-capture
+            targetDim = state.defenderDimension(); // (currently we reuse defenderDimension as placeholder)
+            targetX   = state.defenderTableX();    // fallback to defender's table
+            targetZ   = state.defenderTableZ();
+        }
+
+        if (!playerDim.equals(targetDim)) {
             // Different dimension — show a '?' in the compass
             String q = "?";
             gfx.drawString(mc.font, q, cx - mc.font.width(q) / 2, cy - 4, 0xFFFF8800, true);
@@ -145,9 +182,15 @@ public class WarHudOverlay {
             return;
         }
 
-        double dx = (state.defenderTableX() + 0.5) - player.getX();
-        double dz = (state.defenderTableZ() + 0.5) - player.getZ();
+        double dx = (targetX + 0.5) - player.getX();
+        double dz = (targetZ + 0.5) - player.getZ();
         double distance = Math.sqrt(dx * dx + dz * dz);
+
+        // Compass label below the rose: "Outpost" or "Base"
+        String targetLabel = state.outpostPhase() ? "⛑ Outpost" : "Base";
+        int tlw = mc.font.width(targetLabel);
+        gfx.drawString(mc.font, targetLabel, cx - tlw / 2, cy + 14,
+                state.outpostPhase() ? 0xFFFF8800 : 0xFFFFFF44, false);
 
         // Angle of target relative to North (0=North, 90=East, 180=South, 270=West)
         double targetAngleRad = Math.atan2(dx, -dz);
@@ -184,12 +227,8 @@ public class WarHudOverlay {
             gfx.fill(hx - 1, hy - 1, hx + 2, hy + 2, 0xFFFF8888);
         }
 
-        // Distance label below compass
-        String distStr = distance > 999 ? Math.round(distance / 1000.0) + "km" : Math.round(distance) + "m";
-        gfx.drawString(mc.font, distStr, cx - mc.font.width(distStr) / 2, cy + r + 3, 0xFFFFCC44, false);
-
         // "Base" label inside compass
-        String lbl = "Base";
+        String lbl = "Enemy";
         gfx.drawString(mc.font, lbl, cx - mc.font.width(lbl) / 2, cy - 3, 0xFFCCCCCC, false);
     }
 
