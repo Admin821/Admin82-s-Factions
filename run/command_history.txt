@@ -1,7 +1,3 @@
-/gamemode creative Player2
-/faction war graceperiod set 10
-/gamemode survival
-/gamemode creative
 /paste LpDTfqYKXQN1eTUHaxXP
 /kill Player2
 /faction exchange list
@@ -48,3 +44,7 @@
 /factionreturn
 /
 /factionreturn
+/gamemode survival
+/weather clear
+/gamemode creative
+/gamemode survival Player2

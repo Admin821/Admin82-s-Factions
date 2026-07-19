@@ -26,7 +26,7 @@ public class ModBlocks {
             () -> new BarracksBlock(
                     BlockBehaviour.Properties.of()
                             .mapColor(MapColor.STONE)
-                            .strength(3.5f, 3_600_000.0f)
+                            .strength(1.5f, 6.0f)
                             .sound(SoundType.STONE)
                             .requiresCorrectToolForDrops()
             )
@@ -60,10 +60,9 @@ public class ModBlocks {
             "market_block",
             () -> new MarketBlock(
                     BlockBehaviour.Properties.of()
-                            .mapColor(MapColor.STONE)
-                            .strength(3.0f)
-                            .sound(SoundType.STONE)
-                            .requiresCorrectToolForDrops()
+                            .mapColor(MapColor.WOOD)
+                            .strength(2.0f, 3.0f)
+                            .sound(SoundType.WOOD)
             )
     );
 
@@ -72,10 +71,9 @@ public class ModBlocks {
             "market_filler",
             () -> new MarketFillerBlock(
                     BlockBehaviour.Properties.of()
-                            .mapColor(MapColor.STONE)
-                            .strength(3.0f)
-                            .sound(SoundType.STONE)
-                            .requiresCorrectToolForDrops()
+                            .mapColor(MapColor.WOOD)
+                            .strength(2.0f, 3.0f)
+                            .sound(SoundType.WOOD)
                             .noLootTable()
             )
     );
@@ -84,10 +82,9 @@ public class ModBlocks {
             "currency_exchange_block",
             () -> new CurrencyExchangeBlock(
                     BlockBehaviour.Properties.of()
-                            .mapColor(MapColor.GOLD)
-                            .strength(3.0f)
-                            .sound(SoundType.METAL)
-                            .requiresCorrectToolForDrops()
+                            .mapColor(MapColor.WOOD)
+                            .strength(2.0f, 3.0f)
+                            .sound(SoundType.WOOD)
             )
     );
 
@@ -96,10 +93,9 @@ public class ModBlocks {
             "currency_exchange_filler",
             () -> new CurrencyExchangeFillerBlock(
                     BlockBehaviour.Properties.of()
-                            .mapColor(MapColor.GOLD)
-                            .strength(3.0f)
-                            .sound(SoundType.METAL)
-                            .requiresCorrectToolForDrops()
+                            .mapColor(MapColor.WOOD)
+                            .strength(2.0f, 3.0f)
+                            .sound(SoundType.WOOD)
                             .noLootTable()
             )
     );

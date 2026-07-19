@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "adminsfactions:market_block",
+    "adminsfactions:market_filler",
+    "adminsfactions:currency_exchange_block",
+    "adminsfactions:currency_exchange_filler"
+  ]
+}

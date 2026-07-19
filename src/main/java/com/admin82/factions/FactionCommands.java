@@ -89,7 +89,7 @@ public class FactionCommands {
                 // /faction info <name>
                 .then(Commands.literal("info")
                     .requires(src -> src.hasPermission(2))
-                    .then(Commands.argument("name", StringArgumentType.word())
+                    .then(Commands.argument("name", StringArgumentType.greedyString())
                         .suggests(FACTION_NAMES)
                         .executes(ctx -> cmdInfo(
                                 ctx.getSource(),
@@ -97,7 +97,7 @@ public class FactionCommands {
 
                 // /faction join <name>
                 .then(Commands.literal("join")
-                    .then(Commands.argument("name", StringArgumentType.word())
+                    .then(Commands.argument("name", StringArgumentType.greedyString())
                         .suggests(FACTION_NAMES)
                         .executes(ctx -> cmdJoin(
                                 ctx.getSource(),
@@ -106,7 +106,7 @@ public class FactionCommands {
                 // /faction delete <name>
                 .then(Commands.literal("delete")
                     .requires(src -> src.hasPermission(2))
-                    .then(Commands.argument("name", StringArgumentType.word())
+                    .then(Commands.argument("name", StringArgumentType.greedyString())
                         .suggests(FACTION_NAMES)
                         .executes(ctx -> cmdDelete(
                                 ctx.getSource(),
@@ -117,7 +117,7 @@ public class FactionCommands {
                     .requires(src -> src.hasPermission(2))
                     .then(Commands.argument("player", StringArgumentType.word())
                         .suggests(ONLINE_PLAYER_NAMES)
-                        .then(Commands.argument("faction", StringArgumentType.word())
+                        .then(Commands.argument("faction", StringArgumentType.greedyString())
                             .suggests(FACTION_NAMES_OR_NONE)
                             .executes(ctx -> cmdSet(
                                     ctx.getSource(),
@@ -129,7 +129,7 @@ public class FactionCommands {
                     .requires(src -> src.hasPermission(2))
                     .then(Commands.argument("player", StringArgumentType.word())
                         .suggests(ONLINE_PLAYER_NAMES)
-                        .then(Commands.argument("faction", StringArgumentType.word())
+                        .then(Commands.argument("faction", StringArgumentType.greedyString())
                             .suggests(FACTION_NAMES)
                             .executes(ctx -> cmdAdd(
                                     ctx.getSource(),

@@ -8,6 +8,7 @@ import com.admin82.factions.network.packet.SyncMarketPacket;
 import com.admin82.factions.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -17,10 +18,14 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -31,13 +36,29 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class MarketBlock extends Block {
 
     public static final MapCodec<MarketBlock> CODEC = simpleCodec(MarketBlock::new);
+    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
     public MarketBlock(Properties properties) {
         super(properties);
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
 
     @Override
     protected MapCodec<? extends Block> codec() { return CODEC; }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
+
+    static Direction getFillerDirection(BlockState state) {
+        return state.getValue(FACING).getCounterClockWise();
+    }
 
     @Override
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
@@ -55,7 +76,7 @@ public class MarketBlock extends Block {
         super.setPlacedBy(level, pos, state, placer, stack);
         if (level.isClientSide) return;
 
-        BlockPos fillerPos = pos.west();
+        BlockPos fillerPos = pos.relative(getFillerDirection(state));
         if (!level.getBlockState(fillerPos).canBeReplaced()) {
             level.removeBlock(pos, false);
             if (placer instanceof Player player && !player.getAbilities().instabuild) {
@@ -66,7 +87,8 @@ public class MarketBlock extends Block {
             return;
         }
 
-        level.setBlock(fillerPos, ModBlocks.MARKET_FILLER.get().defaultBlockState(), 3);
+        level.setBlock(fillerPos, ModBlocks.MARKET_FILLER.get().defaultBlockState()
+                .setValue(MarketFillerBlock.FACING, state.getValue(FACING)), 3);
     }
 
     @Override
@@ -100,7 +122,7 @@ public class MarketBlock extends Block {
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
-            BlockPos fillerPos = pos.west();
+            BlockPos fillerPos = pos.relative(getFillerDirection(state));
             if (level.getBlockState(fillerPos).is(ModBlocks.MARKET_FILLER.get())) {
                 level.removeBlock(fillerPos, false);
             }

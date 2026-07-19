@@ -64,6 +64,17 @@ public class CurrencyExchangeFillerBlock extends Block {
     }
 
     @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide) {
+            BlockPos mainPos = pos.relative(state.getValue(FACING).getClockWise());
+            if (level.getBlockState(mainPos).is(ModBlocks.CURRENCY_EXCHANGE.get())) {
+                level.destroyBlock(mainPos, !player.getAbilities().instabuild, player);
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
