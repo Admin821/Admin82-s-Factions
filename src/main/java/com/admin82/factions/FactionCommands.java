@@ -158,6 +158,14 @@ public class FactionCommands {
                     .then(Commands.literal("list")
                         .executes(ctx -> cmdExchangeList(ctx.getSource()))))
 
+                // /faction dobothwaysexchange [true|false]
+                .then(Commands.literal("dobothwaysexchange")
+                    .requires(src -> src.hasPermission(2))
+                    .executes(ctx -> cmdDoBothWaysExchange(ctx.getSource(), null))
+                    .then(Commands.argument("enabled", BoolArgumentType.bool())
+                        .executes(ctx -> cmdDoBothWaysExchange(ctx.getSource(),
+                                BoolArgumentType.getBool(ctx, "enabled")))))
+
                     // /faction war dotp <true|false>
                     .then(Commands.literal("dotp")
                         .requires(src -> src.hasPermission(2))
@@ -465,13 +473,15 @@ public class FactionCommands {
             return 0;
         }
         var server = sp.getServer(); if (server == null) return 0;
-        var rates = ExchangeManager.get(server).getRates();
+        var exchange = ExchangeManager.get(server);
+        var rates = exchange.getRates();
         sp.openMenu(new SimpleMenuProvider(
                 (id, inv, p) -> new CurrencyExchangeMenu(id, inv, BlockPos.ZERO),
                 Component.literal("Manage Exchange Rates")),
                 buf -> {
                     buf.writeBlockPos(BlockPos.ZERO);
                     buf.writeBoolean(true);
+                buf.writeBoolean(exchange.isBothWaysExchange());
                     buf.writeVarInt(rates.size());
                     for (var e : rates.entrySet()) { buf.writeUtf(e.getKey()); buf.writeLong(e.getValue()); }
                     buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
@@ -515,6 +525,16 @@ public class FactionCommands {
                         "§e" + e.getKey() + " §7→ §a" + Currency.format(e.getValue()) + " §7each"), false));
         return rates.size();
     }
+
+    private static int cmdDoBothWaysExchange(CommandSourceStack src, @Nullable Boolean enabledArg) {
+        ExchangeManager mgr = ExchangeManager.get(src.getServer());
+        boolean enabled = enabledArg != null ? enabledArg : !mgr.isBothWaysExchange();
+        mgr.setBothWaysExchange(enabled);
+        src.sendSuccess(() -> Component.literal("§aTwo-way currency exchange is now §e"
+                + (enabled ? "enabled" : "disabled") + "§a."), true);
+        return enabled ? 1 : 0;
+    }
+
     private static int cmdWarSetTpDistance(CommandSourceStack src, int chunks) {
         WarManager.get(src.getServer()).setTpDistanceChunks(chunks);
         src.sendSuccess(() -> Component.literal("§aWar TP spawn distance set to §e" + chunks

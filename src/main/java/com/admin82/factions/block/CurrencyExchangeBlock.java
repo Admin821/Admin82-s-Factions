@@ -98,7 +98,8 @@ public class CurrencyExchangeBlock extends Block {
         var server = sp.getServer(); if (server == null) return InteractionResult.PASS;
 
         // Collect rates to send to client
-        Map<String, Long> rates = ExchangeManager.get(server).getRates();
+        ExchangeManager exchange = ExchangeManager.get(server);
+        Map<String, Long> rates = exchange.getRates();
         boolean isOp = sp.hasPermissions(2);
 
         MenuProvider provider = new SimpleMenuProvider(
@@ -107,6 +108,7 @@ public class CurrencyExchangeBlock extends Block {
         sp.openMenu(provider, buf -> {
             buf.writeBlockPos(pos);
             buf.writeBoolean(isOp);
+            buf.writeBoolean(exchange.isBothWaysExchange());
             buf.writeVarInt(rates.size());
             for (var e : rates.entrySet()) {
                 buf.writeUtf(e.getKey());

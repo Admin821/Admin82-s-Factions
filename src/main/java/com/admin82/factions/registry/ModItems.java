@@ -26,13 +26,13 @@ public class ModItems {
 
     // ── Coins ─────────────────────────────────────────────────────────────────
     public static final DeferredItem<CoinItem> COPPER_COIN =
-            ITEMS.register("copper_coin", () -> new CoinItem(new Item.Properties().stacksTo(100)));
+            ITEMS.register("copper_coin", () -> new CoinItem(new Item.Properties().stacksTo(99)));
     public static final DeferredItem<CoinItem> SILVER_COIN =
-            ITEMS.register("silver_coin", () -> new CoinItem(new Item.Properties().stacksTo(100)));
+            ITEMS.register("silver_coin", () -> new CoinItem(new Item.Properties().stacksTo(99)));
     public static final DeferredItem<CoinItem> GOLD_COIN =
-            ITEMS.register("gold_coin", () -> new CoinItem(new Item.Properties().stacksTo(100)));
+            ITEMS.register("gold_coin", () -> new CoinItem(new Item.Properties().stacksTo(99)));
     public static final DeferredItem<CoinItem> PLATINUM_COIN =
-            ITEMS.register("platinum_coin", () -> new CoinItem(new Item.Properties().stacksTo(100)));
+            ITEMS.register("platinum_coin", () -> new CoinItem(new Item.Properties().stacksTo(99)));
 
     // ── Block items ───────────────────────────────────────────────────────────
     public static final DeferredItem<BlockItem> MARKET_BLOCK =

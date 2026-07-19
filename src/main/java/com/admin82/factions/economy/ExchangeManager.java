@@ -16,6 +16,9 @@ public class ExchangeManager extends SavedData {
     /** Maps item registry name (e.g. "minecraft:iron_ingot") to copper value per 1 item. */
     private final Map<String, Long> rates = new HashMap<>();
 
+    /** If true, configured exchange rates can also be used to buy items back with coins. */
+    private boolean bothWaysExchange = false;
+
     // ── Singleton ─────────────────────────────────────────────────────────────
 
     public static ExchangeManager get(MinecraftServer server) {
@@ -48,6 +51,15 @@ public class ExchangeManager extends SavedData {
         return rates.containsKey(itemId);
     }
 
+    public boolean isBothWaysExchange() {
+        return bothWaysExchange;
+    }
+
+    public void setBothWaysExchange(boolean enabled) {
+        bothWaysExchange = enabled;
+        setDirty();
+    }
+
     // ── Serialization ─────────────────────────────────────────────────────────
 
     @Override
@@ -57,6 +69,7 @@ public class ExchangeManager extends SavedData {
             ratesTag.putLong(e.getKey(), e.getValue());
         }
         tag.put("rates", ratesTag);
+        tag.putBoolean("bothWaysExchange", bothWaysExchange);
         return tag;
     }
 
@@ -68,6 +81,7 @@ public class ExchangeManager extends SavedData {
                 manager.rates.put(key, ratesTag.getLong(key));
             }
         }
+        manager.bothWaysExchange = tag.getBoolean("bothWaysExchange");
         return manager;
     }
 }

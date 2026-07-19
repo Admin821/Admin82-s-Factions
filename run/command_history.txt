@@ -1,4 +1,3 @@
-/paste LpDTfqYKXQN1eTUHaxXP
 /kill Player2
 /faction exchange list
 /give Dev adminsfactions:barracks
@@ -48,3 +47,4 @@
 /weather clear
 /gamemode creative
 /gamemode survival Player2
+/faction dobothwaysexchange true

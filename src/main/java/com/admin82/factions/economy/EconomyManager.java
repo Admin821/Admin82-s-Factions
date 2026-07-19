@@ -239,7 +239,7 @@ public class EconomyManager extends SavedData {
 
     private static void giveCoins(net.minecraft.world.entity.player.Player player, Item coinItem, long count) {
         while (count > 0) {
-            int stackSize = (int) Math.min(count, 64);
+            int stackSize = (int) Math.min(count, coinItem.getDefaultMaxStackSize());
             player.getInventory().add(new ItemStack(coinItem, stackSize));
             count -= stackSize;
         }

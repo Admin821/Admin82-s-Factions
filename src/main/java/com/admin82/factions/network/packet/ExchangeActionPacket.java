@@ -3,12 +3,14 @@ package com.admin82.factions.network.packet;
 import com.admin82.factions.economy.Currency;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.economy.ExchangeManager;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -19,6 +21,7 @@ import static com.admin82.factions.AdminsFactions.MODID;
  *
  * Actions:
  *   EXCHANGE     — exchange the item in {@code slot} for coins (all players).
+ *   BUY_ITEM     — exchange coins for 1 item at its configured rate when two-way exchange is enabled.
  *   SET_RATE     — set/update an item exchange rate (op only, uses {@code itemId} + {@code rateCopper}).
  *   REMOVE_RATE  — remove an item exchange rate (op only, uses {@code itemId}).
  */
@@ -29,12 +32,16 @@ public record ExchangeActionPacket(
         long   rateCopper
 ) implements CustomPacketPayload {
 
-    public enum Action { EXCHANGE, SET_RATE, REMOVE_RATE }
+    public enum Action { EXCHANGE, BUY_ITEM, SET_RATE, REMOVE_RATE }
 
     // ── Convenience factories ─────────────────────────────────────────────────
 
     public static ExchangeActionPacket exchange(int slot) {
         return new ExchangeActionPacket(Action.EXCHANGE, slot, "", 0L);
+    }
+
+    public static ExchangeActionPacket buyItem(String itemId) {
+        return new ExchangeActionPacket(Action.BUY_ITEM, -1, itemId, 0L);
     }
 
     public static ExchangeActionPacket setRate(String itemId, long rateCopper) {
@@ -75,6 +82,7 @@ public record ExchangeActionPacket(
             if (!(ctx.player() instanceof ServerPlayer sp)) return;
             switch (pkt.action()) {
                 case EXCHANGE    -> handleExchange(sp, pkt.slot());
+                case BUY_ITEM    -> handleBuyItem(sp, pkt.itemId());
                 case SET_RATE    -> handleSetRate(sp, pkt.itemId(), pkt.rateCopper());
                 case REMOVE_RATE -> handleRemoveRate(sp, pkt.itemId());
             }
@@ -100,6 +108,41 @@ public record ExchangeActionPacket(
                 Component.literal("§aExchanged §e" + stack.getCount() + "x §f"
                         + stack.getHoverName().getString()
                         + " §afor §e" + Currency.format(totalCopper)), true);
+    }
+
+    private static void handleBuyItem(ServerPlayer sp, String itemId) {
+        ExchangeManager exchange = ExchangeManager.get(sp.getServer());
+        if (!exchange.isBothWaysExchange()) {
+            sp.displayClientMessage(Component.literal("§cBuying items from the exchange is disabled."), true);
+            return;
+        }
+        long ratePerItem = exchange.getRate(itemId);
+        if (itemId.isBlank() || ratePerItem <= 0) {
+            sp.displayClientMessage(Component.literal("§cThat item has no exchange rate."), true);
+            return;
+        }
+        Item item;
+        try {
+            item = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(itemId)).orElse(null);
+        } catch (RuntimeException ex) {
+            item = null;
+        }
+        if (item == null) {
+            sp.displayClientMessage(Component.literal("§cUnknown item: §e" + itemId), true);
+            return;
+        }
+        if (!EconomyManager.removeCoinsFromInventory(sp, ratePerItem)) {
+            sp.displayClientMessage(Component.literal("§cNot enough coins. Need §e"
+                    + Currency.format(ratePerItem) + "§c."), true);
+            return;
+        }
+        ItemStack stack = new ItemStack(item);
+        if (!sp.getInventory().add(stack)) {
+            sp.drop(stack, false);
+        }
+        sp.inventoryMenu.broadcastChanges();
+        sp.displayClientMessage(Component.literal("§aBought §e1x §f"
+                + stack.getHoverName().getString() + " §afor §e" + Currency.format(ratePerItem)), true);
     }
 
     private static void handleSetRate(ServerPlayer sp, String itemId, long rateCopper) {

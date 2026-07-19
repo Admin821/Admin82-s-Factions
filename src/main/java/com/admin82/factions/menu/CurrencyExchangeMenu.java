@@ -49,6 +49,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
 
     private final BlockPos pos;
     private final boolean  isOp;
+    private final boolean  bothWaysExchange;
 
     /** Rates received from server at open time. key = registry id, value = copper/item */
     private final Map<String, Long> rates = new HashMap<>();
@@ -58,6 +59,10 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     private int        selectedSlot = -1;
     private UIElement  exchangeConfirmArea;
 
+    // Buy tab state
+    private int        buyScroll = 0;
+    private UIElement  buyRateArea;
+
     // Manage tab state
     private int        mgScroll    = 0;
     private ItemStack  mgSelected  = ItemStack.EMPTY;
@@ -65,7 +70,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     private UIElement  mgConfirmArea;
 
     // Tabs
-    private enum Tab { EXCHANGE, MANAGE }
+    private enum Tab { EXCHANGE, BUY, MANAGE }
     private Tab currentTab = Tab.EXCHANGE;
 
     private static final int RATE_ROWS = 7;
@@ -76,6 +81,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         super(ModMenuTypes.CURRENCY_EXCHANGE.get(), containerId);
         this.pos  = pos;
         this.isOp = false;
+        this.bothWaysExchange = false;
         if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
     }
 
@@ -83,6 +89,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         super(ModMenuTypes.CURRENCY_EXCHANGE.get(), containerId);
         this.pos  = buf.readBlockPos();
         this.isOp = buf.readBoolean();
+        this.bothWaysExchange = buf.readBoolean();
         int count = buf.readVarInt();
         for (int i = 0; i < count; i++) rates.put(buf.readUtf(256), buf.readLong());
         if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
@@ -120,10 +127,15 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         content.layout(l -> l.flex(1));
 
         UIElement exPanel  = buildExchangePanel(player);
+        UIElement buyPanel = bothWaysExchange ? buildBuyPanel(player) : null;
         UIElement mgPanel  = isOp ? buildManagePanel(player) : null;
 
-        content.addChildren(currentTab == Tab.EXCHANGE ? exPanel : (mgPanel != null ? mgPanel : exPanel));
-        buildTabBar(tabBar, exPanel, mgPanel, content, player);
+        content.addChildren(switch (currentTab) {
+            case BUY -> buyPanel != null ? buyPanel : exPanel;
+            case MANAGE -> mgPanel != null ? mgPanel : exPanel;
+            default -> exPanel;
+        });
+        buildTabBar(tabBar, exPanel, buyPanel, mgPanel, content, player);
 
         root.addChildren(titleRow, tabBar, content);
         frame.addChildren(root);
@@ -132,21 +144,28 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
                 player);
     }
 
-    private void buildTabBar(UIElement bar, UIElement exPanel, UIElement mgPanel,
+    private void buildTabBar(UIElement bar, UIElement exPanel, UIElement buyPanel, UIElement mgPanel,
                               UIElement content, Player player) {
         bar.clearAllChildren();
-        boolean exActive = currentTab == Tab.EXCHANGE;
 
-        var exBtn = new Button().setText("Exchange");
-        exBtn.setOnClick(e -> { currentTab = Tab.EXCHANGE; content.clearAllChildren(); content.addChildren(exPanel); buildTabBar(bar, exPanel, mgPanel, content, player); });
-        if (exActive) exBtn.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#cc7700ff)");
+        var exBtn = new Button().setText("Exchange for Money");
+        exBtn.setOnClick(e -> { currentTab = Tab.EXCHANGE; content.clearAllChildren(); content.addChildren(exPanel); buildTabBar(bar, exPanel, buyPanel, mgPanel, content, player); });
+        if (currentTab == Tab.EXCHANGE) exBtn.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#cc7700ff)");
         exBtn.layout(l -> l.flex(1).height(22));
         bar.addChildren(exBtn);
 
+        if (buyPanel != null) {
+            var buyBtn = new Button().setText("Exchange for Items");
+            buyBtn.setOnClick(e -> { currentTab = Tab.BUY; content.clearAllChildren(); content.addChildren(buyPanel); buildTabBar(bar, exPanel, buyPanel, mgPanel, content, player); });
+            if (currentTab == Tab.BUY) buyBtn.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#cc7700ff)");
+            buyBtn.layout(l -> l.flex(1).height(22));
+            bar.addChildren(buyBtn);
+        }
+
         if (isOp && mgPanel != null) {
             var mgBtn = new Button().setText("§cManage Rates");
-            mgBtn.setOnClick(e -> { currentTab = Tab.MANAGE; content.clearAllChildren(); content.addChildren(mgPanel); buildTabBar(bar, exPanel, mgPanel, content, player); });
-            if (!exActive) mgBtn.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#cc7700ff)");
+            mgBtn.setOnClick(e -> { currentTab = Tab.MANAGE; content.clearAllChildren(); content.addChildren(mgPanel); buildTabBar(bar, exPanel, buyPanel, mgPanel, content, player); });
+            if (currentTab == Tab.MANAGE) mgBtn.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#cc7700ff)");
             mgBtn.layout(l -> l.flex(1).height(22));
             bar.addChildren(mgBtn);
         }
@@ -249,6 +268,56 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
             });
             confirmBtn.layout(l -> l.width(180).height(22));
             exchangeConfirmArea.addChildren(confirmBtn);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // BUY TAB
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private UIElement buildBuyPanel(Player player) {
+        var panel = new UIElement();
+        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(6).paddingAll(6));
+
+        panel.addChildren(new Label().setText("§6§lBuy Items"));
+        panel.addChildren(new Label().setText("§8Spend coins from your inventory for configured exchange items."));
+
+        buyRateArea = new UIElement();
+        buyRateArea.layout(l -> l.flex(1).width(432));
+        fillBuyRateList();
+
+        var scrollRow = new UIElement();
+        scrollRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4));
+        scrollRow.addChildren(
+                new Button().setText("▲").setOnClick(e -> { buyScroll = Math.max(0, buyScroll - 1); fillBuyRateList(); }).layout(l -> l.width(20)),
+                new Button().setText("▼").setOnClick(e -> { buyScroll++; fillBuyRateList(); }).layout(l -> l.width(20))
+        );
+        panel.addChildren(buyRateArea, scrollRow);
+        return panel;
+    }
+
+    private void fillBuyRateList() {
+        if (buyRateArea == null) return;
+        buyRateArea.clearAllChildren();
+        var sorted = rates.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList();
+        if (sorted.isEmpty()) { buyRateArea.addChildren(new Label().setText("§7No rates configured.")); return; }
+        for (int i = 0; i < RATE_ROWS + 4; i++) {
+            int idx = i + buyScroll;
+            if (idx >= sorted.size()) break;
+            var entry = sorted.get(idx);
+            String displayName = resolveItemName(entry.getKey());
+            String finalId = entry.getKey();
+            var row = new UIElement();
+            row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(22).width(432));
+            var buyBtn = new Button().setText("§aBuy 1");
+            buyBtn.setOnClick(e -> PacketDistributor.sendToServer(ExchangeActionPacket.buyItem(finalId)));
+            buyBtn.layout(l -> l.width(64).height(20));
+            row.addChildren(
+                    new Label().setText("§f" + displayName).layout(l -> l.flex(1)),
+                    new Label().setText("§a" + Currency.format(entry.getValue())).layout(l -> l.width(90)),
+                    buyBtn
+            );
+            buyRateArea.addChildren(row);
         }
     }
 
