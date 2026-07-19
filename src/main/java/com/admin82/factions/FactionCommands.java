@@ -9,6 +9,7 @@ import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.admin82.factions.network.packet.SyncFactionDataPacket;
 import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.outpost.OutpostEntry;
+import com.admin82.factions.registry.ModItems;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -26,6 +27,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -631,6 +633,11 @@ public class FactionCommands {
      * Called by the /faction delete command and by the block-break event handler.
      */
     public static void performDisband(MinecraftServer server, UUID factionId, @Nullable Component reason) {
+        performDisband(server, factionId, reason, null);
+    }
+
+    public static void performDisband(MinecraftServer server, UUID factionId, @Nullable Component reason,
+                                      @Nullable ServerPlayer refundPlayer) {
         FactionManager manager = FactionManager.get(server);
         Faction faction = manager.getFaction(factionId);
         if (faction == null) return;
@@ -651,6 +658,7 @@ public class FactionCommands {
                         net.minecraft.core.SectionPos.blockToSectionCoord(table.pos().getZ()), true);
                 tableLevel.removeBlock(table.pos(), false);
             }
+            giveOrDrop(refundPlayer, new ItemStack(ModItems.FACTION_TABLE.get()));
         }
 
         // Remove the faction barracks block from the world
@@ -665,6 +673,7 @@ public class FactionCommands {
                         net.minecraft.core.SectionPos.blockToSectionCoord(barracks.pos().getZ()), true);
                 barrLevel.removeBlock(barracks.pos(), false);
             }
+            giveOrDrop(refundPlayer, new ItemStack(ModItems.BARRACKS.get()));
             manager.removeFactionBarracks(factionId);
         }
 
@@ -683,6 +692,7 @@ public class FactionCommands {
                     outpostLevel.removeBlock(bp, false);
                 outpostLevel.removeBlock(outpost.managerPos, false);
             }
+            giveOrDrop(refundPlayer, new ItemStack(ModItems.OUTPOST.get()));
             // Unclaim the outpost's chunk
             manager.unclaimChunk(factionId,
                     net.minecraft.core.SectionPos.blockToSectionCoord(outpost.managerPos.getX()),
@@ -701,6 +711,11 @@ public class FactionCommands {
         }
 
         manager.disbandFaction(factionId);
+    }
+
+    private static void giveOrDrop(@Nullable ServerPlayer player, ItemStack stack) {
+        if (player == null || stack.isEmpty()) return;
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
     }
 
     /** Sends an updated faction sync packet (and optional message) to an online player. */
