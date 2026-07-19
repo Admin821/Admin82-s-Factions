@@ -1,8 +1,12 @@
 package com.admin82.factions.block;
 
+import com.admin82.factions.FactionBlockProtection;
+import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -120,6 +124,14 @@ public class FactionTableFillerBlock extends Block {
                          BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
             BlockPos mainPos = state.getValue(PART).getMainPos(pos);
+            if (!level.isClientSide
+                    && !FactionBlockProtection.canRemoveProtectedBlock()
+                    && level.getBlockEntity(mainPos) instanceof FactionTableBlockEntity mainBe
+                    && mainBe.getLinkedFactionId() != null
+                    && FactionManager.get((ServerLevel) level).getFaction(mainBe.getLinkedFactionId()) != null) {
+                level.setBlock(pos, state, 3);
+                return;
+            }
             if (level.getBlockState(mainPos).is(ModBlocks.FACTION_TABLE.get())) {
                 level.removeBlock(mainPos, false);
             }

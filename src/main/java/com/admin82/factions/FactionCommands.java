@@ -656,7 +656,7 @@ public class FactionCommands {
                 tableLevel.getChunkSource().getChunk(
                         net.minecraft.core.SectionPos.blockToSectionCoord(table.pos().getX()),
                         net.minecraft.core.SectionPos.blockToSectionCoord(table.pos().getZ()), true);
-                tableLevel.removeBlock(table.pos(), false);
+                FactionBlockProtection.allowProtectedRemoval(() -> tableLevel.removeBlock(table.pos(), false));
             }
             giveOrDrop(refundPlayer, new ItemStack(ModItems.FACTION_TABLE.get()));
         }
@@ -671,7 +671,7 @@ public class FactionCommands {
                 barrLevel.getChunkSource().getChunk(
                         net.minecraft.core.SectionPos.blockToSectionCoord(barracks.pos().getX()),
                         net.minecraft.core.SectionPos.blockToSectionCoord(barracks.pos().getZ()), true);
-                barrLevel.removeBlock(barracks.pos(), false);
+                FactionBlockProtection.allowProtectedRemoval(() -> barrLevel.removeBlock(barracks.pos(), false));
             }
             giveOrDrop(refundPlayer, new ItemStack(ModItems.BARRACKS.get()));
             manager.removeFactionBarracks(factionId);
@@ -836,13 +836,29 @@ public class FactionCommands {
         for (net.minecraft.server.level.ServerLevel lvl : src.getServer().getAllLevels()) {
             if (lvl.dimension().location().toString().equals(barracks.dimension())) { targetLevel = lvl; break; }
         }
-        if (targetLevel == null) return 0;
+        if (targetLevel == null) {
+            fmgr.removeFactionBarracks(faction.getId());
+            src.sendFailure(Component.literal("§cYour faction has no barracks."));
+            return 0;
+        }
         net.minecraft.core.BlockPos bp = barracks.pos();
-        int spawnX = bp.getX(), spawnZ = bp.getZ() + 2;
-        int spawnY = targetLevel.getHeight(
-                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawnX, spawnZ);
+        targetLevel.getChunkSource().getChunk(
+                net.minecraft.core.SectionPos.blockToSectionCoord(bp.getX()),
+                net.minecraft.core.SectionPos.blockToSectionCoord(bp.getZ()), true);
+        if (!(targetLevel.getBlockEntity(bp) instanceof com.admin82.factions.blockentity.BarracksBlockEntity barracksBe)
+                || !faction.getId().equals(barracksBe.getLinkedFactionId())) {
+            fmgr.removeFactionBarracks(faction.getId());
+            src.sendFailure(Component.literal("§cYour faction has no barracks."));
+            return 0;
+        }
+        BlockPos safePos = findSafeReturnPos(targetLevel, bp);
+        if (safePos == null) {
+            src.sendFailure(Component.literal("§cCould not find a safe place near your barracks."));
+            return 0;
+        }
         final net.minecraft.server.level.ServerLevel fl = targetLevel;
-        player.teleportTo(fl, spawnX + 0.5, spawnY, spawnZ + 0.5, player.getYRot(), player.getXRot());
+        player.teleportTo(fl, safePos.getX() + 0.5, safePos.getY(), safePos.getZ() + 0.5,
+                player.getYRot(), player.getXRot());
         if (cooldownSeconds > 0) {
             factionReturnCooldowns.put(player.getUUID(), now + (long) cooldownSeconds * 1000L);
         } else {
@@ -850,5 +866,45 @@ public class FactionCommands {
         }
         src.sendSuccess(() -> Component.literal("§a✔ Teleported to §e" + faction.getName() + " §aBarracks!"), false);
         return 1;
+    }
+
+    @Nullable
+    private static BlockPos findSafeReturnPos(ServerLevel level, BlockPos barracksPos) {
+        int[][] preferredOffsets = {
+                {0, 2}, {1, 2}, {-1, 2}, {2, 0}, {-2, 0}, {0, -2},
+                {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {0, 0}
+        };
+        for (int[] offset : preferredOffsets) {
+            BlockPos pos = safeColumn(level, barracksPos.getX() + offset[0], barracksPos.getZ() + offset[1]);
+            if (pos != null) return pos;
+        }
+
+        for (int radius = 3; radius <= 8; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                    BlockPos pos = safeColumn(level, barracksPos.getX() + dx, barracksPos.getZ() + dz);
+                    if (pos != null) return pos;
+                }
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private static BlockPos safeColumn(ServerLevel level, int x, int z) {
+        if (!level.getWorldBorder().isWithinBounds(x, z)) return null;
+        level.getChunkSource().getChunk(
+                net.minecraft.core.SectionPos.blockToSectionCoord(x),
+                net.minecraft.core.SectionPos.blockToSectionCoord(z), true);
+        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        if (y <= level.getMinBuildHeight() || y >= level.getMaxBuildHeight() - 1) return null;
+
+        BlockPos feet = new BlockPos(x, y, z);
+        BlockPos floor = feet.below();
+        if (!level.getBlockState(feet).isAir() || !level.getBlockState(feet.above()).isAir()) return null;
+        if (!level.getBlockState(floor).isFaceSturdy(level, floor, net.minecraft.core.Direction.UP)) return null;
+        if (!level.getFluidState(feet).isEmpty() || !level.getFluidState(floor).isEmpty()) return null;
+        return feet;
     }
 }

@@ -1,5 +1,6 @@
 package com.admin82.factions.block;
 
+import com.admin82.factions.FactionBlockProtection;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
@@ -250,7 +251,7 @@ public class FactionTableBlock extends BaseEntityBlock {
                     ResourceLocation.parse(pending.dimension()));
             ServerLevel oldLevel = serverLevel.getServer().getLevel(oldDimKey);
             if (oldLevel != null && !pending.originalPos().equals(pos)) {
-                oldLevel.removeBlock(pending.originalPos(), false);
+                FactionBlockProtection.allowProtectedRemoval(() -> oldLevel.removeBlock(pending.originalPos(), false));
             }
 
             manager.setFactionTable(pending.factionId(), pos, dim);
@@ -310,6 +311,21 @@ public class FactionTableBlock extends BaseEntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
+            if (!level.isClientSide
+                    && !FactionBlockProtection.canRemoveProtectedBlock()
+                    && level.getBlockEntity(pos) instanceof FactionTableBlockEntity be
+                    && be.getLinkedFactionId() != null) {
+                UUID linkedId = be.getLinkedFactionId();
+                FactionManager manager = FactionManager.get((ServerLevel) level);
+                if (manager.getFaction(linkedId) != null) {
+                    level.setBlock(pos, state, 3);
+                    if (level.getBlockEntity(pos) instanceof FactionTableBlockEntity restoredBe) {
+                        restoredBe.setLinkedFactionId(linkedId);
+                    }
+                    placeFillers(level, pos);
+                    return;
+                }
+            }
             // Main block removed — cascade-remove all three filler blocks.
             BlockPos[] fillerPos = { pos.east(), pos.south(), pos.east().south() };
             FactionTableFillerBlock.Part[] parts = {

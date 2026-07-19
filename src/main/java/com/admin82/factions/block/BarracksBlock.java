@@ -2,6 +2,7 @@ package com.admin82.factions.block;
 
 import com.admin82.factions.barracks.BarracksData;
 import com.admin82.factions.barracks.KitData;
+import com.admin82.factions.FactionBlockProtection;
 import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
@@ -62,6 +63,14 @@ public class BarracksBlock extends BaseEntityBlock {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
+        BlockPos pos = context.getClickedPos();
+        if (!context.getLevel().canSeeSky(pos.above())) {
+            Player player = context.getPlayer();
+            if (player != null && !context.getLevel().isClientSide) {
+                player.displayClientMessage(Component.literal("§cBarracks must be placed outside with open sky above."), true);
+            }
+            return null;
+        }
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
@@ -127,7 +136,7 @@ public class BarracksBlock extends BaseEntityBlock {
                     Registries.DIMENSION, ResourceLocation.parse(pendingMove.dimension()));
             ServerLevel oldLevel = ((ServerLevel) level).getServer().getLevel(oldDimKey);
             if (oldLevel != null && !pendingMove.originalPos().equals(pos)) {
-                oldLevel.removeBlock(pendingMove.originalPos(), false);
+                FactionBlockProtection.allowProtectedRemoval(() -> oldLevel.removeBlock(pendingMove.originalPos(), false));
             }
 
             mgr.setFactionBarracks(pendingMove.factionId(), pos, dim);
@@ -247,6 +256,21 @@ public class BarracksBlock extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean movedByPiston) {
+        if (state.getBlock() != newState.getBlock()
+                && !level.isClientSide
+                && !FactionBlockProtection.canRemoveProtectedBlock()
+                && level.getBlockEntity(pos) instanceof BarracksBlockEntity be
+                && be.getLinkedFactionId() != null) {
+            FactionManager mgr = FactionManager.get((ServerLevel) level);
+            UUID fId = be.getLinkedFactionId();
+            if (mgr.getFaction(fId) != null) {
+                level.setBlock(pos, state, 3);
+                if (level.getBlockEntity(pos) instanceof BarracksBlockEntity restoredBe) {
+                    restoredBe.setLinkedFactionId(fId);
+                }
+                return;
+            }
+        }
         if (state.getBlock() != newState.getBlock()
                 && !level.isClientSide
                 && level.getBlockEntity(pos) instanceof BarracksBlockEntity be
