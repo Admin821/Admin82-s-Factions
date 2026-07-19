@@ -19,10 +19,10 @@ public class BarracksItem extends BlockItem {
     public void appendHoverText(ItemStack stack, Item.TooltipContext context,
                                 List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line1"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line2"));
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.barracks.line1");
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.barracks.line2");
         tooltip.add(Component.empty());
-        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line3"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.barracks.line4"));
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.barracks.line3");
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.barracks.line4");
     }
 }

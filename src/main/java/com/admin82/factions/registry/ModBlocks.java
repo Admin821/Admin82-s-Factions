@@ -8,6 +8,7 @@ import com.admin82.factions.block.FactionTableFillerBlock;
 import com.admin82.factions.block.MarketBlock;
 import com.admin82.factions.block.MarketFillerBlock;
 import com.admin82.factions.block.OutpostManagerBlock;
+import com.admin82.factions.block.OutpostManagerFillerBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -108,9 +109,22 @@ public class ModBlocks {
             () -> new OutpostManagerBlock(
                     BlockBehaviour.Properties.of()
                             .mapColor(MapColor.STONE)
-                            .strength(5.0f, 1200.0f)
+                            .strength(5.0f, 3_600_000.0f)
                             .sound(SoundType.STONE)
                             .requiresCorrectToolForDrops()
+            )
+    );
+
+    /** Invisible filler block that completes the Outpost Manager's 1×2 physical footprint. */
+    public static final DeferredBlock<OutpostManagerFillerBlock> OUTPOST_MANAGER_FILLER = BLOCKS.register(
+            "outpost_manager_filler",
+            () -> new OutpostManagerFillerBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.STONE)
+                            .strength(5.0f, 3_600_000.0f)
+                            .sound(SoundType.STONE)
+                            .requiresCorrectToolForDrops()
+                            .noLootTable()
             )
     );
 }

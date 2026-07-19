@@ -1,5 +1,3 @@
-/faction delete 121
-/time set day
 /gamemode survival
 /gamemode creative
 /gamemode survival Player2
@@ -48,3 +46,5 @@
 /effect give Dev minecraft:regeneration infinite 10
 /weather clear
 /gamemode creative
+/faction delete life
+/time set day

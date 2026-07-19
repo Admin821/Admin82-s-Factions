@@ -27,9 +27,9 @@ public class OutpostItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.adminsfactions.outpost.line1"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.outpost.line2"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.outpost.line3"));
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.outpost.line1");
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.outpost.line2");
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.outpost.line3");
     }
 
     @Override

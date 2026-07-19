@@ -4,6 +4,7 @@ import com.admin82.factions.item.BarracksItem;
 import com.admin82.factions.item.CoinItem;
 import com.admin82.factions.item.FactionTableItem;
 import com.admin82.factions.item.OutpostItem;
+import com.admin82.factions.item.TooltipBlockItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -35,9 +36,11 @@ public class ModItems {
 
     // ── Block items ───────────────────────────────────────────────────────────
     public static final DeferredItem<BlockItem> MARKET_BLOCK =
-            ITEMS.register("market_block", () -> new BlockItem(ModBlocks.MARKET.get(), new Item.Properties()));
+            ITEMS.register("market_block", () -> new TooltipBlockItem(ModBlocks.MARKET.get(), new Item.Properties(),
+                    "tooltip.adminsfactions.market_block"));
     public static final DeferredItem<BlockItem> CURRENCY_EXCHANGE_BLOCK =
-            ITEMS.register("currency_exchange_block", () -> new BlockItem(ModBlocks.CURRENCY_EXCHANGE.get(), new Item.Properties()));
+            ITEMS.register("currency_exchange_block", () -> new TooltipBlockItem(ModBlocks.CURRENCY_EXCHANGE.get(), new Item.Properties(),
+                    "tooltip.adminsfactions.currency_exchange_block"));
 
     // ── Outpost ───────────────────────────────────────────────────────────────
     public static final DeferredItem<OutpostItem> OUTPOST =

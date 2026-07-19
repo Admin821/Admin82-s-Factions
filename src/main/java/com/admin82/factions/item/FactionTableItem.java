@@ -30,12 +30,10 @@ public class FactionTableItem extends BlockItem {
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line1"));
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.faction_table.line1");
         tooltip.add(Component.empty());
-        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line2"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line3"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line4"));
-        tooltip.add(Component.translatable("tooltip.adminsfactions.faction_table.line5"));
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.faction_table.line2");
+        TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.faction_table.line3");
     }
 
     @Override

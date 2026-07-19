@@ -4,6 +4,7 @@ import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.blockentity.OutpostManagerBlockEntity;
 import com.admin82.factions.block.FactionTableFillerBlock;
+import com.admin82.factions.block.OutpostManagerFillerBlock;
 import com.admin82.factions.registry.ModBlocks;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.Faction;
@@ -16,6 +17,7 @@ import com.admin82.factions.outpost.OutpostEntry;
 import com.admin82.factions.war.ResourceWarAccess;
 import com.admin82.factions.war.WarManager;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -104,7 +106,13 @@ public class FactionTableEvents {
     @SubscribeEvent
     public static void onOutpostBlockBreak(BlockEvent.BreakEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
-        if (!(level.getBlockEntity(event.getPos()) instanceof OutpostManagerBlockEntity)) return;
+        BlockPos managerPos = event.getPos();
+        BlockState brokenState = event.getState();
+        if (brokenState.is(ModBlocks.OUTPOST_MANAGER_FILLER.get())) {
+            managerPos = getOutpostManagerPos(level, event.getPos());
+            if (managerPos == null) return;
+        }
+        if (!(level.getBlockEntity(managerPos) instanceof OutpostManagerBlockEntity)) return;
 
         Player player = event.getPlayer();
         if (!player.hasPermissions(2)) {
@@ -117,13 +125,16 @@ public class FactionTableEvents {
         // Op is breaking the outpost — delete it cleanly
         String dim = level.dimension().location().toString();
         OutpostData outposts = OutpostData.get(level.getServer());
-        OutpostEntry entry = outposts.getOutpostAtPos(event.getPos(), dim);
+        OutpostEntry entry = outposts.getOutpostAtPos(managerPos, dim);
         if (entry != null) {
             // Remove all registered structure blocks from the world
             for (net.minecraft.core.BlockPos bp : entry.structureBlocks) {
                 level.removeBlock(bp, false);
             }
             outposts.removeOutpost(entry.id);
+            if (brokenState.is(ModBlocks.OUTPOST_MANAGER_FILLER.get())) {
+                level.removeBlock(managerPos, false);
+            }
             player.displayClientMessage(
                     Component.literal("§a[Admin] Outpost deleted and structure removed."), false);
         }
@@ -271,6 +282,10 @@ public class FactionTableEvents {
             return linkedId != null && mgr.getFaction(linkedId) != null;
         }
 
+        if (level.getBlockEntity(pos) instanceof OutpostManagerBlockEntity) {
+            return true;
+        }
+
         BlockState state = level.getBlockState(pos);
         if (state.is(ModBlocks.FACTION_TABLE_FILLER.get())) {
             BlockPos mainPos = state.getValue(FactionTableFillerBlock.PART).getMainPos(pos);
@@ -280,7 +295,26 @@ public class FactionTableEvents {
             }
         }
 
+        if (state.is(ModBlocks.OUTPOST_MANAGER_FILLER.get())) {
+            BlockPos mainPos = getOutpostManagerPos(level, pos);
+            return level.getBlockEntity(mainPos) instanceof OutpostManagerBlockEntity;
+        }
+
         return false;
+    }
+
+    private static BlockPos getOutpostManagerPos(ServerLevel level, BlockPos fillerPos) {
+        BlockPos verticalMain = fillerPos.below();
+        if (level.getBlockEntity(verticalMain) instanceof OutpostManagerBlockEntity) {
+            return verticalMain;
+        }
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            BlockPos horizontalMain = fillerPos.relative(direction);
+            if (level.getBlockEntity(horizontalMain) instanceof OutpostManagerBlockEntity) {
+                return horizontalMain;
+            }
+        }
+        return null;
     }
 
     /**

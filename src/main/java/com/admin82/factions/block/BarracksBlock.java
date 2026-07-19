@@ -10,6 +10,7 @@ import com.admin82.factions.menu.BarracksMenu;
 import com.admin82.factions.network.packet.SyncBarracksPacket;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -21,12 +22,17 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -39,11 +45,25 @@ import java.util.UUID;
 public class BarracksBlock extends BaseEntityBlock {
 
     public static final MapCodec<BarracksBlock> CODEC = simpleCodec(BarracksBlock::new);
+    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
     @Override
     protected MapCodec<? extends BaseEntityBlock> codec() { return CODEC; }
 
-    public BarracksBlock(Properties properties) { super(properties); }
+    public BarracksBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
 
     @Override
     public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
@@ -138,6 +158,16 @@ public class BarracksBlock extends BaseEntityBlock {
                     Component.literal("§aBarracks linked to §e" + faction.getName() + "§a!"), true);
         } else {
             // No faction yet — register as pending barracks for faction creation
+            FactionManager.TableLocation oldPending = mgr.getPendingBarracks(player.getUUID());
+            if (oldPending != null && !oldPending.pos().equals(pos)) {
+                ResourceKey<net.minecraft.world.level.Level> oldDimKey = ResourceKey.create(
+                        Registries.DIMENSION, ResourceLocation.parse(oldPending.dimension()));
+                ServerLevel oldLevel = ((ServerLevel) level).getServer().getLevel(oldDimKey);
+                if (oldLevel != null && oldLevel.getBlockEntity(oldPending.pos()) instanceof BarracksBlockEntity oldBe
+                        && oldBe.getLinkedFactionId() == null) {
+                    oldLevel.removeBlock(oldPending.pos(), false);
+                }
+            }
             mgr.setPendingBarracks(player.getUUID(), pos, level.dimension().location().toString());
             player.displayClientMessage(
                     Component.literal("§eBarracks placed! Now create your faction to link it."), true);

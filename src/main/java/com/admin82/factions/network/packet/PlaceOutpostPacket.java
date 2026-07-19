@@ -7,6 +7,7 @@ import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.outpost.OutpostEntry;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
@@ -92,6 +93,13 @@ public record PlaceOutpostPacket(boolean confirmed) implements CustomPacketPaylo
                 return;
             }
 
+            Direction facing = sp.getDirection().getOpposite();
+            BlockPos fillerPos = pending.above();
+            if (!targetLevel.getBlockState(fillerPos).canBeReplaced()) {
+                sp.displayClientMessage(Component.literal("§c[Outpost] Not enough space! Outpost needs a clear 2-block-tall area."), true);
+                return;
+            }
+
             // ── Build 5×5 cobblestone platform one block below the manager ────
             List<BlockPos> structureBlocks = new ArrayList<>();
             BlockPos platformY = pending.below();
@@ -106,7 +114,10 @@ public record PlaceOutpostPacket(boolean confirmed) implements CustomPacketPaylo
             }
 
             // ── Place the outpost manager block ───────────────────────────────
-            targetLevel.setBlockAndUpdate(pending, ModBlocks.OUTPOST_MANAGER.get().defaultBlockState());
+                targetLevel.setBlockAndUpdate(pending, ModBlocks.OUTPOST_MANAGER.get().defaultBlockState()
+                    .setValue(com.admin82.factions.block.OutpostManagerBlock.FACING, facing));
+                targetLevel.setBlockAndUpdate(fillerPos, ModBlocks.OUTPOST_MANAGER_FILLER.get().defaultBlockState()
+                    .setValue(com.admin82.factions.block.OutpostManagerFillerBlock.FACING, facing));
             if (targetLevel.getBlockEntity(pending) instanceof OutpostManagerBlockEntity be) {
                 be.setLinkedFactionId(faction.getId());
             }

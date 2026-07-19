@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "adminsfactions:block/outpostbanner" },
+    "facing=east": { "model": "adminsfactions:block/outpostbanner", "y": 90 },
+    "facing=south": { "model": "adminsfactions:block/outpostbanner", "y": 180 },
+    "facing=west": { "model": "adminsfactions:block/outpostbanner", "y": 270 }
+  }
+}

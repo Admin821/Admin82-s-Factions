@@ -24,15 +24,19 @@
   "tooltip.adminsfactions.faction_table.line1": "§7Places a 2×2 table used to create and manage your faction.",
   
   "tooltip.adminsfactions.faction_table.line2": "§8» Cannot be broken — use the menu to move or disband.",
+  "tooltip.adminsfactions.faction_table.line3": "§8» Only faction members can open a linked table.",
 
   "tooltip.adminsfactions.barracks.line1": "§7The faction's spawn point during wars.",
   "tooltip.adminsfactions.barracks.line2": "§7Stores kits for each life in war.",
   "tooltip.adminsfactions.barracks.line3": "§8» Required before creating a faction.",
   "tooltip.adminsfactions.barracks.line4": "§8» Right-click to manage kits.",
 
-  "tooltip.adminsfactions.outpost.line1": "§7Right-click a surface to place an Outpost.",
+  "tooltip.adminsfactions.outpost.line1": "§7Right-click to place an Outpost.",
   "tooltip.adminsfactions.outpost.line2": "§8Must be in a faction. Costs money to upkeep.",
-  
+
+  "tooltip.adminsfactions.currency_exchange_block.line1": "§7Exchange items for Coins.",
+  "tooltip.adminsfactions.market_block.line1": "§7List your items on a global auction house.",
+
 
   "adminsfactions.configuration.title": "Admin's Factions Config",
   "adminsfactions.configuration.section.adminsfactions.common.toml": "Admin's Factions Config",
