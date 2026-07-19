@@ -60,17 +60,38 @@ public record MemberActionPacket(Action action, UUID targetUUID, String targetNa
                     ServerPlayer target = player.server.getPlayerList().getPlayerByName(packet.targetName());
                     if (target == null) return;
                     if (manager.getFactionForPlayer(target.getUUID()) != null) return;
-                    manager.addPlayerToFaction(faction.getId(), target.getUUID(), target.getGameProfile().getName());
+                    if (manager.invitePlayerToFaction(faction.getId(), target.getUUID())) {
+                        target.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                                "§aYou were invited to join §e" + faction.getName()
+                                + "§a. Run §f/faction join " + faction.getName() + " §ato accept."), false);
+                        player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                                "§aInvited §e" + target.getGameProfile().getName()
+                                + " §ato join §e" + faction.getName() + "§a."), false);
+                    }
                 }
                 case KICK -> {
                     if (actor.getRole().getLevel() < FactionRole.OFFICER.getLevel()) return;
                     FactionMember target = faction.getMember(packet.targetUUID());
                     if (target == null || target.getRole().getLevel() >= actor.getRole().getLevel()) return;
+                    String targetName = target.getPlayerName();
+                    String factionName = faction.getName();
                     manager.removePlayerFromFaction(packet.targetUUID());
                     // Notify kicked player if online
                     ServerPlayer kicked = player.server.getPlayerList().getPlayer(packet.targetUUID());
                     if (kicked != null) {
                         PacketDistributor.sendToPlayer(kicked, new SyncFactionDataPacket(null));
+                        kicked.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                                "§cYou were kicked from §e" + factionName + "§c by §e"
+                                + player.getGameProfile().getName() + "§c."), false);
+                    }
+                    for (FactionMember member : faction.getMembers()) {
+                        ServerPlayer online = player.server.getPlayerList().getPlayer(member.getUuid());
+                        if (online != null) {
+                            PacketDistributor.sendToPlayer(online, new SyncFactionDataPacket(faction));
+                            online.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                                    "§e" + targetName + " §cwas kicked from your faction by §e"
+                                    + player.getGameProfile().getName() + "§c."), false);
+                        }
                     }
                 }
                 case SET_ROLE -> {
@@ -80,6 +101,10 @@ public record MemberActionPacket(Action action, UUID targetUUID, String targetNa
                     FactionRole role = packet.newRole() == FactionRole.OWNER ? FactionRole.OFFICER : packet.newRole();
                     target.setRole(role);
                     manager.setDirty();
+                    for (FactionMember member : faction.getMembers()) {
+                        ServerPlayer online = player.server.getPlayerList().getPlayer(member.getUuid());
+                        if (online != null) PacketDistributor.sendToPlayer(online, new SyncFactionDataPacket(faction));
+                    }
                 }
                 case LEAVE -> {
                     // Player leaves their own faction (owner must disband instead)

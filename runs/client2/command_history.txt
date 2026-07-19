@@ -13,3 +13,5 @@
 /factionreturn
 /op Dev
 /deop Player2
+/faction join life
+/factionreturn

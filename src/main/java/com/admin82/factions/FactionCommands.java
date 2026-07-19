@@ -36,11 +36,15 @@ import com.admin82.factions.war.WarManager;
 import com.admin82.factions.war.VassalManager;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 @EventBusSubscriber(modid = AdminsFactions.MODID)
 public class FactionCommands {
+
+    private static final Map<UUID, Long> factionReturnCooldowns = new HashMap<>();
 
     // ── Suggestion providers ──────────────────────────────────────────────────
 
@@ -77,22 +81,31 @@ public class FactionCommands {
     public static void registerCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
             Commands.literal("faction")
-                .requires(src -> src.hasPermission(2))
-
                 // /faction list
                 .then(Commands.literal("list")
+                    .requires(src -> src.hasPermission(2))
                     .executes(ctx -> cmdList(ctx.getSource())))
 
                 // /faction info <name>
                 .then(Commands.literal("info")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.argument("name", StringArgumentType.word())
                         .suggests(FACTION_NAMES)
                         .executes(ctx -> cmdInfo(
                                 ctx.getSource(),
                                 StringArgumentType.getString(ctx, "name")))))
 
+                // /faction join <name>
+                .then(Commands.literal("join")
+                    .then(Commands.argument("name", StringArgumentType.word())
+                        .suggests(FACTION_NAMES)
+                        .executes(ctx -> cmdJoin(
+                                ctx.getSource(),
+                                StringArgumentType.getString(ctx, "name")))))
+
                 // /faction delete <name>
                 .then(Commands.literal("delete")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.argument("name", StringArgumentType.word())
                         .suggests(FACTION_NAMES)
                         .executes(ctx -> cmdDelete(
@@ -101,6 +114,7 @@ public class FactionCommands {
 
                 // /faction set <player> <faction|none>
                 .then(Commands.literal("set")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.argument("player", StringArgumentType.word())
                         .suggests(ONLINE_PLAYER_NAMES)
                         .then(Commands.argument("faction", StringArgumentType.word())
@@ -112,6 +126,7 @@ public class FactionCommands {
 
                 // /faction add <player> <faction>
                 .then(Commands.literal("add")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.argument("player", StringArgumentType.word())
                         .suggests(ONLINE_PLAYER_NAMES)
                         .then(Commands.argument("faction", StringArgumentType.word())
@@ -124,6 +139,7 @@ public class FactionCommands {
                 // /faction exchange set             ← no-arg: opens GUI
                 // /faction exchange set <item> <rate>  ← console/command-block
                 .then(Commands.literal("exchange")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.literal("set")
                         .executes(ctx -> cmdExchangeOpenGui(ctx.getSource()))
                         .then(Commands.argument("item", StringArgumentType.word())
@@ -154,6 +170,7 @@ public class FactionCommands {
                                     BoolArgumentType.getBool(ctx, "enabled")))))
                     // /faction war graceperiod set <seconds>
                 .then(Commands.literal("war")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.literal("graceperiod")
                         .then(Commands.literal("set")
                             .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 86400))
@@ -212,6 +229,7 @@ public class FactionCommands {
 
                 // /faction economy claimrates <multiplier>
                 .then(Commands.literal("economy")
+                    .requires(src -> src.hasPermission(2))
                     .then(Commands.literal("claimrates")
                         .then(Commands.argument("value", DoubleArgumentType.doubleArg(1.0, 10.0))
                             .executes(ctx -> cmdEconomyClaimRates(
@@ -227,6 +245,22 @@ public class FactionCommands {
                             .executes(ctx -> cmdEconomyTpCostToOutpost(
                                     ctx.getSource(),
                                     IntegerArgumentType.getInteger(ctx, "silver"))))))
+
+                // /faction ReturnCooldownTime <seconds>
+                .then(Commands.literal("ReturnCooldownTime")
+                    .requires(src -> src.hasPermission(2))
+                    .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 86400))
+                        .executes(ctx -> cmdReturnCooldownTime(
+                                ctx.getSource(),
+                                IntegerArgumentType.getInteger(ctx, "seconds")))))
+
+                // /faction ReturnCombatTime <seconds>
+                .then(Commands.literal("ReturnCombatTime")
+                    .requires(src -> src.hasPermission(2))
+                    .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 86400))
+                        .executes(ctx -> cmdReturnCombatTime(
+                                ctx.getSource(),
+                                IntegerArgumentType.getInteger(ctx, "seconds")))))
         );
         // /factionreturn — teleports any faction member to their barracks (no op needed)
         event.getDispatcher().register(
@@ -271,6 +305,51 @@ public class FactionCommands {
         for (FactionMember m : faction.getMembers()) {
             src.sendSuccess(() -> Component.literal(
                     "§8  [§7" + m.getRole().getId() + "§8] §f" + m.getPlayerName()), false);
+        }
+        return 1;
+    }
+
+    // ── /faction join <name> ─────────────────────────────────────────────────
+
+    private static int cmdJoin(CommandSourceStack src, String factionName) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal("§cOnly players can join factions."));
+            return 0;
+        }
+
+        FactionManager manager = FactionManager.get(src.getServer());
+        if (manager.getPlayerFactionId(player.getUUID()) != null) {
+            src.sendFailure(Component.literal("§cYou are already in a faction."));
+            return 0;
+        }
+
+        Faction faction = manager.getFactionByName(factionName);
+        if (faction == null) {
+            src.sendFailure(Component.literal("§cFaction '§e" + factionName + "§c' not found."));
+            return 0;
+        }
+
+        if (!manager.consumeInvite(player.getUUID(), faction.getId())) {
+            src.sendFailure(Component.literal("§cYou do not have an invite to join '§e" + faction.getName() + "§c'."));
+            return 0;
+        }
+
+        if (!manager.addPlayerToFaction(faction.getId(), player.getUUID(), player.getGameProfile().getName())) {
+            src.sendFailure(Component.literal("§cCould not join '§e" + faction.getName() + "§c'."));
+            return 0;
+        }
+
+        PacketDistributor.sendToPlayer(player, new SyncFactionDataPacket(manager.getFactionForPlayer(player.getUUID())));
+        src.sendSuccess(() -> Component.literal("§aJoined faction '§e" + faction.getName() + "§a'."), false);
+        for (FactionMember member : faction.getMembers()) {
+            ServerPlayer online = src.getServer().getPlayerList().getPlayer(member.getUuid());
+            if (online != null) {
+                PacketDistributor.sendToPlayer(online, new SyncFactionDataPacket(faction));
+                if (!online.getUUID().equals(player.getUUID())) {
+                    online.displayClientMessage(Component.literal(
+                            "§e" + player.getGameProfile().getName() + " §ajoined your faction."), false);
+                }
+            }
         }
         return 1;
     }
@@ -695,6 +774,24 @@ public class FactionCommands {
         return silver;
     }
 
+    private static int cmdReturnCooldownTime(CommandSourceStack src, int seconds) {
+        FactionManager.get(src.getServer()).setFactionReturnCooldownSeconds(seconds);
+        factionReturnCooldowns.clear();
+        int cooldownSeconds = FactionManager.get(src.getServer()).getFactionReturnCooldownSeconds();
+        src.sendSuccess(() -> Component.literal("§aFaction return cooldown set to §e"
+            + cooldownSeconds + "s§a."), true);
+        return cooldownSeconds;
+    }
+
+    private static int cmdReturnCombatTime(CommandSourceStack src, int seconds) {
+        FactionManager.get(src.getServer()).setFactionReturnCombatSeconds(seconds);
+        FactionCombatEvents.clearReturnCombatLocks();
+        int combatSeconds = FactionManager.get(src.getServer()).getFactionReturnCombatSeconds();
+        src.sendSuccess(() -> Component.literal("§aFaction return combat lock set to §e"
+                + combatSeconds + "s§a."), true);
+        return combatSeconds;
+    }
+
     private static int cmdReturnToBase(CommandSourceStack src) {
         if (!(src.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)) {
             src.sendFailure(Component.literal("§cThis command can only be used by players."));
@@ -705,6 +802,21 @@ public class FactionCommands {
         if (faction == null) { src.sendFailure(Component.literal("§cYou are not in a faction.")); return 0; }
         FactionManager.TableLocation barracks = fmgr.getFactionBarracks(faction.getId());
         if (barracks == null) { src.sendFailure(Component.literal("§cYour faction has no barracks.")); return 0; }
+        long combatSecondsLeft = FactionCombatEvents.getReturnCombatRemainingSeconds(player);
+        if (combatSecondsLeft > 0) {
+            src.sendFailure(Component.literal("§cYou cannot use §f/factionreturn §cwhile in player combat. Wait §e"
+                + combatSecondsLeft + "s§c."));
+            return 0;
+        }
+        long now = System.currentTimeMillis();
+        int cooldownSeconds = fmgr.getFactionReturnCooldownSeconds();
+        Long cooldownUntil = factionReturnCooldowns.get(player.getUUID());
+        if (cooldownSeconds > 0 && cooldownUntil != null && now < cooldownUntil) {
+            long secondsLeft = Math.max(1L, (cooldownUntil - now + 999L) / 1000L);
+            src.sendFailure(Component.literal("§cYou can use §f/factionreturn §cagain in §e"
+                    + secondsLeft + "s§c."));
+            return 0;
+        }
         net.minecraft.server.level.ServerLevel targetLevel = null;
         for (net.minecraft.server.level.ServerLevel lvl : src.getServer().getAllLevels()) {
             if (lvl.dimension().location().toString().equals(barracks.dimension())) { targetLevel = lvl; break; }
@@ -716,6 +828,11 @@ public class FactionCommands {
                 net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawnX, spawnZ);
         final net.minecraft.server.level.ServerLevel fl = targetLevel;
         player.teleportTo(fl, spawnX + 0.5, spawnY, spawnZ + 0.5, player.getYRot(), player.getXRot());
+        if (cooldownSeconds > 0) {
+            factionReturnCooldowns.put(player.getUUID(), now + (long) cooldownSeconds * 1000L);
+        } else {
+            factionReturnCooldowns.remove(player.getUUID());
+        }
         src.sendSuccess(() -> Component.literal("§a✔ Teleported to §e" + faction.getName() + " §aBarracks!"), false);
         return 1;
     }

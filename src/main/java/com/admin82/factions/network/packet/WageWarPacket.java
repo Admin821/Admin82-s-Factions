@@ -68,8 +68,8 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
             if (attacker == null) return;
 
             FactionMember member = attacker.getMember(player.getUUID());
-            if (member == null || member.getRole().getLevel() < FactionRole.OFFICER.getLevel()) {
-                player.displayClientMessage(Component.literal("§cOfficer rank or higher required to declare war."), false);
+            if (member == null || !attacker.getRolePermission(member.getRole(), FactionPermission.OFFICER_DECLARE_WAR)) {
+                player.displayClientMessage(Component.literal("§cYou do not have permission to declare war."), false);
                 return;
             }
 

@@ -138,6 +138,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private final java.util.concurrent.atomic.AtomicLong outpostTpCostRef = new java.util.concurrent.atomic.AtomicLong(1_000L);
     @Nullable private UIElement territoryContentArea; // swappable map vs outpost-list
     private boolean showingOutpostList = false;
+    private final AtomicReference<String> memberActionStatus = new AtomicReference<>("");
 
     // ── Vault sub-view state ──────────────────────────────────────────────────
     @Nullable private UIElement                         vaultContentArea;
@@ -317,6 +318,8 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private UIElement buildManagePanel(Player player) {
         var panel = new UIElement();
         panel.layout(l -> l.width(420).height(340).flexDirection(YogaFlexDirection.COLUMN));
+        if (currentTab == Tab.PERMISSIONS && !isAdmin(player)) currentTab = Tab.OVERVIEW;
+        if (currentTab == Tab.WARS && !canWageWar(player)) currentTab = Tab.OVERVIEW;
 
         UIElement[] tabPanels = {
                 buildOverviewPanel(player),
@@ -348,8 +351,8 @@ public class FactionTableMenu extends AbstractContainerMenu {
         UIElement[] bars   = { tabBar1, tabBar2 };
         Tab[][]     groups = { row1, row2 };
 
-        buildTabRow(tabBar1, row1, tabPanels, contentArea, bars, groups);
-        buildTabRow(tabBar2, row2, tabPanels, contentArea, bars, groups);
+        buildTabRow(tabBar1, row1, tabPanels, contentArea, bars, groups, player);
+        buildTabRow(tabBar2, row2, tabPanels, contentArea, bars, groups, player);
 
         panel.addChildren(tabBar1, tabBar2, contentArea);
         return panel;
@@ -357,9 +360,11 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     /** Builds one row of the two-row tab system; on any click all rows are refreshed. */
     private void buildTabRow(UIElement bar, Tab[] tabs, UIElement[] panels, UIElement contentArea,
-                              UIElement[] allBars, Tab[][] allGroups) {
+                              UIElement[] allBars, Tab[][] allGroups, Player player) {
         bar.clearAllChildren();
         for (Tab tab : tabs) {
+            if (tab == Tab.PERMISSIONS && !isAdmin(player)) continue;
+            if (tab == Tab.WARS && !canWageWar(player)) continue;
             if (tab == Tab.VASSAL && !vassalIsVassal && !vassalIsSuzerain) continue;
             boolean active = tab == currentTab;
             var btn = new Button()
@@ -369,7 +374,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                         contentArea.clearAllChildren();
                         contentArea.addChildren(panels[tab.ordinal()]);
                         for (int i = 0; i < allBars.length; i++) {
-                            buildTabRow(allBars[i], allGroups[i], panels, contentArea, allBars, allGroups);
+                            buildTabRow(allBars[i], allGroups[i], panels, contentArea, allBars, allGroups, player);
                         }
                     })
                     .layout(l -> l.flex(1).height(19));
@@ -479,13 +484,20 @@ public class FactionTableMenu extends AbstractContainerMenu {
                     var f = factionRef.get();
                     return Component.literal("§7Members (" + (f != null ? f.getMembers().size() : 0) + ")");
                 })),
-                memberSel, memberDetailArea
+            memberSel,
+            new Label().bindDataSource(SupplierDataSource.of(() -> Component.literal(memberActionStatus.get()))),
+            memberDetailArea
         );
 
         if (isOfficer(player)) {
             var inviteNameVal  = new String[]{""};
             var inviteSel      = new Selector<String>();
-            inviteSel.setCandidates(availablePlayers.get());
+            List<String> inviteCandidates = availablePlayers.get();
+            inviteSel.setCandidates(inviteCandidates);
+            if (!inviteCandidates.isEmpty()) {
+                inviteNameVal[0] = inviteCandidates.get(0);
+                inviteSel.setValue(inviteNameVal[0]);
+            }
             inviteSel.setOnValueChanged(n -> inviteNameVal[0] = n);
             inviteSel.layout(l -> l.flex(1).height(20));
             inviteSelectorRef = inviteSel;
@@ -496,9 +508,11 @@ public class FactionTableMenu extends AbstractContainerMenu {
                     inviteSel,
                     new Button().setText("Invite").setOnClick(e -> {
                         String n = inviteNameVal[0].trim();
-                        if (!n.isEmpty()) PacketDistributor.sendToServer(
-                                new MemberActionPacket(MemberActionPacket.Action.INVITE,
-                                        new UUID(0, 0), n, FactionRole.MEMBER));
+                        if (!n.isEmpty()) {
+                            memberActionStatus.set("§7Invite sent to §e" + n + "§7.");
+                            PacketDistributor.sendToServer(new MemberActionPacket(MemberActionPacket.Action.INVITE,
+                                new UUID(0, 0), n, FactionRole.MEMBER));
+                        }
                     }).layout(l -> l.width(54))
             );
             panel.addChildren(inviteRow);
@@ -521,29 +535,47 @@ public class FactionTableMenu extends AbstractContainerMenu {
         area.addChildren(new Label().setText("§fRole: " + roleColor(target.getRole()) + capitalize(target.getRole().getId())));
 
         UUID uid = target.getUuid();
-        var  actionRow = new UIElement();
-        actionRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).width(404));
+        var  actionColumn = new UIElement();
+        actionColumn.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).width(404));
 
         boolean canKick = !uid.equals(self.getUUID()) && selfOfficer
                 && selfMember != null && target.getRole().getLevel() < selfMember.getRole().getLevel();
         if (canKick) {
-            actionRow.addChildren(new Button().setText("Kick")
-                    .setOnClick(e -> PacketDistributor.sendToServer(
-                            new MemberActionPacket(MemberActionPacket.Action.KICK, uid, "", FactionRole.MEMBER)))
+            actionColumn.addChildren(new Button().setText("Kick")
+                .setOnClick(e -> {
+                memberActionStatus.set("§7Kick request sent for §e" + target.getPlayerName() + "§7.");
+                PacketDistributor.sendToServer(new MemberActionPacket(MemberActionPacket.Action.KICK, uid, "", FactionRole.MEMBER));
+                })
                     .layout(l -> l.width(40)));
         }
         if (isOwner && target.getRole() != FactionRole.OWNER) {
-            for (FactionRole r : new FactionRole[]{FactionRole.ADMIN, FactionRole.OFFICER, FactionRole.MEMBER}) {
-                if (r != target.getRole()) {
-                    FactionRole fr = r;
-                    actionRow.addChildren(new Button().setText("-> " + capitalize(fr.getId()))
-                            .setOnClick(e -> PacketDistributor.sendToServer(
-                                    new MemberActionPacket(MemberActionPacket.Action.SET_ROLE, uid, "", fr)))
-                            .layout(l -> l.width(80)));
-                }
-            }
+            List<String> roleOptions = Arrays.stream(new FactionRole[]{FactionRole.ADMIN, FactionRole.OFFICER, FactionRole.MEMBER})
+                .filter(r -> r != target.getRole())
+                .map(FactionRole::getId)
+                .collect(Collectors.toList());
+            String[] selectedRole = { roleOptions.isEmpty() ? FactionRole.MEMBER.getId() : roleOptions.get(0) };
+
+            var roleSel = new Selector<String>();
+            roleSel.setCandidates(roleOptions);
+            roleSel.setValue(selectedRole[0]);
+            roleSel.setOnValueChanged(role -> selectedRole[0] = role);
+            roleSel.layout(l -> l.width(92).height(20));
+
+                var roleRow = new UIElement();
+                roleRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).width(404).height(20));
+                roleRow.addChildren(
+                    new Label().setText("Change " + target.getPlayerName() + " role to").layout(l -> l.width(190).height(20)),
+                roleSel,
+                new Button().setText("Confirm")
+                        .setOnClick(e -> {
+                        memberActionStatus.set("§7Changing §e" + target.getPlayerName() + "§7 role to §e" + selectedRole[0] + "§7.");
+                        PacketDistributor.sendToServer(new MemberActionPacket(MemberActionPacket.Action.SET_ROLE, uid, "",
+                            FactionRole.fromId(selectedRole[0])));
+                        })
+                    .layout(l -> l.width(64)));
+                actionColumn.addChildren(roleRow);
         }
-        area.addChildren(actionRow);
+            area.addChildren(actionColumn);
     }
 
     // ── Permissions ───────────────────────────────────────────────────────────
@@ -1425,7 +1457,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private void buildWarsListView(Player player) {
         // ── Active wars summary ───────────────────────────────────────────────
         Faction myFaction = factionRef.get();
-        boolean canWar = isOfficer(player);
+        boolean canWar = canWageWar(player);
         warsPanel.addChildren(new Label().setText("§6§l⚔ Wars"));
         if (myFaction != null && !myFaction.getWars().isEmpty()) {
             warsPanel.addChildren(new Label().setText("§7── Your Active Wars ──"));
@@ -1489,7 +1521,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         Faction myFaction = factionRef.get();
         List<FactionSummary> list = allFactions.get();
         if (list.isEmpty()) { area.addChildren(new Label().setText("§7No other factions found.")); return; }
-        boolean canWar = isOfficer(player);
+        boolean canWar = canWageWar(player);
         for (int i = 0; i < WARS_ROWS; i++) {
             int idx = i + allFactionsScroll;
             if (idx >= list.size()) break;
@@ -2190,6 +2222,24 @@ public class FactionTableMenu extends AbstractContainerMenu {
         return m != null && m.getRole().getLevel() >= FactionRole.OFFICER.getLevel();
     }
 
+    private boolean isAdmin(Player player) {
+        Faction f = factionRef.get(); if (f == null) return false;
+        FactionMember m = f.getMember(player.getUUID());
+        return m != null && m.getRole().getLevel() >= FactionRole.ADMIN.getLevel();
+    }
+
+    private boolean canWageWar(Player player) {
+        Faction f = factionRef.get(); if (f == null) return false;
+        FactionMember m = f.getMember(player.getUUID());
+        return m != null && f.getRolePermission(m.getRole(), FactionPermission.OFFICER_DECLARE_WAR);
+    }
+
+    private boolean canWithdrawFromVault(Player player) {
+        Faction f = factionRef.get(); if (f == null) return false;
+        FactionMember m = f.getMember(player.getUUID());
+        return m != null && f.getRolePermission(m.getRole(), FactionPermission.VAULT_WITHDRAW);
+    }
+
     private static String roleColor(FactionRole role) {
         return switch (role) {
             case OWNER   -> "§6";
@@ -2417,12 +2467,15 @@ public class FactionTableMenu extends AbstractContainerMenu {
                         VaultActionPacket.Action.DEPOSIT_FACTION,
                         playerWalletRef::get));
         depVaultBtn.layout(l -> l.width(90).height(20));
-        var wdVaultBtn = new Button().setText("§eWithdraw").setOnClick(e ->
+        vaultBtnRow.addChildren(depVaultBtn);
+        if (canWithdrawFromVault(player)) {
+            var wdVaultBtn = new Button().setText("§eWithdraw").setOnClick(e ->
                 showVaultAction(player, "Withdraw from Faction Vault", "Withdraw",
-                        VaultActionPacket.Action.WITHDRAW_FACTION,
-                        factionVaultRef::get));
-        wdVaultBtn.layout(l -> l.width(90).height(20));
-        vaultBtnRow.addChildren(depVaultBtn, wdVaultBtn);
+                    VaultActionPacket.Action.WITHDRAW_FACTION,
+                    factionVaultRef::get));
+            wdVaultBtn.layout(l -> l.width(90).height(20));
+            vaultBtnRow.addChildren(wdVaultBtn);
+        }
         vaultContentArea.addChildren(vaultBtnRow);
 
         vaultContentArea.addChildren(new Label().setText("§8Upkeep: §7deed price per chunk per 24h. Core chunk = 1 silver/day."));

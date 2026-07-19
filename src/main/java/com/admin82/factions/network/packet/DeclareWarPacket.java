@@ -32,7 +32,7 @@ public record DeclareWarPacket(String targetFactionName) implements CustomPacket
             if (attacker == null) return;
 
             FactionMember member = attacker.getMember(player.getUUID());
-            if (member == null || member.getRole().getLevel() < FactionRole.OFFICER.getLevel()) return;
+            if (member == null || !attacker.getRolePermission(member.getRole(), FactionPermission.OFFICER_DECLARE_WAR)) return;
 
             Faction defender = manager.getFactionByName(packet.targetFactionName().trim());
             if (defender == null || defender.getId().equals(attacker.getId())) return;

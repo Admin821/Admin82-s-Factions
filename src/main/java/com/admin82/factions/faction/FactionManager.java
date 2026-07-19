@@ -32,6 +32,10 @@ public class FactionManager extends SavedData {
     private final Map<UUID, TableLocation> pendingBarracksMap = new HashMap<>();
     // playerUUID → pending barracks move (transient, not saved to NBT)
     private final Map<UUID, PendingMove> pendingBarracksMoves = new HashMap<>();
+    // playerUUID → factionUUIDs they have been invited to
+    private final Map<UUID, Set<UUID>> pendingInvites = new HashMap<>();
+    private int factionReturnCooldownSeconds = 30;
+    private int factionReturnCombatSeconds = 15;
 
     public FactionManager() {}
 
@@ -106,6 +110,10 @@ public class FactionManager extends SavedData {
         if (faction != null) {
             playerFactionMap.entrySet().removeIf(e -> e.getValue().equals(factionId));
             factionTables.remove(factionId);
+            pendingInvites.values().removeIf(invites -> {
+                invites.remove(factionId);
+                return invites.isEmpty();
+            });
             setDirty();
         }
     }
@@ -191,6 +199,7 @@ public class FactionManager extends SavedData {
         if (faction == null) return false;
         faction.addMember(new FactionMember(playerUUID, playerName, FactionRole.MEMBER));
         playerFactionMap.put(playerUUID, factionId);
+        pendingInvites.remove(playerUUID);
         setDirty();
         return true;
     }
@@ -204,6 +213,38 @@ public class FactionManager extends SavedData {
             setDirty();
         }
         return true;
+    }
+
+    public boolean invitePlayerToFaction(UUID factionId, UUID playerUUID) {
+        if (!factions.containsKey(factionId) || playerFactionMap.containsKey(playerUUID)) return false;
+        if (pendingInvites.computeIfAbsent(playerUUID, id -> new HashSet<>()).add(factionId)) setDirty();
+        return true;
+    }
+
+    public boolean hasInvite(UUID playerUUID, UUID factionId) {
+        return pendingInvites.getOrDefault(playerUUID, Collections.emptySet()).contains(factionId);
+    }
+
+    public boolean consumeInvite(UUID playerUUID, UUID factionId) {
+        Set<UUID> invites = pendingInvites.get(playerUUID);
+        if (invites == null || !invites.remove(factionId)) return false;
+        if (invites.isEmpty()) pendingInvites.remove(playerUUID);
+        setDirty();
+        return true;
+    }
+
+    public int getFactionReturnCooldownSeconds() { return factionReturnCooldownSeconds; }
+
+    public void setFactionReturnCooldownSeconds(int seconds) {
+        factionReturnCooldownSeconds = Math.max(0, seconds);
+        setDirty();
+    }
+
+    public int getFactionReturnCombatSeconds() { return factionReturnCombatSeconds; }
+
+    public void setFactionReturnCombatSeconds(int seconds) {
+        factionReturnCombatSeconds = Math.max(0, seconds);
+        setDirty();
     }
 
     // ── Land claims ───────────────────────────────────────────────────────────
@@ -287,6 +328,27 @@ public class FactionManager extends SavedData {
                 manager.factionBarracks.put(id, TableLocation.load(barrTag.getCompound(key)));
             } catch (IllegalArgumentException ignored) {}
         }
+        CompoundTag invitesTag = tag.getCompound("invites");
+        for (String playerKey : invitesTag.getAllKeys()) {
+            try {
+                UUID playerId = UUID.fromString(playerKey);
+                CompoundTag playerInvitesTag = invitesTag.getCompound(playerKey);
+                Set<UUID> invites = new HashSet<>();
+                for (String factionKey : playerInvitesTag.getAllKeys()) {
+                    try {
+                        UUID factionId = UUID.fromString(factionKey);
+                        if (manager.factions.containsKey(factionId)) invites.add(factionId);
+                    } catch (IllegalArgumentException ignored) {}
+                }
+                if (!invites.isEmpty()) manager.pendingInvites.put(playerId, invites);
+            } catch (IllegalArgumentException ignored) {}
+        }
+        if (tag.contains("factionReturnCooldownSeconds")) {
+            manager.factionReturnCooldownSeconds = Math.max(0, tag.getInt("factionReturnCooldownSeconds"));
+        }
+        if (tag.contains("factionReturnCombatSeconds")) {
+            manager.factionReturnCombatSeconds = Math.max(0, tag.getInt("factionReturnCombatSeconds"));
+        }
         return manager;
     }
 
@@ -301,6 +363,17 @@ public class FactionManager extends SavedData {
         CompoundTag barrTag = new CompoundTag();
         factionBarracks.forEach((id, loc) -> barrTag.put(id.toString(), loc.save()));
         tag.put("barracks", barrTag);
+        CompoundTag invitesTag = new CompoundTag();
+        pendingInvites.forEach((playerId, invites) -> {
+            CompoundTag playerInvitesTag = new CompoundTag();
+            invites.stream()
+                    .filter(factions::containsKey)
+                    .forEach(factionId -> playerInvitesTag.putBoolean(factionId.toString(), true));
+            if (!playerInvitesTag.isEmpty()) invitesTag.put(playerId.toString(), playerInvitesTag);
+        });
+        tag.put("invites", invitesTag);
+        tag.putInt("factionReturnCooldownSeconds", factionReturnCooldownSeconds);
+        tag.putInt("factionReturnCombatSeconds", factionReturnCombatSeconds);
         return tag;
     }
 }

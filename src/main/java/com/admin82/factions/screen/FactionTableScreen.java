@@ -66,7 +66,20 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
                 rebuildWidgets();
             }
         } else {
-            menu.updateFaction(faction);
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                menu.rebuildForFaction(faction, mc.player);
+                if (menu instanceof IModularUIHolderMenu h) {
+                    ModularUI newMui = h.getModularUI();
+                    if (newMui != null) {
+                        this.imageWidth  = (int) newMui.getWidth();
+                        this.imageHeight = (int) newMui.getHeight();
+                    }
+                }
+                rebuildWidgets();
+            } else {
+                menu.updateFaction(faction);
+            }
         }
     }
 
