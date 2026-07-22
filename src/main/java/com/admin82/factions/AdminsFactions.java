@@ -38,6 +38,7 @@ public class AdminsFactions {
                         output.accept(ModItems.BARRACKS.get());
                         output.accept(ModItems.FACTION_TABLE.get());
                         output.accept(ModItems.OUTPOST.get());
+                        output.accept(ModItems.CARE_PACKAGE.get());
                         output.accept(ModItems.MARKET_BLOCK.get());
                         output.accept(ModItems.CURRENCY_EXCHANGE_BLOCK.get());
                         output.accept(ModItems.COPPER_COIN.get());

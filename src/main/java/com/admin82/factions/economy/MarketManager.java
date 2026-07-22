@@ -93,7 +93,16 @@ public class MarketManager extends SavedData {
             if (listing.expiresAt > now) continue;
             toRemove.add(listing.listingId);
 
-            if (listing.isAuction && listing.highestBidder != null) {
+            if (listing.kind == MarketListing.ListingKind.PLAYER_BUY_ORDER) {
+                eco.addWallet(listing.sellerUUID, listing.price);
+                ServerPlayer buyer = server.getPlayerList().getPlayer(listing.sellerUUID);
+                if (buyer != null) {
+                    buyer.displayClientMessage(Component.literal(
+                            "§e[Market] Buy order expired. Refunded §a" + Currency.format(listing.price) + "§e."), false);
+                }
+            } else if (listing.kind == MarketListing.ListingKind.ADMIN_BUY_ORDER || listing.kind == MarketListing.ListingKind.ADMIN_SELL) {
+                // Server/admin listings are not backed by player escrow or inventory.
+            } else if (listing.isAuction && listing.highestBidder != null) {
                 // Auction sold: deliver item to winner, create a claimable SoldListing for seller
                 deliverItem(server, listing.highestBidder, listing.item);
                 long proceeds = listing.netProceeds(listing.highestBid);

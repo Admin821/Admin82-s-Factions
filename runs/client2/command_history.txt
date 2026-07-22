@@ -16,3 +16,7 @@
 /faction join life
 /factionreturn
 /faction join life is a dream
+/faction supplydrop loot
+/faction supplydrop spawn
+/gamemode spectator
+/gamemode creative

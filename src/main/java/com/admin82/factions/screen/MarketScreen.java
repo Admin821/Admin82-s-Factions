@@ -43,6 +43,12 @@ public class MarketScreen extends AbstractContainerScreen<MarketMenu> {
         menu.updateSoldListings(sold);
     }
 
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (menu.handleMouseScroll(scrollY)) return true;
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
     @Override protected void renderLabels(GuiGraphics g, int mx, int my) {}
     @Override protected void renderBg(GuiGraphics g, float partialTick, int mx, int my) {}
 }

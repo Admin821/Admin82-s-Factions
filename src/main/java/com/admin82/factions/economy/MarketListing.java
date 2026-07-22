@@ -17,6 +17,13 @@ import java.util.UUID;
  */
 public class MarketListing {
 
+    public enum ListingKind {
+        PLAYER_SELL,
+        PLAYER_BUY_ORDER,
+        ADMIN_SELL,
+        ADMIN_BUY_ORDER
+    }
+
     public UUID   listingId;
     public UUID   sellerUUID;
     /** May be null if seller has no faction. */
@@ -34,6 +41,16 @@ public class MarketListing {
     public int    durationHours;
     /** True if this listing was created by the upkeep system due to unpaid fees. */
     public boolean unpaidUpkeep;
+    /** What kind of market row this is: normal sale, buy order, or admin/server listing. */
+    public ListingKind kind = ListingKind.PLAYER_SELL;
+
+    public boolean isBuyOrder() {
+        return kind == ListingKind.PLAYER_BUY_ORDER || kind == ListingKind.ADMIN_BUY_ORDER;
+    }
+
+    public boolean isAdminListing() {
+        return kind == ListingKind.ADMIN_SELL || kind == ListingKind.ADMIN_BUY_ORDER;
+    }
 
     // ── Tax calculation ───────────────────────────────────────────────────────
 
@@ -82,6 +99,7 @@ public class MarketListing {
         tag.putLong("expiresAt", expiresAt);
         tag.putInt("durationHours", durationHours);
         tag.putBoolean("unpaidUpkeep", unpaidUpkeep);
+        tag.putString("kind", kind.name());
         return tag;
     }
 
@@ -98,6 +116,10 @@ public class MarketListing {
         l.expiresAt   = tag.getLong("expiresAt");
         l.durationHours = tag.getInt("durationHours");
         l.unpaidUpkeep = tag.getBoolean("unpaidUpkeep");
+        if (tag.contains("kind", Tag.TAG_STRING)) {
+            try { l.kind = ListingKind.valueOf(tag.getString("kind")); }
+            catch (IllegalArgumentException ignored) { l.kind = ListingKind.PLAYER_SELL; }
+        }
         return l;
     }
 
@@ -117,6 +139,7 @@ public class MarketListing {
         buf.writeLong(expiresAt);
         buf.writeInt(durationHours);
         buf.writeBoolean(unpaidUpkeep);
+        buf.writeVarInt(kind.ordinal());
     }
 
     public static MarketListing fromNetwork(RegistryFriendlyByteBuf buf) {
@@ -132,6 +155,10 @@ public class MarketListing {
         l.expiresAt       = buf.readLong();
         l.durationHours   = buf.readInt();
         l.unpaidUpkeep    = buf.readBoolean();
+        int kindOrdinal    = buf.readVarInt();
+        l.kind = kindOrdinal >= 0 && kindOrdinal < ListingKind.values().length
+            ? ListingKind.values()[kindOrdinal]
+            : ListingKind.PLAYER_SELL;
         return l;
     }
 }

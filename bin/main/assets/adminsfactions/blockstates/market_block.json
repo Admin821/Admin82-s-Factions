@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "adminsfactions:block/marketplace", "y": 180 },
+    "facing=east": { "model": "adminsfactions:block/marketplace", "y": 270 },
+    "facing=south": { "model": "adminsfactions:block/marketplace" },
+    "facing=west": { "model": "adminsfactions:block/marketplace", "y": 90 }
+  }
+}

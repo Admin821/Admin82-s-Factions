@@ -4,6 +4,7 @@ import com.admin82.factions.menu.BarracksMenu;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.admin82.factions.menu.FactionTableMenu;
 import com.admin82.factions.menu.MarketMenu;
+import com.admin82.factions.menu.SupplyDropMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
@@ -35,5 +36,10 @@ public class ModMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<CurrencyExchangeMenu>> CURRENCY_EXCHANGE =
             MENUS.register("currency_exchange", () ->
                     IMenuTypeExtension.create((id, inv, buf) -> new CurrencyExchangeMenu(id, inv, buf))
+            );
+
+    public static final DeferredHolder<MenuType<?>, MenuType<SupplyDropMenu>> SUPPLY_DROP =
+            MENUS.register("supply_drop", () ->
+                    IMenuTypeExtension.create((id, inv, buf) -> new SupplyDropMenu(id, inv, buf))
             );
 }

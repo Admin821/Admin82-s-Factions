@@ -2,6 +2,7 @@ package com.admin82.factions.block;
 
 import com.admin82.factions.FactionBlockProtection;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.registry.ModBlocks;
@@ -66,6 +67,7 @@ public class FactionTableBlock extends BaseEntityBlock {
             }
 
             FactionManager manager = FactionManager.get(serverLevel);
+            EconomyManager eco = EconomyManager.get(serverLevel.getServer());
             UUID linkedId = factionBe.getLinkedFactionId();
 
             // If the table is linked, only members of that faction may open it
@@ -95,6 +97,7 @@ public class FactionTableBlock extends BaseEntityBlock {
                 } else {
                     buf.writeBoolean(false);
                 }
+                buf.writeDouble(eco.getClaimRateMultiplier());
                 // Vassal data for the Vassal tab
                 boolean isVassal   = faction != null && vmgr.isVassal(faction.getId());
                 boolean isSuzerain = faction != null && vmgr.isSuzerain(faction.getId());

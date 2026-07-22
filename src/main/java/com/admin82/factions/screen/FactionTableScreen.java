@@ -83,6 +83,10 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
         }
     }
 
+    public void updateClaimRate(double claimRateMultiplier) {
+        menu.updateClaimRate(claimRateMultiplier);
+    }
+
     // Suppress vanilla title / inventory labels; LDLib2 handles all rendering.
     @Override
     protected void renderLabels(GuiGraphics g, int mx, int my) {}

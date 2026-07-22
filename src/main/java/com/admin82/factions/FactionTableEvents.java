@@ -22,8 +22,11 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -227,10 +230,15 @@ public class FactionTableEvents {
         if (owner == null) return;
 
         FactionMember m = owner.getMember(player.getUUID());
-        if (m == null || !owner.getRolePermission(m.getRole(), FactionPermission.MEMBER_INTERACT)) {
+        boolean storageBlock = isStorageBlockEntity(level.getBlockEntity(event.getPos()));
+        FactionPermission requiredPermission = storageBlock
+                ? FactionPermission.MEMBER_USE_STORAGE
+                : FactionPermission.MEMBER_INTERACT;
+
+        if (m == null || !owner.getRolePermission(m.getRole(), requiredPermission)) {
 
             // Allow Resource-War winners to open containers in enemy territory
-            if (m == null) {
+            if (m == null && storageBlock) {
                 WarManager warmgr = WarManager.get(level.getServer());
                 ResourceWarAccess rwa = warmgr.getResourceWarAccess(owner.getId());
                 if (rwa != null && !rwa.isExpired()) {
@@ -245,6 +253,20 @@ public class FactionTableEvents {
             event.setCanceled(true);
             player.displayClientMessage(
                     Component.literal("§cThis land is claimed by §e" + owner.getName() + "§c."), true);
+        }
+    }
+
+    private static boolean isStorageBlockEntity(BlockEntity be) {
+        if (be instanceof Container) return true;
+        if (be instanceof BaseContainerBlockEntity) return true;
+        if (be == null || be.getLevel() == null) return false;
+        try {
+            var cap = be.getLevel().getCapability(
+                    net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK,
+                    be.getBlockPos(), null);
+            return cap != null;
+        } catch (Exception ignored) {
+            return false;
         }
     }
 

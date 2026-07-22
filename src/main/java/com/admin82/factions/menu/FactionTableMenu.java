@@ -60,6 +60,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private final AtomicReference<List<String>>         availablePlayers   = new AtomicReference<>(List.of());
     private final AtomicReference<Long>                 playerWalletRef    = new AtomicReference<>(0L);
     private final AtomicReference<Long>                 factionVaultRef    = new AtomicReference<>(0L);
+    private final java.util.concurrent.atomic.AtomicReference<Double>       claimRateRef      = new java.util.concurrent.atomic.AtomicReference<>(1.4);
 
     Tab         currentTab       = Tab.OVERVIEW;
     int         allFactionsScroll = 0;
@@ -159,15 +160,21 @@ public class FactionTableMenu extends AbstractContainerMenu {
     // ── Constructors ──────────────────────────────────────────────────────────
 
     public FactionTableMenu(int containerId, Inventory inv, BlockPos tablePos, @Nullable Faction faction) {
+        this(containerId, inv, tablePos, faction, 1.4);
+    }
+
+    public FactionTableMenu(int containerId, Inventory inv, BlockPos tablePos, @Nullable Faction faction, double claimRateMultiplier) {
         super(ModMenuTypes.FACTION_TABLE.get(), containerId);
         this.tablePos = tablePos;
         this.tableDim = inv.player.level().dimension().location().toString();
         this.factionRef.set(faction);
+        this.claimRateRef.set(Math.max(1.0, claimRateMultiplier));
         if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(createModularUI(inv.player));
     }
 
     public FactionTableMenu(int containerId, Inventory inv, FriendlyByteBuf buf) {
-        this(containerId, inv, buf.readBlockPos(), buf.readBoolean() ? Faction.fromNetwork(buf) : null);
+        this(containerId, inv, buf.readBlockPos(), buf.readBoolean() ? Faction.fromNetwork(buf) : null,
+                buf.isReadable() ? buf.readDouble() : 1.4);
         // Read vassal data appended by FactionTableBlock
         if (buf.isReadable()) {
             this.vassalIsVassal     = buf.readBoolean();
@@ -977,7 +984,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         // Claimable — show deed cost
         int claimCount = myFaction != null ? myFaction.getLandClaims().size() : 0;
         long baseCost  = Config.CLAIM_COST_COPPER.get();
-        long cost      = (long) (baseCost * Math.pow(1.4, claimCount));
+        long cost      = EconomyManager.computeClaimCost(baseCost, claimCount, claimRateRef.get());
         long vault     = factionVaultRef.get();
         boolean canAfford = vault >= cost;
 
@@ -1002,7 +1009,11 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     /** Chunk deed cost: starts at {@code baseCost} and grows ×1.4 for each chunk already owned. */
     private static long computeClaimCost(long baseCost, int ownedChunks) {
-        return (long) (baseCost * Math.pow(1.4, ownedChunks));
+        return EconomyManager.computeClaimCost(baseCost, ownedChunks, 1.4);
+    }
+
+    public void updateClaimRate(double claimRateMultiplier) {
+        claimRateRef.set(Math.max(1.0, claimRateMultiplier));
     }
 
     private Button mkNavBtn(String text, int width, UIEventListener onClick) {

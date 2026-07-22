@@ -1,6 +1,7 @@
 package com.admin82.factions.registry;
 
 import com.admin82.factions.block.BarracksBlock;
+import com.admin82.factions.block.CarePackageBlock;
 import com.admin82.factions.block.CurrencyExchangeBlock;
 import com.admin82.factions.block.CurrencyExchangeFillerBlock;
 import com.admin82.factions.block.FactionTableBlock;
@@ -10,6 +11,7 @@ import com.admin82.factions.block.MarketFillerBlock;
 import com.admin82.factions.block.OutpostManagerBlock;
 import com.admin82.factions.block.OutpostManagerFillerBlock;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -20,6 +22,28 @@ import static com.admin82.factions.AdminsFactions.MODID;
 public class ModBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
+
+    public static final DeferredBlock<Block> CARE_PACKAGE_PARACHUTE = BLOCKS.register(
+            "carepackage_parachute",
+            () -> new Block(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.WOOD)
+                            .strength(3.0f, 3_600_000.0f)
+                            .sound(SoundType.WOOL)
+                            .noLootTable()
+            )
+    );
+
+    public static final DeferredBlock<CarePackageBlock> CARE_PACKAGE = BLOCKS.register(
+            "carepackage",
+            () -> new CarePackageBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.WOOD)
+                            .strength(3.0f, 3_600_000.0f)
+                            .sound(SoundType.WOOD)
+                            .requiresCorrectToolForDrops()
+            )
+    );
 
     public static final DeferredBlock<BarracksBlock> BARRACKS = BLOCKS.register(
             "barracks",

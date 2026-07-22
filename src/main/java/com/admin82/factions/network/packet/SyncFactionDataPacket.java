@@ -12,7 +12,11 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import javax.annotation.Nullable;
 
-public record SyncFactionDataPacket(@Nullable Faction faction) implements CustomPacketPayload {
+public record SyncFactionDataPacket(@Nullable Faction faction, double claimRateMultiplier) implements CustomPacketPayload {
+
+    public SyncFactionDataPacket(@Nullable Faction faction) {
+        this(faction, -1.0);
+    }
 
     public static final Type<SyncFactionDataPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(AdminsFactions.MODID, "sync_faction_data")
@@ -26,8 +30,9 @@ public record SyncFactionDataPacket(@Nullable Faction faction) implements Custom
                 } else {
                     buf.writeBoolean(false);
                 }
+                buf.writeDouble(pkt.claimRateMultiplier());
             },
-            buf -> new SyncFactionDataPacket(buf.readBoolean() ? Faction.fromNetwork(buf) : null)
+            buf -> new SyncFactionDataPacket(buf.readBoolean() ? Faction.fromNetwork(buf) : null, buf.readDouble())
     );
 
     @Override
@@ -45,6 +50,7 @@ public record SyncFactionDataPacket(@Nullable Faction faction) implements Custom
     private static void handleClient(SyncFactionDataPacket packet) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.screen instanceof com.admin82.factions.screen.FactionTableScreen screen) {
+            if (packet.claimRateMultiplier() > 0) screen.updateClaimRate(packet.claimRateMultiplier());
             screen.updateFactionData(packet.faction());
         }
     }

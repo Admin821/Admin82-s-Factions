@@ -3,6 +3,7 @@ package com.admin82.factions.item;
 import com.admin82.factions.block.FactionTableBlock;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.menu.FactionTableMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -85,6 +86,7 @@ public class FactionTableItem extends BlockItem {
                     buf -> {
                         buf.writeBlockPos(targetPos);
                         buf.writeBoolean(false); // No faction
+                        buf.writeDouble(EconomyManager.get(player.server).getClaimRateMultiplier());
                         // Vassal data — must always be written to match FactionTableBlock's protocol
                         buf.writeBoolean(false); // isVassal
                         buf.writeBoolean(false); // isSuzerain

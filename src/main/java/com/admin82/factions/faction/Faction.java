@@ -132,6 +132,11 @@ public class Faction {
 
     public void addClaim(LandClaim claim) { landClaims.add(claim); }
 
+    public void replaceLandClaims(List<LandClaim> claims) {
+        landClaims.clear();
+        landClaims.addAll(claims);
+    }
+
     public boolean removeClaim(int chunkX, int chunkZ, String dimension) {
         return landClaims.removeIf(c -> c.matches(chunkX, chunkZ, dimension));
     }

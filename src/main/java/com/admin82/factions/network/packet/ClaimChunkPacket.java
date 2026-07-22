@@ -77,8 +77,7 @@ public record ClaimChunkPacket(int chunkX, int chunkZ, String dimension) impleme
             EconomyManager eco = EconomyManager.get(player.server);
             int claimCount = faction.getLandClaims().size();
             long baseCost  = Config.CLAIM_COST_COPPER.get();
-            double rate    = eco.getClaimRateMultiplier();
-            long cost      = (long) (baseCost * Math.pow(rate, claimCount));
+            long cost      = EconomyManager.computeClaimCost(baseCost, claimCount, eco.getClaimRateMultiplier());
             if (!eco.deductVault(faction.getId(), cost)) {
                 player.displayClientMessage(Component.literal(
                         "§cNot enough funds in the faction vault!"
@@ -97,7 +96,7 @@ public record ClaimChunkPacket(int chunkX, int chunkZ, String dimension) impleme
                 vmgr.accumulateTax(faction.getId(), tax);
             }
 
-            PacketDistributor.sendToPlayer(player, new SyncFactionDataPacket(manager.getFactionForPlayer(player.getUUID())));
+            PacketDistributor.sendToPlayer(player, new SyncFactionDataPacket(manager.getFactionForPlayer(player.getUUID()), eco.getClaimRateMultiplier()));
         });
     }
 }

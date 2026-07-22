@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "adminsfactions:block/currency_exchange_filler" },
+    "facing=east": { "model": "adminsfactions:block/currency_exchange_filler" },
+    "facing=south": { "model": "adminsfactions:block/currency_exchange_filler" },
+    "facing=west": { "model": "adminsfactions:block/currency_exchange_filler" }
+  }
+}

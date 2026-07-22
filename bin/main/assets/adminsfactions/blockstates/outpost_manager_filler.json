@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "adminsfactions:block/outpost_manager_filler" },
+    "facing=east": { "model": "adminsfactions:block/outpost_manager_filler" },
+    "facing=south": { "model": "adminsfactions:block/outpost_manager_filler" },
+    "facing=west": { "model": "adminsfactions:block/outpost_manager_filler" }
+  }
+}

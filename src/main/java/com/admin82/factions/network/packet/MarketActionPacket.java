@@ -9,8 +9,10 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -29,10 +31,21 @@ public record MarketActionPacket(
         int    inventorySlot,   // used for CREATE (slot in player inventory)
         long   price,           // BIN price or auction starting bid
         int    durationHours,   // auction duration
-        boolean isAuction
+        boolean isAuction,
+        int listingKind,
+        String itemId,          // used for buy orders that do not come from inventory
+        int itemCount
 ) implements CustomPacketPayload {
 
-    public enum Action { CREATE, BUY, BID, CANCEL, REFRESH, CLAIM_SOLD }
+    public enum Action { CREATE, BUY, BID, CANCEL, REFRESH, CLAIM_SOLD, FULFILL_BUY_ORDER }
+
+    public MarketActionPacket(Action action, UUID listingId, int inventorySlot, long price, int durationHours, boolean isAuction) {
+        this(action, listingId, inventorySlot, price, durationHours, isAuction, MarketListing.ListingKind.PLAYER_SELL.ordinal());
+    }
+
+    public MarketActionPacket(Action action, UUID listingId, int inventorySlot, long price, int durationHours, boolean isAuction, int listingKind) {
+        this(action, listingId, inventorySlot, price, durationHours, isAuction, listingKind, "", 0);
+    }
 
     public static final Type<MarketActionPacket> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "market_action"));
@@ -46,6 +59,9 @@ public record MarketActionPacket(
                         buf.writeLong(pkt.price);
                         buf.writeVarInt(pkt.durationHours);
                         buf.writeBoolean(pkt.isAuction);
+                        buf.writeVarInt(pkt.listingKind);
+                        buf.writeUtf(pkt.itemId == null ? "" : pkt.itemId);
+                        buf.writeVarInt(pkt.itemCount);
                     },
                     buf -> new MarketActionPacket(
                             Action.values()[buf.readVarInt()],
@@ -53,7 +69,10 @@ public record MarketActionPacket(
                             buf.readVarInt(),
                             buf.readLong(),
                             buf.readVarInt(),
-                            buf.readBoolean()
+                            buf.readBoolean(),
+                                buf.readVarInt(),
+                                buf.readUtf(),
+                                buf.readVarInt()
                     )
             );
 
@@ -70,13 +89,27 @@ public record MarketActionPacket(
 
             switch (pkt.action()) {
                 case CREATE -> {
+                    MarketListing.ListingKind kind = listingKind(pkt.listingKind());
+                    boolean buyOrder = kind == MarketListing.ListingKind.PLAYER_BUY_ORDER || kind == MarketListing.ListingKind.ADMIN_BUY_ORDER;
+                    boolean adminListing = kind == MarketListing.ListingKind.ADMIN_SELL || kind == MarketListing.ListingKind.ADMIN_BUY_ORDER;
+                    if (adminListing && !sp.hasPermissions(2)) { sp.displayClientMessage(Component.literal("§cOperator permission required."), true); break; }
                     int slot = pkt.inventorySlot();
-                    if (slot < 0 || slot >= sp.getInventory().getContainerSize()) break;
-                    ItemStack item = sp.getInventory().getItem(slot);
-                    if (item.isEmpty()) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cNo item in that slot."), true); break; }
+                    ItemStack item;
+                    if (buyOrder) {
+                        item = resolveRequestedItem(pkt.itemId(), pkt.itemCount());
+                        if (item.isEmpty()) { sp.displayClientMessage(Component.literal("§cChoose a valid item for the buy order."), true); break; }
+                    } else {
+                        if (slot < 0 || slot >= sp.getInventory().getContainerSize()) break;
+                        item = sp.getInventory().getItem(slot);
+                        if (item.isEmpty()) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cNo item in that slot."), true); break; }
+                    }
 
                     // Validate price
                     if (pkt.price() <= 0) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cPrice must be > 0."), true); break; }
+                    if (buyOrder && kind == MarketListing.ListingKind.PLAYER_BUY_ORDER && !eco.deductWallet(sp.getUUID(), pkt.price())) {
+                        sp.displayClientMessage(Component.literal("§cInsufficient funds for buy order escrow."), true);
+                        break;
+                    }
 
                     // Build listing
                     var listing = new MarketListing();
@@ -89,18 +122,28 @@ public record MarketActionPacket(
                     listing.highestBid    = 0;
                     listing.highestBidder = null;
                     listing.durationHours = pkt.durationHours();
-                    listing.expiresAt     = System.currentTimeMillis()
-                            + (pkt.isAuction() ? (long) pkt.durationHours() * 3_600_000L : 7L * 86_400_000L); // BIN = 7 days
+                        listing.expiresAt     = adminListing
+                            ? Long.MAX_VALUE
+                            : System.currentTimeMillis() + (pkt.isAuction() ? (long) pkt.durationHours() * 3_600_000L : 7L * 86_400_000L); // BIN/buy order = 7 days
                     listing.unpaidUpkeep  = false;
+                    listing.kind          = kind;
                     market.addListing(listing);
-                    sp.getInventory().setItem(slot, ItemStack.EMPTY);
-                    sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§aListing created!"), true);
+                    if (!buyOrder && kind != MarketListing.ListingKind.ADMIN_SELL) {
+                        sp.getInventory().setItem(slot, ItemStack.EMPTY);
+                    }
+                    sp.displayClientMessage(net.minecraft.network.chat.Component.literal(buyOrder ? "§aBuy order created!" : "§aListing created!"), true);
                 }
                 case BUY -> {
                     var listing = market.getListing(pkt.listingId());
-                    if (listing == null || listing.isAuction) { sp.displayClientMessage(Component.literal("§cListing not found."), true); break; }
+                    if (listing == null || listing.isAuction || listing.isBuyOrder()) { sp.displayClientMessage(Component.literal("§cListing not found."), true); break; }
                     if (listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(Component.literal("§cYou cannot buy your own listing."), true); break; }
                     if (!eco.deductWallet(sp.getUUID(), listing.price)) { sp.displayClientMessage(Component.literal("§cInsufficient funds."), true); break; }
+
+                    if (listing.kind == MarketListing.ListingKind.ADMIN_SELL) {
+                        if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+                        sp.displayClientMessage(Component.literal("§aPurchased from server shop!"), true);
+                        break;
+                    }
 
                     long proceeds = listing.netProceeds(listing.price);
                     // Vassal tax
@@ -147,7 +190,7 @@ public record MarketActionPacket(
                 }
                 case BID -> {
                     var listing = market.getListing(pkt.listingId());
-                    if (listing == null || !listing.isAuction) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cAuction not found."), true); break; }
+                    if (listing == null || !listing.isAuction || listing.isBuyOrder() || listing.isAdminListing()) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cAuction not found."), true); break; }
                     if (listing.expiresAt <= System.currentTimeMillis()) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cAuction has ended."), true); break; }
                     if (!eco.deductWallet(sp.getUUID(), pkt.price())) { sp.displayClientMessage(net.minecraft.network.chat.Component.literal("§cInsufficient funds."), true); break; }
                     // Refund previous bidder
@@ -161,7 +204,11 @@ public record MarketActionPacket(
                     if (listing == null || !listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(Component.literal("§cCannot cancel that listing."), true); break; }
                     // Refund top bidder on auction cancel
                     if (listing.isAuction && listing.highestBidder != null) eco.addWallet(listing.highestBidder, listing.highestBid);
-                    if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+                    if (listing.kind == MarketListing.ListingKind.PLAYER_BUY_ORDER) {
+                        eco.addWallet(sp.getUUID(), listing.price);
+                    } else if (listing.kind == MarketListing.ListingKind.PLAYER_SELL) {
+                        if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+                    }
                     market.removeListing(pkt.listingId());
                     sp.displayClientMessage(Component.literal("§aListing cancelled."), true);
                 }
@@ -176,6 +223,30 @@ public record MarketActionPacket(
                     // Sync updated sold listings back
                     PacketDistributor.sendToPlayer(sp, new SyncSoldListingsPacket(
                             market.getSoldListingsForPlayer(sp.getUUID())));
+                }
+                case FULFILL_BUY_ORDER -> {
+                    var listing = market.getListing(pkt.listingId());
+                    if (listing == null || !listing.isBuyOrder()) { sp.displayClientMessage(Component.literal("§cBuy order not found."), true); break; }
+                    if (listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(Component.literal("§cYou cannot fill your own buy order."), true); break; }
+                    int matchingSlot = findMatchingStack(sp, listing.item);
+                    if (matchingSlot < 0) { sp.displayClientMessage(Component.literal("§cYou do not have the requested item and count."), true); break; }
+
+                    ItemStack sellerStack = sp.getInventory().getItem(matchingSlot);
+                    ItemStack delivered = sellerStack.copyWithCount(listing.item.getCount());
+                    sellerStack.shrink(listing.item.getCount());
+                    if (sellerStack.isEmpty()) sp.getInventory().setItem(matchingSlot, ItemStack.EMPTY);
+
+                    eco.addWallet(sp.getUUID(), listing.price);
+                    if (listing.kind == MarketListing.ListingKind.PLAYER_BUY_ORDER) {
+                        ServerPlayer buyer = server.getPlayerList().getPlayer(listing.sellerUUID);
+                        if (buyer != null) {
+                            if (!buyer.getInventory().add(delivered.copy())) buyer.drop(delivered.copy(), false);
+                            buyer.displayClientMessage(Component.literal("§a[Market] Your buy order was filled for §f"
+                                    + listing.item.getHoverName().getString() + "§a."), false);
+                        }
+                        market.removeListing(listing.listingId);
+                    }
+                    sp.displayClientMessage(Component.literal("§aBuy order filled for §e" + Currency.format(listing.price) + "§a."), true);
                 }
                 case REFRESH -> { /* no-op: re-sync below handles it */ }
             }
@@ -197,5 +268,29 @@ public record MarketActionPacket(
                         market.getSoldListingsForPlayer(online.getUUID())));
             }
         });
+    }
+
+    private static MarketListing.ListingKind listingKind(int ordinal) {
+        MarketListing.ListingKind[] values = MarketListing.ListingKind.values();
+        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : MarketListing.ListingKind.PLAYER_SELL;
+    }
+
+    private static ItemStack resolveRequestedItem(String itemId, int count) {
+        if (itemId == null || itemId.isBlank()) return ItemStack.EMPTY;
+        try {
+            Item item = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(itemId)).orElse(null);
+            if (item == null) return ItemStack.EMPTY;
+            return new ItemStack(item, Math.max(1, Math.min(64, count)));
+        } catch (RuntimeException ignored) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    private static int findMatchingStack(ServerPlayer player, ItemStack requested) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getCount() >= requested.getCount() && ItemStack.isSameItemSameComponents(stack, requested)) return i;
+        }
+        return -1;
     }
 }

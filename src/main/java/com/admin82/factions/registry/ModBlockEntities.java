@@ -1,6 +1,7 @@
 package com.admin82.factions.registry;
 
 import com.admin82.factions.blockentity.BarracksBlockEntity;
+import com.admin82.factions.blockentity.CarePackageBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.blockentity.OutpostManagerBlockEntity;
 import net.minecraft.core.registries.Registries;
@@ -14,6 +15,13 @@ public class ModBlockEntities {
 
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CarePackageBlockEntity>> CARE_PACKAGE =
+            BLOCK_ENTITIES.register("carepackage", () ->
+                    BlockEntityType.Builder
+                            .of(CarePackageBlockEntity::new, ModBlocks.CARE_PACKAGE.get())
+                            .build(null)
+            );
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BarracksBlockEntity>> BARRACKS =
             BLOCK_ENTITIES.register("barracks", () ->

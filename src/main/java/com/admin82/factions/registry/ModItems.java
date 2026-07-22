@@ -35,6 +35,8 @@ public class ModItems {
             ITEMS.register("platinum_coin", () -> new CoinItem(new Item.Properties().stacksTo(99)));
 
     // ── Block items ───────────────────────────────────────────────────────────
+    public static final DeferredItem<BlockItem> CARE_PACKAGE =
+            ITEMS.register("carepackage", () -> new BlockItem(ModBlocks.CARE_PACKAGE.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> MARKET_BLOCK =
             ITEMS.register("market_block", () -> new TooltipBlockItem(ModBlocks.MARKET.get(), new Item.Properties(),
                     "tooltip.adminsfactions.market_block"));

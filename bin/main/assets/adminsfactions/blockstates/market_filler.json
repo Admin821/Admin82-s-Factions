@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "adminsfactions:block/market_filler" },
+    "facing=east": { "model": "adminsfactions:block/market_filler" },
+    "facing=south": { "model": "adminsfactions:block/market_filler" },
+    "facing=west": { "model": "adminsfactions:block/market_filler" }
+  }
+}

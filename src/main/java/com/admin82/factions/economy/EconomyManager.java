@@ -114,6 +114,10 @@ public class EconomyManager extends SavedData {
         setDirty();
     }
 
+    public static long computeClaimCost(long baseCost, int ownedChunks, double claimRateMultiplier) {
+        return (long) (baseCost * Math.pow(Math.max(1.0, claimRateMultiplier), ownedChunks));
+    }
+
     /**
      * Returns the upkeep ramp added per 5-chunk Chebyshev distance band for outposts.
      * Default 0.1 (each 5-chunk band adds +10% to base outpost upkeep).

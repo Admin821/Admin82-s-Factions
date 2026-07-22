@@ -1,50 +1,50 @@
-/kill Player2
-/faction exchange list
-/give Dev adminsfactions:barracks
-/give Dev adminsfactions:outpost
-/faction delete life
-/kill Player2
-/gamemode creative Player2
-/faction exchange list
-/kill
-/gamemode creative
-/op Player2
-/deop Dev
-/op Player2
-/deop Dev
-/factionreturn
-/op Player2
-/deop
-/deop Dev
-/faction war AfterWarCooldownTime 1
-/faction war FactionTableCaptureKothTime 5
-/faction war AfterWarCooldownTime 1
-/faction delete death
-/faction war OutpostKothCaptureTime 5
-/faction war FactionTableCaptureKothTime 5
-/op Player2
-/deop Dev
-/faction delete life
-/time set day
-/weather clear
-/gamemode survival
-/gamemode creative
-/time set day
-/gamemode survival
-/time set day
-/give Dev minecraft:diamond_pickaxe
-/effect give Dev minecraft:regeneration infinite 10
-/weather clear
-/gamemode creative
-/faction delete life
-/time set day
-/faction delete death
-/faction ReturnCooldownTime 30
-/factionreturn
-/
-/factionreturn
-/gamemode survival
-/weather clear
-/gamemode creative
-/gamemode survival Player2
 /faction dobothwaysexchange true
+/gamemode creative Player2
+/faction list
+/faction set Player2 none
+/faction supplydrop loot
+/faction supplydrop spawn
+/tp -82 -63 66
+/gamemode spectator
+/effect give Dev minecraft:night_vision
+/gamemode survival
+/gamemode creative
+/faction supplydrop loot
+/faction supplydrop spawn
+/weather clear
+/faction supplydrop
+/faction supplydrop spawn
+/tp 334 ~ -4758
+/gamemode spectator
+/gamemode survival
+/gamemode creative
+/faction supplydrop loot
+/faction supplydrop spawn
+/tp -54 ~ -19
+/gamemode spectator
+/gamemode creative
+/faction supplydrop spawn
+/tp 768 ~ 132
+/gamemode spectator
+/faction supplydrop loot
+/gamemode creative
+/faction list
+/faction delete life
+/faction supplydrop loot
+/faction supplydrop spawn
+/gamemode spectator
+/gamemode creative
+/faction supplydrop spawn
+/gamemode spectator
+/gamemode creative
+/faction supplydrop spawn
+/gamemode spectator
+/faction supplydrop spawn
+/gamemode survival
+/gamemode creative
+/faction supplydrop spawn
+/gamemode sp
+/gamemode spectator
+/gamemode creative
+/faction supplydrop spawn
+/gamemode spectator

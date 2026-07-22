@@ -6,10 +6,13 @@ import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.economy.ExchangeManager;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
+import com.admin82.factions.menu.SupplyDropMenu;
 import com.admin82.factions.network.packet.SyncFactionDataPacket;
+import com.admin82.factions.network.packet.SyncEconomyPacket;
 import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.outpost.OutpostEntry;
 import com.admin82.factions.registry.ModItems;
+import com.admin82.factions.supplydrop.SupplyDropData;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -165,6 +168,14 @@ public class FactionCommands {
                     .then(Commands.argument("enabled", BoolArgumentType.bool())
                         .executes(ctx -> cmdDoBothWaysExchange(ctx.getSource(),
                                 BoolArgumentType.getBool(ctx, "enabled")))))
+
+                // /faction supplydrop loot|spawn
+                .then(Commands.literal("supplydrop")
+                    .requires(src -> src.hasPermission(2))
+                    .then(Commands.literal("loot")
+                        .executes(ctx -> cmdSupplyDropOpen(ctx.getSource(), SupplyDropMenu.Mode.EDITOR)))
+                    .then(Commands.literal("spawn")
+                        .executes(ctx -> cmdSupplyDropOpen(ctx.getSource(), SupplyDropMenu.Mode.SPAWNER))))
 
                     // /faction war dotp <true|false>
                     .then(Commands.literal("dotp")
@@ -535,6 +546,28 @@ public class FactionCommands {
         return enabled ? 1 : 0;
     }
 
+    private static int cmdSupplyDropOpen(CommandSourceStack src, SupplyDropMenu.Mode mode) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal("§cOnly players can open the supply drop GUI."));
+            return 0;
+        }
+        if (!player.hasPermissions(2)) {
+            src.sendFailure(Component.literal("§cOperator permission required."));
+            return 0;
+        }
+        var data = SupplyDropData.get(src.getServer());
+        var names = data.getPoolNames();
+        player.openMenu(new SimpleMenuProvider(
+                (id, inv, p) -> new SupplyDropMenu(id, inv, mode, names),
+                Component.literal(mode == SupplyDropMenu.Mode.EDITOR ? "Supply Drop Loot Pools" : "Call Supply Drop")),
+                buf -> {
+                    buf.writeVarInt(mode.ordinal());
+                    buf.writeVarInt(names.size());
+                    for (String name : names) buf.writeUtf(name, 64);
+                });
+        return 1;
+    }
+
     private static int cmdWarSetTpDistance(CommandSourceStack src, int chunks) {
         WarManager.get(src.getServer()).setTpDistanceChunks(chunks);
         src.sendSuccess(() -> Component.literal("§aWar TP spawn distance set to §e" + chunks
@@ -785,11 +818,90 @@ public class FactionCommands {
     // ── /faction economy claimrates <value> ──────────────────────────────────
 
     private static int cmdEconomyClaimRates(CommandSourceStack src, double rate) {
-        EconomyManager.get(src.getServer()).setClaimRateMultiplier(rate);
+        MinecraftServer server = src.getServer();
+        EconomyManager eco = EconomyManager.get(server);
+        FactionManager fmgr = FactionManager.get(server);
+        eco.setClaimRateMultiplier(rate);
+        ClaimRateRecalcResult result = recalculateClaimCostsAndRefunds(server, fmgr, eco, rate);
+        syncFactionTables(server, fmgr, eco);
         src.sendSuccess(() -> Component.literal(
                 "§aClaim deed cost rate set to §e" + rate
-                + "§a. Each additional deed costs base × " + rate + "^n."), true);
+                + "§a. Each additional deed costs base × " + rate + "^n."
+                + " §7Updated §e" + result.claimsUpdated + "§7 claims and refunded §a"
+                + Currency.format(result.totalRefunded) + "§7 to faction vaults."), true);
         return 1;
+    }
+
+    private record ClaimRateRecalcResult(int claimsUpdated, long totalRefunded) {}
+
+    private static ClaimRateRecalcResult recalculateClaimCostsAndRefunds(MinecraftServer server, FactionManager fmgr, EconomyManager eco, double rate) {
+        long baseCost = Config.CLAIM_COST_COPPER.get();
+        long now = System.currentTimeMillis();
+        int claimsUpdated = 0;
+        long totalRefunded = 0L;
+
+        for (Faction faction : fmgr.getAllFactions().values()) {
+            var claims = faction.getLandClaims();
+            if (claims.isEmpty()) continue;
+
+            java.util.List<LandClaim> recalculated = new java.util.ArrayList<>(claims.size());
+            long oldDailyTotal = 0L;
+            long newDailyTotal = 0L;
+            long deedRefund = 0L;
+
+            for (int i = 0; i < claims.size(); i++) {
+                LandClaim oldClaim = claims.get(i);
+                long oldCost = oldClaim.dailyCost();
+                long newCost = EconomyManager.computeClaimCost(baseCost, i, rate);
+                recalculated.add(new LandClaim(oldClaim.chunkX(), oldClaim.chunkZ(), oldClaim.dimension(), newCost));
+                oldDailyTotal += oldCost;
+                newDailyTotal += newCost;
+                if (oldCost > newCost) deedRefund += oldCost - newCost;
+                if (oldCost != newCost) claimsUpdated++;
+            }
+
+            long upkeepRefund = 0L;
+            long periodStart = eco.getUpkeepPeriodStart(faction.getId());
+            long alreadyCharged = eco.getUpkeepChargedSoFar(faction.getId());
+            if (periodStart > 0 && alreadyCharged > 0 && newDailyTotal < oldDailyTotal) {
+                long elapsed = Math.max(0L, Math.min(Currency.UPKEEP_INTERVAL_MS, now - periodStart));
+                long newExpectedCharged = newDailyTotal * elapsed / Currency.UPKEEP_INTERVAL_MS;
+                if (alreadyCharged > newExpectedCharged) {
+                    upkeepRefund = alreadyCharged - newExpectedCharged;
+                    eco.setUpkeepChargedSoFar(faction.getId(), newExpectedCharged);
+                }
+            }
+
+            if (deedRefund > 0 || upkeepRefund > 0) {
+                long refund = deedRefund + upkeepRefund;
+                eco.addVault(faction.getId(), refund);
+                totalRefunded += refund;
+                notifyFaction(server, faction, "§a[Faction] Claim rates were recalculated. §e"
+                        + Currency.format(refund) + " §awas refunded to your faction vault.");
+            }
+            faction.replaceLandClaims(recalculated);
+        }
+
+        fmgr.setDirty();
+        return new ClaimRateRecalcResult(claimsUpdated, totalRefunded);
+    }
+
+    private static void syncFactionTables(MinecraftServer server, FactionManager fmgr, EconomyManager eco) {
+        double claimRate = eco.getClaimRateMultiplier();
+        for (ServerPlayer online : server.getPlayerList().getPlayers()) {
+            Faction faction = fmgr.getFactionForPlayer(online.getUUID());
+            PacketDistributor.sendToPlayer(online, new SyncFactionDataPacket(faction, claimRate));
+            PacketDistributor.sendToPlayer(online, new SyncEconomyPacket(
+                    eco.getWallet(online.getUUID()), faction != null ? eco.getVault(faction.getId()) : 0L));
+        }
+    }
+
+    private static void notifyFaction(MinecraftServer server, Faction faction, String message) {
+        Component component = Component.literal(message);
+        for (FactionMember member : faction.getMembers()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(member.getUuid());
+            if (player != null) player.displayClientMessage(component, false);
+        }
     }
 
     // ── /faction economy outpostramp <value> ───────────────────────────────────
