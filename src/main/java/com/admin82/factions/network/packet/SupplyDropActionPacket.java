@@ -19,7 +19,7 @@ import java.util.List;
 
 public record SupplyDropActionPacket(Action action, @Nullable String data, int radius, int fallSeconds,
                                      int maxCount, int rarity) implements CustomPacketPayload {
-    public enum Action { CREATE_POOL, DELETE_POOL, LOAD_POOL, SPAWN_DROP, SAVE_SLOT_SETTINGS }
+    public enum Action { CREATE_POOL, DELETE_POOL, LOAD_POOL, SPAWN_DROP, SAVE_SLOT_SETTINGS, SET_SCHEDULE, CLEAR_SCHEDULE, REQUEST_SYNC }
 
     public SupplyDropActionPacket(Action action, @Nullable String data, int radius, int fallSeconds) {
         this(action, data, radius, fallSeconds, 0, 0);
@@ -91,13 +91,33 @@ public record SupplyDropActionPacket(Action action, @Nullable String data, int r
                     data.savePoolSlotSettings(packet.data(), packet.radius(), packet.fallSeconds(), packet.maxCount(), packet.rarity());
                     syncSettingsToPlayer(player, data, packet.data());
                 }
+                case SET_SCHEDULE -> {
+                    if (packet.data() == null || packet.maxCount() <= 0) return;
+                    SupplyDropPool pool = data.getPool(packet.data());
+                    if (pool == null || pool.nonEmptyItems().isEmpty()) {
+                        player.displayClientMessage(Component.literal("§cScheduled loot pool is missing or empty."), true);
+                        return;
+                    }
+                    data.setSchedule(packet.data(), packet.maxCount(), packet.radius(), packet.fallSeconds(),
+                            System.currentTimeMillis());
+                    syncToPlayer(player, data);
+                    player.displayClientMessage(Component.literal("§aSupply drop schedule saved."), true);
+                }
+                case CLEAR_SCHEDULE -> {
+                    data.clearSchedule();
+                    syncToPlayer(player, data);
+                    player.displayClientMessage(Component.literal("§eSupply drop schedule disabled."), true);
+                }
+                case REQUEST_SYNC -> syncToPlayer(player, data);
             }
         });
     }
 
     private static void syncToPlayer(ServerPlayer player, SupplyDropData data) {
         List<String> names = data.getPoolNames();
-        PacketDistributor.sendToPlayer(player, new SyncSupplyDropPacket(names));
+        PacketDistributor.sendToPlayer(player, new SyncSupplyDropPacket(
+                names, data.getScheduledPoolName(), data.getScheduleIntervalHours(), data.getScheduleRadius(),
+                data.getScheduleFallSeconds(), data.getNextScheduledDropAt()));
     }
 
     private static void syncSettingsToPlayer(ServerPlayer player, SupplyDropData data, String poolName) {

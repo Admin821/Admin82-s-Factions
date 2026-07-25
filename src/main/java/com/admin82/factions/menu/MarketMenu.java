@@ -387,6 +387,8 @@ public class MarketMenu extends AbstractContainerMenu {
         }
 
         adminContentArea.addChildren(new Label().setText("§7Permanent server shop listings created by operators."));
+        adminContentArea.addChildren(new Label().bindDataSource(SupplierDataSource.of(() ->
+            Component.literal("§7Server shop listings: §e" + countServerShopListings()))));
 
         adminListArea = new UIElement();
         adminListArea.layout(l -> l.flex(1).width(440));
@@ -420,6 +422,8 @@ public class MarketMenu extends AbstractContainerMenu {
             .filter(l -> l.kind == MarketListing.ListingKind.ADMIN_SELL && matchesFilters(l.item))
             .toList();
         if (listings.isEmpty()) { area.addChildren(new Label().setText("§7No matching server shop listings.")); return; }
+        var mc = Minecraft.getInstance();
+        UUID myId = mc.player != null ? mc.player.getUUID() : null;
         for (int i = 0; i < ROWS; i++) {
             int idx = i + adminScroll;
             if (idx >= listings.size()) break;
@@ -427,16 +431,19 @@ public class MarketMenu extends AbstractContainerMenu {
             var row = new UIElement();
             row.layout(r -> r.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(34).width(440));
             var icon = new ItemSlot(); icon.setItem(l.item); icon.layout(r -> r.width(20).height(20));
-            var buyBtn = new Button().setText("§aBuy")
-                .setOnClick(e -> PacketDistributor.sendToServer(new MarketActionPacket(
-                    MarketActionPacket.Action.BUY, l.listingId, -1, 0, 0, false)))
-                .layout(r -> r.width(38));
             row.addChildren(
                 icon,
                 itemNameLabel(l.item, 178),
                 new Label().setText("§6Server Shop").layout(r -> r.width(74)),
-                new Label().setText("§a" + Currency.format(l.price)).layout(r -> r.flex(1)),
-                buyBtn);
+                new Label().setText("§a" + Currency.format(l.price)).layout(r -> r.flex(1)));
+            if (myId != null && myId.equals(l.sellerUUID)) {
+                row.addChildren(new Label().setText("§8(yours)").layout(r -> r.width(38)));
+            } else {
+                row.addChildren(new Button().setText("§aBuy")
+                    .setOnClick(e -> PacketDistributor.sendToServer(new MarketActionPacket(
+                        MarketActionPacket.Action.BUY, l.listingId, -1, 0, 0, false)))
+                    .layout(r -> r.width(38)));
+            }
             area.addChildren(row);
         }
         }
@@ -886,6 +893,12 @@ public class MarketMenu extends AbstractContainerMenu {
 
     private long computePrice() {
         return priceTotal;
+    }
+
+    private int countServerShopListings() {
+        return (int) listingsRef.get().stream()
+                .filter(l -> l.kind == MarketListing.ListingKind.ADMIN_SELL)
+                .count();
     }
 
     private void resetCreateFlowState() {

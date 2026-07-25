@@ -1,5 +1,13 @@
 package com.admin82.factions;
 
+import com.admin82.factions.client.model.CarePackageParachuteModel;
+import com.admin82.factions.client.model.CarePackageModel;
+import com.admin82.factions.client.renderer.CarePackageBlockEntityRenderer;
+import com.admin82.factions.client.renderer.CarePackageItemRenderer;
+import com.admin82.factions.client.renderer.SupplyDropVisualRenderer;
+import com.admin82.factions.registry.ModBlockEntities;
+import com.admin82.factions.registry.ModEntities;
+import com.admin82.factions.registry.ModItems;
 import com.admin82.factions.registry.ModMenuTypes;
 import com.admin82.factions.screen.BarracksScreen;
 import com.admin82.factions.screen.ChunkBorderRenderer;
@@ -15,6 +23,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
@@ -43,6 +54,30 @@ public class AdminsFactionsClient {
         event.register(ModMenuTypes.MARKET.get(), MarketScreen::new);
         event.register(ModMenuTypes.CURRENCY_EXCHANGE.get(), CurrencyExchangeScreen::new);
         event.register(ModMenuTypes.SUPPLY_DROP.get(), SupplyDropScreen::new);
+    }
+
+    @SubscribeEvent
+    static void onRegisterEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModEntities.SUPPLY_DROP_VISUAL.get(), SupplyDropVisualRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.CARE_PACKAGE.get(), CarePackageBlockEntityRenderer::new);
+    }
+
+    @SubscribeEvent
+    static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+        CarePackageItemRenderer renderer = new CarePackageItemRenderer();
+        event.registerItem(new IClientItemExtensions() {
+            @Override
+            public CarePackageItemRenderer getCustomRenderer() {
+                return renderer;
+            }
+        }, ModItems.CARE_PACKAGE);
+    }
+
+    @SubscribeEvent
+    static void onRegisterModelLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        event.registerLayerDefinition(CarePackageParachuteModel.LAYER, CarePackageParachuteModel::createLayer);
+        event.registerLayerDefinition(CarePackageModel.CLOSED_LAYER, CarePackageModel::createClosedLayer);
+        event.registerLayerDefinition(CarePackageModel.OPEN_LAYER, CarePackageModel::createOpenLayer);
     }
 }
 

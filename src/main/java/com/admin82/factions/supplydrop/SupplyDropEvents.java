@@ -2,14 +2,17 @@ package com.admin82.factions.supplydrop;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.block.CarePackageBlock;
+import com.admin82.factions.blockentity.CarePackageBlockEntity;
+import com.admin82.factions.entity.SupplyDropVisualEntity;
 import com.admin82.factions.registry.ModBlocks;
+import com.admin82.factions.registry.ModEntities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
-import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -27,9 +30,11 @@ import java.util.Random;
 @EventBusSubscriber(modid = AdminsFactions.MODID)
 public class SupplyDropEvents {
     private static final int PARACHUTE_FALL_TICKS = 45 * 20;
+    private static final int SCHEDULE_CHECK_INTERVAL_TICKS = 20;
 
     private static final List<PendingDrop> PENDING_DROPS = new ArrayList<>();
     private static final Random RANDOM = new Random();
+    private static int scheduleCheckTicks;
 
     public static boolean callSupplyDrop(MinecraftServer server, ServerLevel level, String poolName, int radius, int fallSeconds) {
         SupplyDropPool pool = SupplyDropData.get(server).getPool(poolName);
@@ -55,6 +60,10 @@ public class SupplyDropEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        if (++scheduleCheckTicks >= SCHEDULE_CHECK_INTERVAL_TICKS) {
+            scheduleCheckTicks = 0;
+            tickSchedule(event.getServer());
+        }
         if (PENDING_DROPS.isEmpty()) return;
         MinecraftServer server = event.getServer();
         Iterator<PendingDrop> iterator = PENDING_DROPS.iterator();
@@ -89,9 +98,21 @@ public class SupplyDropEvents {
         }
     }
 
+    private static void tickSchedule(MinecraftServer server) {
+        SupplyDropData data = SupplyDropData.get(server);
+        long now = System.currentTimeMillis();
+        if (!data.isScheduleDue(now)) return;
+
+        String poolName = data.getScheduledPoolName();
+        if (poolName != null) {
+            callSupplyDrop(server, server.overworld(), poolName,
+                    data.getScheduleRadius(), data.getScheduleFallSeconds());
+        }
+        data.advanceSchedule(now);
+    }
+
     private static void spawnDropVisuals(ServerLevel level, PendingDrop drop) {
-        BlockPos chestStart = new BlockPos(drop.pos.getX(), drop.startY, drop.pos.getZ());
-        drop.crateEntity = spawnProtectedFallingBlock(level, chestStart, ModBlocks.CARE_PACKAGE_PARACHUTE.get().defaultBlockState());
+        drop.crateEntity = spawnDropVisual(level, drop.pos.getX() + 0.5, drop.startY, drop.pos.getZ() + 0.5);
     }
 
     private static void tickDropVisuals(ServerLevel level, PendingDrop drop) {
@@ -105,7 +126,7 @@ public class SupplyDropEvents {
         double z = drop.pos.getZ() + 0.5 + drift;
 
         if (drop.crateEntity == null || !drop.crateEntity.isAlive()) {
-            drop.crateEntity = spawnProtectedFallingBlock(level, BlockPos.containing(x, y, z), ModBlocks.CARE_PACKAGE_PARACHUTE.get().defaultBlockState());
+            drop.crateEntity = spawnDropVisual(level, x, y, z);
         }
         if (drop.crateEntity != null) {
             drop.crateEntity.teleportTo(x, y, z);
@@ -113,12 +134,12 @@ public class SupplyDropEvents {
         }
     }
 
-    private static FallingBlockEntity spawnProtectedFallingBlock(ServerLevel level, BlockPos pos, BlockState state) {
-        FallingBlockEntity entity = FallingBlockEntity.fall(level, pos, state);
-        entity.setNoGravity(true);
-        entity.setInvulnerable(true);
+    private static SupplyDropVisualEntity spawnDropVisual(ServerLevel level, double x, double y, double z) {
+        SupplyDropVisualEntity entity = ModEntities.SUPPLY_DROP_VISUAL.get().create(level);
+        if (entity == null) return null;
+        entity.setPos(x, y, z);
         entity.setGlowingTag(true);
-        entity.setDeltaMovement(0.0, 0.0, 0.0);
+        level.addFreshEntity(entity);
         return entity;
     }
 
@@ -130,8 +151,21 @@ public class SupplyDropEvents {
         SupplyDropPool pool = SupplyDropData.get(server).getPool(drop.poolName);
         if (pool == null) return;
         BlockPos pos = findLandingPos(level, drop.pos.getX(), drop.pos.getZ());
-        level.setBlock(pos, ModBlocks.CARE_PACKAGE.get().defaultBlockState().setValue(CarePackageBlock.OPEN, false), 3);
+        Direction facing = findAvailableFacing(level, pos);
+        while (facing == null && pos.getY() < level.getMaxBuildHeight() - 2) {
+            pos = pos.above();
+            facing = findAvailableFacing(level, pos);
+        }
+        if (facing == null) return;
+        BlockState carePackageState = ModBlocks.CARE_PACKAGE.get().defaultBlockState()
+                .setValue(CarePackageBlock.OPEN, false)
+                .setValue(CarePackageBlock.FACING, facing);
+        level.setBlock(pos, carePackageState, 3);
+        CarePackageBlock.placeFiller(level, pos, carePackageState);
         BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof CarePackageBlockEntity carePackage) {
+            carePackage.setSupplyDrop(true);
+        }
         if (blockEntity instanceof Container container) {
             List<ItemStack> items = new ArrayList<>(pool.generateItems(RANDOM));
             Collections.shuffle(items, RANDOM);
@@ -147,6 +181,16 @@ public class SupplyDropEvents {
                 .append(clickableCoords(pos))
                 .append(Component.literal("§a.")),
             false);
+    }
+
+    private static Direction findAvailableFacing(ServerLevel level, BlockPos pos) {
+        List<Direction> directions = new ArrayList<>(List.of(
+                Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST));
+        Collections.shuffle(directions, RANDOM);
+        for (Direction direction : directions) {
+            if (level.getBlockState(pos.relative(direction.getClockWise())).canBeReplaced()) return direction;
+        }
+        return null;
     }
 
     private static void loadLandingChunk(ServerLevel level, BlockPos pos) {
@@ -209,7 +253,7 @@ public class SupplyDropEvents {
         int countdownTicks;
         int fallTicksRemaining;
         boolean falling;
-        FallingBlockEntity crateEntity;
+        SupplyDropVisualEntity crateEntity;
 
         PendingDrop(String dimension, BlockPos pos, String poolName, int countdownTicks, int startY) {
             this.dimension = dimension;

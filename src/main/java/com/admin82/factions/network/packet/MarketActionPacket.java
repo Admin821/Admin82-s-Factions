@@ -136,7 +136,12 @@ public record MarketActionPacket(
                 case BUY -> {
                     var listing = market.getListing(pkt.listingId());
                     if (listing == null || listing.isAuction || listing.isBuyOrder()) { sp.displayClientMessage(Component.literal("§cListing not found."), true); break; }
-                    if (listing.sellerUUID.equals(sp.getUUID())) { sp.displayClientMessage(Component.literal("§cYou cannot buy your own listing."), true); break; }
+                    if (listing.sellerUUID.equals(sp.getUUID())) {
+                        sp.displayClientMessage(Component.literal(listing.kind == MarketListing.ListingKind.ADMIN_SELL
+                                ? "§cYou cannot buy a server shop listing you created."
+                                : "§cYou cannot buy your own listing."), true);
+                        break;
+                    }
                     if (!eco.deductWallet(sp.getUUID(), listing.price)) { sp.displayClientMessage(Component.literal("§cInsufficient funds."), true); break; }
 
                     if (listing.kind == MarketListing.ListingKind.ADMIN_SELL) {

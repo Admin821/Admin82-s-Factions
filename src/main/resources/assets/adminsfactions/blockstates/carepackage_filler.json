@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "adminsfactions:block/carepackage_filler" },
+    "facing=south": { "model": "adminsfactions:block/carepackage_filler" },
+    "facing=west": { "model": "adminsfactions:block/carepackage_filler" },
+    "facing=east": { "model": "adminsfactions:block/carepackage_filler" }
+  }
+}

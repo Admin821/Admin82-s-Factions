@@ -54,6 +54,7 @@ public class AdminsFactions {
         // Register mod deferred registers
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        ModEntities.ENTITIES.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModMenuTypes.MENUS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);

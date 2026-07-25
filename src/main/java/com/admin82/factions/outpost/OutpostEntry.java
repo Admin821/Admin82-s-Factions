@@ -44,7 +44,7 @@ public class OutpostEntry {
     /** Seconds of continuous presence needed to capture an outpost (1 minutes). */
     public static final float CAPTURE_TIME_SECONDS = 60f;
     /** Block radius counted as the capture zone around the manager block. */
-    public static final int   CAPTURE_RADIUS_BLOCKS = 10;
+    public static final int   CAPTURE_RADIUS_BLOCKS = 20;
     /** Disintegration duration in milliseconds (1 hour). */
     public static final long  DISINTEGRATE_MS = 3_600_000L;
 

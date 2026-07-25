@@ -52,6 +52,12 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     private int[] minCounts = defaultCounts();
     private int[] maxCounts = defaultCounts();
     private int[] rarityLevels = new int[SupplyDropPool.SLOT_COUNT];
+    @Nullable private String scheduledPoolName;
+    private int scheduleIntervalHours;
+    private int scheduleRadius;
+    private int scheduleFallSeconds;
+    private long nextScheduledDropAt;
+    private int scheduleSyncVersion;
 
     @Nullable private MinecraftServer server;
     @Nullable private String currentEditingPoolName;
@@ -115,8 +121,15 @@ public class SupplyDropMenu extends AbstractContainerMenu {
         return currentEditingPoolName;
     }
 
-    public void updatePoolNames(List<String> poolNames) {
+    public void updateSupplyDropData(List<String> poolNames, @Nullable String scheduledPoolName,
+                                     int intervalHours, int radius, int fallSeconds, long nextDropAt) {
         poolNamesRef.set(new ArrayList<>(poolNames));
+        this.scheduledPoolName = scheduledPoolName;
+        this.scheduleIntervalHours = intervalHours;
+        this.scheduleRadius = radius;
+        this.scheduleFallSeconds = fallSeconds;
+        this.nextScheduledDropAt = nextDropAt;
+        scheduleSyncVersion++;
     }
 
     public void updatePoolSettings(String poolName, int[] minCounts, int[] maxCounts, int[] rarityLevels) {
@@ -322,6 +335,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
 
         int[] radius = {10000};
         int[] seconds = {60};
+        int[] intervalHours = {24};
         var radiusField = new TextField().setValue("10000").bindObserver(value -> {
             try { radius[0] = Math.max(0, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
         });
@@ -330,12 +344,17 @@ public class SupplyDropMenu extends AbstractContainerMenu {
             try { seconds[0] = Math.max(0, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
         });
         secondsField.layout(l -> l.width(150).height(18));
+        var intervalField = new TextField().setValue("24").bindObserver(value -> {
+            try { intervalHours[0] = Math.max(1, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
+        });
+        intervalField.layout(l -> l.width(150).height(18));
 
         var controls = new UIElement();
-        controls.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).height(52));
+        controls.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).height(76));
         controls.addChildren(
             labeledFieldRow("§7Radius from 0,0 (blocks)", radiusField),
-            labeledFieldRow("§7Countdown before drop starts (seconds)", secondsField));
+            labeledFieldRow("§7Countdown before drop starts (seconds)", secondsField),
+            labeledFieldRow("§7Automatic drop interval (real hours)", intervalField));
 
         var spawnButton = new Button().setText("§6Call Supply Drop")
                 .setOnClick(e -> {
@@ -345,11 +364,63 @@ public class SupplyDropMenu extends AbstractContainerMenu {
                 })
                 .layout(l -> l.width(190).height(26));
 
+            var scheduleButton = new Button().setText("§aSave Automatic Schedule")
+                .setOnClick(e -> {
+                    if (selectedPoolName[0] == null) return;
+                    PacketDistributor.sendToServer(new SupplyDropActionPacket(
+                        SupplyDropActionPacket.Action.SET_SCHEDULE, selectedPoolName[0], radius[0],
+                        seconds[0], intervalHours[0], 0));
+                })
+                .layout(l -> l.width(210).height(26));
+            var disableButton = new Button().setText("§cDisable Schedule")
+                .setOnClick(e -> PacketDistributor.sendToServer(new SupplyDropActionPacket(
+                    SupplyDropActionPacket.Action.CLEAR_SCHEDULE, null, 0, 0)))
+                .layout(l -> l.width(170).height(26));
+            var buttonRow = new UIElement();
+            buttonRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(26));
+            buttonRow.addChildren(spawnButton, scheduleButton, disableButton);
+
         var selectedLabel = new Label();
         selectedLabel.bindDataSource(SupplierDataSource.of(() -> Component.literal(
                 selectedPoolName[0] == null ? "§7No pool selected." : "§6Selected: §f" + selectedPoolName[0])));
-        panel.addChildren(new Label().setText("§7Choose a saved loot pool, radius, and countdown time."), listArea, selectedLabel, controls, spawnButton);
+        var scheduleLabel = new Label();
+        scheduleLabel.bindDataSource(SupplierDataSource.of(() -> Component.literal(scheduleStatusText())));
+
+        boolean[] requestedSync = {false};
+        int[] appliedSyncVersion = {-1};
+        panel.addEventListener(UIEvents.TICK, event -> {
+            if (!requestedSync[0]) {
+                requestedSync[0] = true;
+                PacketDistributor.sendToServer(new SupplyDropActionPacket(
+                        SupplyDropActionPacket.Action.REQUEST_SYNC, null, 0, 0));
+            }
+            if (appliedSyncVersion[0] == scheduleSyncVersion) return;
+            appliedSyncVersion[0] = scheduleSyncVersion;
+            if (scheduledPoolName != null) selectedPoolName[0] = scheduledPoolName;
+            if (scheduleIntervalHours > 0) {
+                intervalHours[0] = scheduleIntervalHours;
+                intervalField.setValue(Integer.toString(scheduleIntervalHours));
+                radius[0] = scheduleRadius;
+                radiusField.setValue(Integer.toString(scheduleRadius));
+                seconds[0] = scheduleFallSeconds;
+                secondsField.setValue(Integer.toString(scheduleFallSeconds));
+            }
+        });
+
+        panel.addChildren(new Label().setText("§7Choose a pool and settings for a manual or automatic drop."),
+                listArea, selectedLabel, controls, scheduleLabel, buttonRow);
         return panel;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private String scheduleStatusText() {
+        if (scheduledPoolName == null || scheduleIntervalHours <= 0) return "§8Automatic schedule disabled.";
+        long remainingSeconds = Math.max(0L, (nextScheduledDropAt - System.currentTimeMillis() + 999L) / 1000L);
+        long hours = remainingSeconds / 3600L;
+        long minutes = (remainingSeconds % 3600L) / 60L;
+        long seconds = remainingSeconds % 60L;
+        return "§aScheduled: §f" + scheduledPoolName + " §7every §f" + scheduleIntervalHours
+                + "h §7| next in §f" + hours + "h " + minutes + "m " + seconds + "s";
     }
 
     @OnlyIn(Dist.CLIENT)

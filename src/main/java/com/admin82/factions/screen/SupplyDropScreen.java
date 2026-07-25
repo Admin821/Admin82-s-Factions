@@ -28,8 +28,9 @@ public class SupplyDropScreen extends AbstractContainerScreen<SupplyDropMenu> {
         super.init();
     }
 
-    public void updatePoolNames(List<String> poolNames) {
-        menu.updatePoolNames(poolNames);
+    public void updateSupplyDropData(List<String> poolNames, String scheduledPoolName, int intervalHours,
+                                     int radius, int fallSeconds, long nextDropAt) {
+        menu.updateSupplyDropData(poolNames, scheduledPoolName, intervalHours, radius, fallSeconds, nextDropAt);
     }
 
     public void updatePoolSettings(String poolName, int[] minCounts, int[] maxCounts, int[] rarityLevels) {

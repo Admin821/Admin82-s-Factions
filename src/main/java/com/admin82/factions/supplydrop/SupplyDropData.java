@@ -18,6 +18,11 @@ public class SupplyDropData extends SavedData {
     private static final String DATA_NAME = "adminsfactions_supply_drops";
 
     private final Map<String, SupplyDropPool> pools = new LinkedHashMap<>();
+    @Nullable private String scheduledPoolName;
+    private int scheduleIntervalHours;
+    private int scheduleRadius;
+    private int scheduleFallSeconds;
+    private long nextScheduledDropAt;
 
     public static SupplyDropData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -51,8 +56,55 @@ public class SupplyDropData extends SavedData {
 
     public boolean deletePool(String name) {
         SupplyDropPool removed = pools.remove(normalize(name));
-        if (removed != null) setDirty();
+        if (removed != null) {
+            if (normalize(name).equals(normalize(scheduledPoolName))) clearSchedule();
+            setDirty();
+        }
         return removed != null;
+    }
+
+    public void setSchedule(String poolName, int intervalHours, int radius, int fallSeconds, long now) {
+        SupplyDropPool pool = getPool(poolName);
+        if (pool == null || intervalHours <= 0) return;
+        scheduledPoolName = pool.getName();
+        scheduleIntervalHours = Math.min(intervalHours, 24 * 365);
+        scheduleRadius = Math.max(0, radius);
+        scheduleFallSeconds = Math.max(0, fallSeconds);
+        nextScheduledDropAt = now + scheduleIntervalMillis();
+        setDirty();
+    }
+
+    public void clearSchedule() {
+        scheduledPoolName = null;
+        scheduleIntervalHours = 0;
+        scheduleRadius = 0;
+        scheduleFallSeconds = 0;
+        nextScheduledDropAt = 0L;
+        setDirty();
+    }
+
+    public boolean isScheduleEnabled() {
+        return scheduledPoolName != null && scheduleIntervalHours > 0;
+    }
+
+    @Nullable public String getScheduledPoolName() { return scheduledPoolName; }
+    public int getScheduleIntervalHours() { return scheduleIntervalHours; }
+    public int getScheduleRadius() { return scheduleRadius; }
+    public int getScheduleFallSeconds() { return scheduleFallSeconds; }
+    public long getNextScheduledDropAt() { return nextScheduledDropAt; }
+
+    public boolean isScheduleDue(long now) {
+        return isScheduleEnabled() && now >= nextScheduledDropAt;
+    }
+
+    public void advanceSchedule(long now) {
+        if (!isScheduleEnabled()) return;
+        nextScheduledDropAt = now + scheduleIntervalMillis();
+        setDirty();
+    }
+
+    private long scheduleIntervalMillis() {
+        return scheduleIntervalHours * 3_600_000L;
     }
 
     public void savePoolSlot(String poolName, int slotIndex, ItemStack stack) {
@@ -84,6 +136,11 @@ public class SupplyDropData extends SavedData {
             list.add(pool.save(registries));
         }
         tag.put("Pools", list);
+        if (scheduledPoolName != null) tag.putString("ScheduledPool", scheduledPoolName);
+        tag.putInt("ScheduleIntervalHours", scheduleIntervalHours);
+        tag.putInt("ScheduleRadius", scheduleRadius);
+        tag.putInt("ScheduleFallSeconds", scheduleFallSeconds);
+        tag.putLong("NextScheduledDropAt", nextScheduledDropAt);
         return tag;
     }
 
@@ -93,6 +150,18 @@ public class SupplyDropData extends SavedData {
         for (int i = 0; i < list.size(); i++) {
             SupplyDropPool pool = SupplyDropPool.load(list.getCompound(i), registries);
             data.pools.put(normalize(pool.getName()), pool);
+        }
+        if (tag.contains("ScheduledPool", Tag.TAG_STRING)) {
+            data.scheduledPoolName = tag.getString("ScheduledPool");
+        }
+        data.scheduleIntervalHours = Math.max(0, tag.getInt("ScheduleIntervalHours"));
+        data.scheduleRadius = Math.max(0, tag.getInt("ScheduleRadius"));
+        data.scheduleFallSeconds = Math.max(0, tag.getInt("ScheduleFallSeconds"));
+        data.nextScheduledDropAt = tag.getLong("NextScheduledDropAt");
+        if (data.getPool(data.scheduledPoolName) == null || data.scheduleIntervalHours <= 0) {
+            data.scheduledPoolName = null;
+            data.scheduleIntervalHours = 0;
+            data.nextScheduledDropAt = 0L;
         }
         return data;
     }

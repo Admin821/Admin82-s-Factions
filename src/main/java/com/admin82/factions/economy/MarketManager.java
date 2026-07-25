@@ -58,9 +58,14 @@ public class MarketManager extends SavedData {
         return listings.stream().filter(l -> l.sellerUUID.equals(playerUUID)).toList();
     }
 
-    /** Count of active listings by a player (used for slot limits). */
+    /** Count of active non-admin listings by a player (used for slot limits). */
     public int countPlayerListings(UUID playerUUID) {
-        return (int) listings.stream().filter(l -> l.sellerUUID.equals(playerUUID)).count();
+        return (int) listings.stream().filter(l -> l.sellerUUID.equals(playerUUID) && !l.isAdminListing()).count();
+    }
+
+    /** Count of active permanent server shop sell listings. */
+    public int countServerShopListings() {
+        return (int) listings.stream().filter(l -> l.kind == MarketListing.ListingKind.ADMIN_SELL).count();
     }
 
     // ── Sold listings (unclaimed proceeds) ─────────────────────────────

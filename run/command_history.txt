@@ -1,11 +1,3 @@
-/faction dobothwaysexchange true
-/gamemode creative Player2
-/faction list
-/faction set Player2 none
-/faction supplydrop loot
-/faction supplydrop spawn
-/tp -82 -63 66
-/gamemode spectator
 /effect give Dev minecraft:night_vision
 /gamemode survival
 /gamemode creative
@@ -48,3 +40,11 @@
 /gamemode creative
 /faction supplydrop spawn
 /gamemode spectator
+/gamemode creative
+/faction supplydrop spawn
+/gamemode spectator
+/gamemode creative
+/faction supplydrop spawn
+/gamemode spectator
+/gamemode survival
+/gamemode creative

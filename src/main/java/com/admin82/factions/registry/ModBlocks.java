@@ -2,6 +2,7 @@ package com.admin82.factions.registry;
 
 import com.admin82.factions.block.BarracksBlock;
 import com.admin82.factions.block.CarePackageBlock;
+import com.admin82.factions.block.CarePackageFillerBlock;
 import com.admin82.factions.block.CurrencyExchangeBlock;
 import com.admin82.factions.block.CurrencyExchangeFillerBlock;
 import com.admin82.factions.block.FactionTableBlock;
@@ -42,6 +43,18 @@ public class ModBlocks {
                             .strength(3.0f, 3_600_000.0f)
                             .sound(SoundType.WOOD)
                             .requiresCorrectToolForDrops()
+            )
+    );
+
+    public static final DeferredBlock<CarePackageFillerBlock> CARE_PACKAGE_FILLER = BLOCKS.register(
+            "carepackage_filler",
+            () -> new CarePackageFillerBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.WOOD)
+                            .strength(3.0f, 3_600_000.0f)
+                            .sound(SoundType.WOOD)
+                            .requiresCorrectToolForDrops()
+                            .noLootTable()
             )
     );
 

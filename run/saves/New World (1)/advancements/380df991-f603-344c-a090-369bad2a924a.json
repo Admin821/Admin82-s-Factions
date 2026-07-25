@@ -7,14 +7,17 @@
   },
   "minecraft:adventure/adventuring_time": {
     "criteria": {
+      "minecraft:beach": "2026-07-25 02:29:01 -0400",
       "minecraft:forest": "2026-06-30 11:31:43 -0400",
       "minecraft:sparse_jungle": "2026-06-30 05:17:13 -0400",
       "minecraft:jungle": "2026-06-30 05:17:05 -0400",
       "minecraft:ocean": "2026-07-21 13:16:03 -0400",
       "minecraft:deep_ocean": "2026-07-22 11:25:02 -0400",
       "minecraft:river": "2026-06-30 05:17:12 -0400",
+      "minecraft:lukewarm_ocean": "2026-07-25 02:14:14 -0400",
       "minecraft:birch_forest": "2026-07-21 13:35:20 -0400",
       "minecraft:dripstone_caves": "2026-07-21 02:57:42 -0400",
+      "minecraft:wooded_badlands": "2026-07-25 02:05:34 -0400",
       "minecraft:plains": "2026-07-21 13:16:18 -0400"
     },
     "done": false
