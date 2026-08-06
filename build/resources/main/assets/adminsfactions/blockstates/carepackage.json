@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "open=false": { "model": "adminsfactions:block/carepackage" },
-    "open=true": { "model": "adminsfactions:block/carepackage_opened" }
-  }
-}

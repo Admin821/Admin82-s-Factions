@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "adminsfactions:block/barracks" },
-    "facing=east": { "model": "adminsfactions:block/barracks", "y": 90 },
-    "facing=south": { "model": "adminsfactions:block/barracks", "y": 180 },
-    "facing=west": { "model": "adminsfactions:block/barracks", "y": 270 }
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "render_type": "cutout",
-  "textures": {
-    "particle": "adminsfactions:item/marketplace"
-  },
-  "elements": []
-}
