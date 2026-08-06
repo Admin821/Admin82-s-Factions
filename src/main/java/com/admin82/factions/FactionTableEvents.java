@@ -224,7 +224,7 @@ public class FactionTableEvents {
     public static void onBlockInteractProtection(PlayerInteractEvent.RightClickBlock event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         Player player = event.getEntity();
-        if (player.hasPermissions(2)) return;
+        //if (player.hasPermissions(2)) return;
 
         Faction owner = getProtectedClaimAt(level, event.getPos());
         if (owner == null) return;
@@ -355,7 +355,7 @@ public class FactionTableEvents {
 
         if (entity instanceof Player player) {
             // Covers fake players from automation/tech mods as well as real players
-            if (player.hasPermissions(2)) return;
+            //if (player.hasPermissions(2)) return;
             FactionMember m = owner.getMember(player.getUUID());
             if (m == null || !owner.getRolePermission(m.getRole(), FactionPermission.MEMBER_BUILD)) {
                 event.setCanceled(true);
