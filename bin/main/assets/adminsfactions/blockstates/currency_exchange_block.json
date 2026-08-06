@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "adminsfactions:block/currency_exchange_block", "y": 90 },
-    "facing=east": { "model": "adminsfactions:block/currency_exchange_block", "y": 180 },
-    "facing=south": { "model": "adminsfactions:block/currency_exchange_block", "y": 270 },
-    "facing=west": { "model": "adminsfactions:block/currency_exchange_block" }
-  }
-}
