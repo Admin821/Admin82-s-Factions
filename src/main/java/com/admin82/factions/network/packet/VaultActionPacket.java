@@ -6,6 +6,7 @@ import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.faction.FactionMember;
 import com.admin82.factions.faction.FactionPermission;
 import com.admin82.factions.faction.FactionRole;
+import com.admin82.factions.util.BypassManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
@@ -87,7 +88,7 @@ public record VaultActionPacket(Action action, long amount) implements CustomPac
                     // Check permission
                     FactionMember member = faction.getMember(sp.getUUID());
                     boolean canWithdraw = faction.getOwnerId().equals(sp.getUUID())
-                            || sp.hasPermissions(2)
+                            || BypassManager.isBypassing(sp.getUUID())
                             || (member != null && faction.getRolePermission(member.getRole(), FactionPermission.VAULT_WITHDRAW));
                     if (!canWithdraw) {
                         sp.displayClientMessage(Component.literal("§cYou don't have permission to withdraw from the vault."), true);

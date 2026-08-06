@@ -14,6 +14,7 @@ import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.item.TemporaryMoveItem;
 import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.outpost.OutpostEntry;
+import com.admin82.factions.util.BypassManager;
 import com.admin82.factions.war.ResourceWarAccess;
 import com.admin82.factions.war.WarManager;
 import net.minecraft.core.BlockPos;
@@ -57,7 +58,7 @@ public class FactionTableEvents {
                 UUID linkedId = mainBe.getLinkedFactionId();
                 if (linkedId != null && FactionManager.get(level).getFaction(linkedId) != null) {
                     Player player = event.getPlayer();
-                    if (player.hasPermissions(2)) {
+                    if (BypassManager.isBypassing(player.getUUID())) {
                         FactionCommands.performDisband(level.getServer(), linkedId,
                                 Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
                     } else {
@@ -78,7 +79,7 @@ public class FactionTableEvents {
             if (linkedId == null) return;
             if (FactionManager.get(level).getFaction(linkedId) == null) return;
             Player player = event.getPlayer();
-                if (player.hasPermissions(2)) {
+                if (BypassManager.isBypassing(player.getUUID())) {
                 FactionCommands.performDisband(level.getServer(), linkedId,
                     Component.literal("§cThe Faction Table was destroyed by an admin — faction has been disbanded."));
                 return;
@@ -118,7 +119,7 @@ public class FactionTableEvents {
         if (!(level.getBlockEntity(managerPos) instanceof OutpostManagerBlockEntity)) return;
 
         Player player = event.getPlayer();
-        if (!player.hasPermissions(2)) {
+        if (!BypassManager.isBypassing(player.getUUID())) {
             event.setCanceled(true);
             player.displayClientMessage(
                     Component.literal("§cOutpost blocks cannot be broken. Only server operators may remove them."), true);
@@ -224,7 +225,7 @@ public class FactionTableEvents {
     public static void onBlockInteractProtection(PlayerInteractEvent.RightClickBlock event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         Player player = event.getEntity();
-        //if (player.hasPermissions(2)) return;
+        if(BypassManager.isBypassing(player.getUUID())) return;
 
         Faction owner = getProtectedClaimAt(level, event.getPos());
         if (owner == null) return;
@@ -355,7 +356,7 @@ public class FactionTableEvents {
 
         if (entity instanceof Player player) {
             // Covers fake players from automation/tech mods as well as real players
-            //if (player.hasPermissions(2)) return;
+            if (BypassManager.isBypassing(player.getUUID())) return;
             FactionMember m = owner.getMember(player.getUUID());
             if (m == null || !owner.getRolePermission(m.getRole(), FactionPermission.MEMBER_BUILD)) {
                 event.setCanceled(true);
@@ -379,7 +380,6 @@ public class FactionTableEvents {
 
         Entity entity = event.getEntity();
         if (entity instanceof Player player) {
-            if (player.hasPermissions(2)) return;
             if (owner.getMember(player.getUUID()) != null) return; // members can run freely
         }
         event.setCanceled(true);

@@ -10,6 +10,7 @@ import com.admin82.factions.network.packet.OpenKitSelectionPacket;
 import com.admin82.factions.network.packet.SyncContainerHighlightsPacket;
 import com.admin82.factions.network.packet.SyncWarStatePacket;
 import com.admin82.factions.network.packet.WageWarPacket;
+import com.admin82.factions.util.BypassManager;
 import com.admin82.factions.war.ActiveWar;
 import com.admin82.factions.war.ResourceWarAccess;
 import com.admin82.factions.war.WarManager;
@@ -77,7 +78,7 @@ public class FactionWarEvents {
         if (playerFaction != null && playerFaction.getId().equals(claimerId)) return;
 
         // Check ops (server admins bypass protection)
-        if (player.hasPermissions(2)) return;
+        if(BypassManager.isBypassing(player.getUUID())) return;
 
         EconomyManager eco = EconomyManager.get(level.getServer());
 

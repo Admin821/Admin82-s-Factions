@@ -46,6 +46,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.admin82.factions.util.BypassManager.toggleBypass;
+
 @EventBusSubscriber(modid = AdminsFactions.MODID)
 public class FactionCommands {
 
@@ -282,6 +284,12 @@ public class FactionCommands {
                         .executes(ctx -> cmdReturnCombatTime(
                                 ctx.getSource(),
                                 IntegerArgumentType.getInteger(ctx, "seconds")))))
+
+                // /faction Bypass
+                .then(Commands.literal("Bypass"))
+                    .requires(src -> src.hasPermission(2))
+                    .executes(ctx -> toggleBypass(ctx.getSource().getPlayer().getUUID()))
+
         );
         // /factionreturn — teleports any faction member to their barracks (no op needed)
         event.getDispatcher().register(
