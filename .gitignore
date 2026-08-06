@@ -1,8 +1,8 @@
-runs/
-run/
-build/
-.gradle/
-.idea/
-bin/
-com/
-net/
+/runs/
+/run/
+/build/
+/.gradle/
+/.idea/
+/bin/
+/com/
+/net/
