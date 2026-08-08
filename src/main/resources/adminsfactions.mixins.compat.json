@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "com.admin82.factions.mixin.compat",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "com.admin82.factions.mixin.compat.CompatMixinPlugin",
+  "mixins": [
+    "Create.BlockBreakingMovementBehaviorMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
