@@ -13,6 +13,7 @@ import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.outpost.OutpostEntry;
 import com.admin82.factions.registry.ModItems;
 import com.admin82.factions.supplydrop.SupplyDropData;
+import com.admin82.factions.util.BypassManager;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -30,6 +31,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -286,9 +288,17 @@ public class FactionCommands {
                                 IntegerArgumentType.getInteger(ctx, "seconds")))))
 
                 // /faction Bypass
-                .then(Commands.literal("Bypass"))
+                .then(Commands.literal("Bypass")
                     .requires(src -> src.hasPermission(2))
-                    .executes(ctx -> toggleBypass(ctx.getSource().getPlayer().getUUID()))
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if(BypassManager.isBypassing(player.getUUID())){
+                            ctx.getSource().sendSuccess(() -> Component.literal("Bypass Dissabled"), true);
+                        } else {
+                            ctx.getSource().sendSuccess(() -> Component.literal("Bypass Enabled"), true);
+                        }
+                        return toggleBypass(player.getUUID());
+                    }))
 
         );
         // /factionreturn — teleports any faction member to their barracks (no op needed)
