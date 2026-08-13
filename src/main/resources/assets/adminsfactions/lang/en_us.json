@@ -7,6 +7,9 @@
   "block.adminsfactions.market_block":         "Market",
   "block.adminsfactions.currency_exchange_block": "Currency Exchange",
   "block.adminsfactions.outpost_manager":      "Outpost Manager",
+  "block.adminsfactions.monument_controller":  "Monument Controller",
+  "block.adminsfactions.monument_crate":       "Monument Loot Crate",
+  "block.adminsfactions.ore_generator":        "Ore Generator",
 
   "item.adminsfactions.faction_table":            "Faction Table",
   "item.adminsfactions.barracks":                 "Barracks",
@@ -17,6 +20,9 @@
   "item.adminsfactions.silver_coin":              "Silver Coin",
   "item.adminsfactions.gold_coin":                "Gold Coin",
   "item.adminsfactions.platinum_coin":            "Platinum Coin",
+  "item.adminsfactions.monument_controller":      "Monument Controller",
+  "item.adminsfactions.monument_crate":           "Monument Loot Crate",
+  "item.adminsfactions.ore_generator":            "Ore Generator",
 
   "gui.adminsfactions.faction_table": "Faction Table",
   "gui.adminsfactions.barracks":      "Barracks",

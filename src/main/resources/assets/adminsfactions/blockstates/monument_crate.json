@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "type=supply": { "model": "adminsfactions:block/monument_crate_supply" },
+    "type=ammo": { "model": "adminsfactions:block/monument_crate_ammo" },
+    "type=gun": { "model": "adminsfactions:block/monument_crate_gun" }
+  }
+}

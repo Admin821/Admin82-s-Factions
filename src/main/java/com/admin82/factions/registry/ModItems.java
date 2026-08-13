@@ -43,6 +43,12 @@ public class ModItems {
     public static final DeferredItem<BlockItem> CURRENCY_EXCHANGE_BLOCK =
             ITEMS.register("currency_exchange_block", () -> new TooltipBlockItem(ModBlocks.CURRENCY_EXCHANGE.get(), new Item.Properties(),
                     "tooltip.adminsfactions.currency_exchange_block"));
+    public static final DeferredItem<BlockItem> MONUMENT_CONTROLLER =
+            ITEMS.register("monument_controller", () -> new BlockItem(ModBlocks.MONUMENT_CONTROLLER.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> MONUMENT_CRATE =
+            ITEMS.register("monument_crate", () -> new BlockItem(ModBlocks.MONUMENT_CRATE.get(), new Item.Properties()));
+    public static final DeferredItem<BlockItem> ORE_GENERATOR =
+            ITEMS.register("ore_generator", () -> new BlockItem(ModBlocks.ORE_GENERATOR.get(), new Item.Properties()));
 
     // ── Outpost ───────────────────────────────────────────────────────────────
     public static final DeferredItem<OutpostItem> OUTPOST =

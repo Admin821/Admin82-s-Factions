@@ -3,6 +3,8 @@ package com.admin82.factions.registry;
 import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.CarePackageBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.blockentity.MonumentControllerBlockEntity;
+import com.admin82.factions.blockentity.MonumentCrateBlockEntity;
 import com.admin82.factions.blockentity.OutpostManagerBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -43,4 +45,12 @@ public class ModBlockEntities {
                             .of(OutpostManagerBlockEntity::new, ModBlocks.OUTPOST_MANAGER.get())
                             .build(null)
             );
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MonumentControllerBlockEntity>> MONUMENT_CONTROLLER =
+            BLOCK_ENTITIES.register("monument_controller", () -> BlockEntityType.Builder
+                    .of(MonumentControllerBlockEntity::new, ModBlocks.MONUMENT_CONTROLLER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MonumentCrateBlockEntity>> MONUMENT_CRATE =
+            BLOCK_ENTITIES.register("monument_crate", () -> BlockEntityType.Builder
+                    .of(MonumentCrateBlockEntity::new, ModBlocks.MONUMENT_CRATE.get()).build(null));
 }

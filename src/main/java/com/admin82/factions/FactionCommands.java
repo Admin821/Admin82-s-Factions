@@ -6,7 +6,10 @@ import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.economy.ExchangeManager;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
+import com.admin82.factions.menu.MonumentMenu;
 import com.admin82.factions.menu.SupplyDropMenu;
+import com.admin82.factions.monument.MonumentData;
+import com.admin82.factions.monument.MonumentEntry;
 import com.admin82.factions.network.packet.SyncFactionDataPacket;
 import com.admin82.factions.network.packet.SyncEconomyPacket;
 import com.admin82.factions.outpost.OutpostData;
@@ -42,6 +45,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import com.admin82.factions.war.WarManager;
 import com.admin82.factions.war.VassalManager;
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
@@ -287,6 +291,7 @@ public class FactionCommands {
                                 ctx.getSource(),
                                 IntegerArgumentType.getInteger(ctx, "seconds")))))
 
+<<<<<<< Updated upstream
                 // /faction Bypass
                 .then(Commands.literal("Bypass")
                     .requires(src -> src.hasPermission(2))
@@ -299,12 +304,83 @@ public class FactionCommands {
                         }
                         return toggleBypass(player.getUUID());
                     }))
+=======
+                .then(monumentCommand())
+
+                // /faction bypass
+                .then(Commands.literal("bypass")
+                    .requires(src -> src.hasPermission(2))
+                    .executes(ctx -> cmdToggleBypass(ctx.getSource())))
+>>>>>>> Stashed changes
 
         );
         // /factionreturn — teleports any faction member to their barracks (no op needed)
         event.getDispatcher().register(
                 Commands.literal("factionreturn")
                         .executes(ctx -> cmdReturnToBase(ctx.getSource())));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> monumentCommand() {
+        return Commands.literal("monument")
+                .executes(ctx -> cmdMonumentList(ctx.getSource()))
+                .then(Commands.literal("edit")
+                        .requires(src -> src.hasPermission(2))
+                    .executes(ctx -> cmdMonumentEdit(ctx.getSource())));
+    }
+
+    private static int cmdToggleBypass(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        boolean enabled = toggleBypass(source.getPlayer().getUUID()) == 1;
+        source.sendSuccess(() -> Component.literal(enabled
+                ? "§aFaction protection bypass enabled."
+                : "§eFaction protection bypass disabled."), false);
+        return 1;
+    }
+
+            private static int cmdMonumentEdit(CommandSourceStack src) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal("§cOnly players can open the monument editor."));
+            return 0;
+        }
+        MonumentData data = MonumentData.get(src.getServer());
+        var factionManager = FactionManager.get(src.getServer());
+        var views = data.getAll().stream().map(entry ->
+                com.admin82.factions.monument.MonumentView.from(entry, factionManager, false))
+                .sorted(java.util.Comparator.comparing(com.admin82.factions.monument.MonumentView::name,
+                        String.CASE_INSENSITIVE_ORDER)).toList();
+        player.openMenu(new SimpleMenuProvider(
+                (id, inventory, ignored) -> new MonumentMenu(id, inventory, views, null),
+                Component.literal("Monument Administration")), buf -> {
+            buf.writeVarInt(views.size());
+            views.forEach(view -> view.write(buf));
+            buf.writeBoolean(false);
+        });
+        return 1;
+    }
+
+    private static int cmdMonumentList(CommandSourceStack src) {
+        var monuments = MonumentData.get(src.getServer()).getAll();
+        if (monuments.isEmpty()) {
+            src.sendSuccess(() -> Component.literal("§7No monuments have been created."), false);
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("§6§l── Monuments (" + monuments.size() + ") ──"), false);
+        for (MonumentEntry monument : monuments) {
+            long seconds = Math.max(0L, Math.round(monument.getRemainingRespawnTicks() / 20.0));
+            boolean occupied = src.getServer().getPlayerList().getPlayers().stream().anyMatch(player ->
+                    monument.contains(player.blockPosition(), player.level().dimension().location().toString()));
+            String timer = occupied ? "§cPaused (occupied)" : "§a" + formatDuration(seconds);
+            src.sendSuccess(() -> Component.literal("§e" + monument.getName() + " §7[Tier " + monument.getTier()
+                    + "] §f" + monument.controllerPos.getX() + ", " + monument.controllerPos.getY() + ", "
+                    + monument.controllerPos.getZ() + " §8(" + monument.dimension + ") §7Loot: " + timer), false);
+        }
+        return monuments.size();
+    }
+
+    private static String formatDuration(long totalSeconds) {
+        long hours = totalSeconds / 3600;
+        long minutes = totalSeconds % 3600 / 60;
+        long seconds = totalSeconds % 60;
+        return hours > 0 ? hours + "h " + minutes + "m" : minutes > 0 ? minutes + "m " + seconds + "s" : seconds + "s";
     }
 
     // ── /faction list ─────────────────────────────────────────────────────────

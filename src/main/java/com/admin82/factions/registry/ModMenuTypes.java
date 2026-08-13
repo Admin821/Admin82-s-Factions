@@ -4,6 +4,7 @@ import com.admin82.factions.menu.BarracksMenu;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.admin82.factions.menu.FactionTableMenu;
 import com.admin82.factions.menu.MarketMenu;
+import com.admin82.factions.menu.MonumentMenu;
 import com.admin82.factions.menu.SupplyDropMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
@@ -42,4 +43,7 @@ public class ModMenuTypes {
             MENUS.register("supply_drop", () ->
                     IMenuTypeExtension.create((id, inv, buf) -> new SupplyDropMenu(id, inv, buf))
             );
+
+        public static final DeferredHolder<MenuType<?>, MenuType<MonumentMenu>> MONUMENT =
+                        MENUS.register("monument", () -> IMenuTypeExtension.create(MonumentMenu::new));
 }

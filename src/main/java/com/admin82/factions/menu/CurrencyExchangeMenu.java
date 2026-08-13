@@ -21,6 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
@@ -82,6 +83,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         this.pos  = pos;
         this.isOp = false;
         this.bothWaysExchange = false;
+        addInventorySlots(inv);
         if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
     }
 
@@ -92,7 +94,14 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         this.bothWaysExchange = buf.readBoolean();
         int count = buf.readVarInt();
         for (int i = 0; i < count; i++) rates.put(buf.readUtf(256), buf.readLong());
+        addInventorySlots(inv);
         if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(buildUI(inv.player));
+    }
+
+    private void addInventorySlots(Inventory inventory) {
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            addSlot(new Slot(inventory, slot, -10000, -10000));
+        }
     }
 
     @Override public ItemStack quickMoveStack(Player p, int i) { return ItemStack.EMPTY; }

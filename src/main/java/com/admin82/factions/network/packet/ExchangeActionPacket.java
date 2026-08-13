@@ -104,6 +104,7 @@ public record ExchangeActionPacket(
         long totalCopper = ratePerItem * stack.getCount();
         sp.getInventory().setItem(slot, ItemStack.EMPTY);
         EconomyManager.giveCopperToInventory(sp, totalCopper);
+        syncInventory(sp);
         sp.displayClientMessage(
                 Component.literal("§aExchanged §e" + stack.getCount() + "x §f"
                         + stack.getHoverName().getString()
@@ -140,9 +141,14 @@ public record ExchangeActionPacket(
         if (!sp.getInventory().add(stack)) {
             sp.drop(stack, false);
         }
-        sp.inventoryMenu.broadcastChanges();
+        syncInventory(sp);
         sp.displayClientMessage(Component.literal("§aBought §e1x §f"
                 + stack.getHoverName().getString() + " §afor §e" + Currency.format(ratePerItem)), true);
+    }
+
+    private static void syncInventory(ServerPlayer player) {
+        player.inventoryMenu.broadcastChanges();
+        if (player.containerMenu != player.inventoryMenu) player.containerMenu.broadcastChanges();
     }
 
     private static void handleSetRate(ServerPlayer sp, String itemId, long rateCopper) {

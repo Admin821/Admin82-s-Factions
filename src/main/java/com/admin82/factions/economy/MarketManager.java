@@ -19,9 +19,12 @@ import java.util.*;
 public class MarketManager extends SavedData {
 
     private static final String DATA_NAME = "adminsfactions_market";
+    private static final long REMINDER_INTERVAL_MS = 3_600_000L;
 
     private final List<MarketListing> listings     = new ArrayList<>();
     private final List<SoldListing>   soldListings  = new ArrayList<>();
+    private final List<MarketDelivery> pendingDeliveries = new ArrayList<>();
+    private final Map<UUID, Long> lastReminderAt = new HashMap<>();
 
     // ── Singleton ─────────────────────────────────────────────────────────────
 
@@ -72,6 +75,7 @@ public class MarketManager extends SavedData {
 
     public void addSoldListing(SoldListing sale) {
         soldListings.add(sale);
+        lastReminderAt.put(sale.sellerUUID, System.currentTimeMillis());
         setDirty();
     }
 
@@ -81,8 +85,86 @@ public class MarketManager extends SavedData {
 
     public boolean claimSoldListing(UUID saleId) {
         boolean removed = soldListings.removeIf(s -> s.saleId.equals(saleId));
-        if (removed) setDirty();
+        if (removed) {
+            cleanReminderState();
+            setDirty();
+        }
         return removed;
+    }
+
+    public void queueDelivery(UUID playerUUID, ItemStack item, String reason) {
+        if (item.isEmpty()) return;
+        MarketDelivery delivery = new MarketDelivery();
+        delivery.deliveryId = UUID.randomUUID();
+        delivery.playerUUID = playerUUID;
+        delivery.item = item.copy();
+        delivery.reason = reason;
+        delivery.createdAt = System.currentTimeMillis();
+        pendingDeliveries.add(delivery);
+        lastReminderAt.put(playerUUID, System.currentTimeMillis());
+        setDirty();
+    }
+
+    public List<MarketDelivery> getDeliveriesForPlayer(UUID playerUUID) {
+        return pendingDeliveries.stream().filter(delivery -> delivery.playerUUID.equals(playerUUID)).toList();
+    }
+
+    public boolean claimDelivery(ServerPlayer player, UUID deliveryId) {
+        MarketDelivery delivery = pendingDeliveries.stream()
+                .filter(candidate -> candidate.deliveryId.equals(deliveryId)
+                        && candidate.playerUUID.equals(player.getUUID()))
+                .findFirst().orElse(null);
+        if (delivery == null) return false;
+        deliverToInventory(player, delivery.item);
+        pendingDeliveries.remove(delivery);
+        cleanReminderState();
+        setDirty();
+        return true;
+    }
+
+    public void notifyLoginSummary(ServerPlayer player) {
+        if (sendClaimSummary(player, "§e[Market] While you were away:")) {
+            lastReminderAt.put(player.getUUID(), System.currentTimeMillis());
+            setDirty();
+        }
+    }
+
+    public void processClaimReminders(MinecraftServer server) {
+        long now = System.currentTimeMillis();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            UUID playerId = player.getUUID();
+            if (!hasPendingClaims(playerId)) continue;
+            if (now - lastReminderAt.getOrDefault(playerId, 0L) < REMINDER_INTERVAL_MS) continue;
+            if (sendClaimSummary(player, "§e[Market] Unclaimed items reminder:")) {
+                lastReminderAt.put(playerId, now);
+                setDirty();
+            }
+        }
+    }
+
+    private boolean sendClaimSummary(ServerPlayer player, String prefix) {
+        List<SoldListing> sales = getSoldListingsForPlayer(player.getUUID());
+        int deliveries = getDeliveriesForPlayer(player.getUUID()).size();
+        if (sales.isEmpty() && deliveries == 0) return false;
+        long proceeds = sales.stream().mapToLong(sale -> sale.proceeds).sum();
+        String salesText = sales.isEmpty() ? ""
+                : " §a" + sales.size() + " sale" + (sales.size() == 1 ? "" : "s")
+                + " worth §e" + Currency.format(proceeds) + "§a";
+        String deliveryText = deliveries == 0 ? ""
+                : (sales.isEmpty() ? "" : " §7and") + " §b" + deliveries + " pending purchase"
+                + (deliveries == 1 ? "" : "s");
+        player.displayClientMessage(Component.literal(prefix + salesText + deliveryText
+                + "§7. Open a Faction Market and use §fMy Listings §7to claim."), false);
+        return true;
+    }
+
+    private boolean hasPendingClaims(UUID playerId) {
+        return soldListings.stream().anyMatch(sale -> sale.sellerUUID.equals(playerId))
+                || pendingDeliveries.stream().anyMatch(delivery -> delivery.playerUUID.equals(playerId));
+    }
+
+    private void cleanReminderState() {
+        lastReminderAt.keySet().removeIf(playerId -> !hasPendingClaims(playerId));
     }
 
     /**
@@ -114,7 +196,7 @@ public class MarketManager extends SavedData {
 
                 String buyerName = resolvePlayerName(server, listing.highestBidder);
                 SoldListing sale = makeSoldListing(listing.sellerUUID, listing.item, buyerName, proceeds);
-                soldListings.add(sale);
+                addSoldListing(sale);
 
                 // Notify seller if online
                 ServerPlayer seller = server.getPlayerList().getPlayer(listing.sellerUUID);
@@ -141,15 +223,23 @@ public class MarketManager extends SavedData {
         }
     }
 
-    /** Deliver an item to a player; drops at their feet if inventory is full. */
-    private static void deliverItem(MinecraftServer server, UUID playerUUID, ItemStack item) {
+    /** Deliver now when online, otherwise persist the item until the player logs in. */
+    public void deliverItem(MinecraftServer server, UUID playerUUID, ItemStack item) {
+        if (item.isEmpty()) return;
         ServerPlayer player = server.getPlayerList().getPlayer(playerUUID);
-        if (player != null) {
-            if (!player.getInventory().add(item.copy())) {
-                player.drop(item.copy(), false);
-            }
+        if (player == null) {
+            queueDelivery(playerUUID, item, "Market Delivery");
+            return;
         }
-        // If offline, item is lost (simplification — could add a mailbox system later)
+        deliverToInventory(player, item);
+    }
+
+    private static void deliverToInventory(ServerPlayer player, ItemStack item) {
+        ItemStack remaining = item.copy();
+        player.getInventory().add(remaining);
+        if (!remaining.isEmpty()) player.drop(remaining, false);
+        player.inventoryMenu.broadcastChanges();
+        if (player.containerMenu != player.inventoryMenu) player.containerMenu.broadcastChanges();
     }
 
     private static SoldListing makeSoldListing(UUID sellerUUID, ItemStack item,
@@ -185,6 +275,17 @@ public class MarketManager extends SavedData {
         var sold = new ListTag();
         for (var sale : soldListings) sold.add(sale.save(reg));
         tag.put("soldListings", sold);
+        var pending = new ListTag();
+        pendingDeliveries.forEach(delivery -> pending.add(delivery.save(reg)));
+        tag.put("pendingDeliveries", pending);
+        var reminders = new ListTag();
+        lastReminderAt.forEach((playerId, timestamp) -> {
+            var reminder = new CompoundTag();
+            reminder.putUUID("player", playerId);
+            reminder.putLong("timestamp", timestamp);
+            reminders.add(reminder);
+        });
+        tag.put("marketReminders", reminders);
         return tag;
     }
 
@@ -194,6 +295,21 @@ public class MarketManager extends SavedData {
         for (int i = 0; i < list.size(); i++) manager.listings.add(MarketListing.load(list.getCompound(i), reg));
         var sold = tag.getList("soldListings", Tag.TAG_COMPOUND);
         for (int i = 0; i < sold.size(); i++) manager.soldListings.add(SoldListing.load(sold.getCompound(i), reg));
+        var pending = tag.getList("pendingDeliveries", Tag.TAG_COMPOUND);
+        for (int i = 0; i < pending.size(); i++) {
+            CompoundTag delivery = pending.getCompound(i);
+                if (!delivery.hasUUID("player") && !delivery.hasUUID("buyer")) continue;
+                MarketDelivery loaded = MarketDelivery.load(delivery, reg);
+                if (!loaded.item.isEmpty()) manager.pendingDeliveries.add(loaded);
+        }
+        var reminders = tag.getList("marketReminders", Tag.TAG_COMPOUND);
+        for (int i = 0; i < reminders.size(); i++) {
+            CompoundTag reminder = reminders.getCompound(i);
+            if (reminder.hasUUID("player")) {
+                manager.lastReminderAt.put(reminder.getUUID("player"), reminder.getLong("timestamp"));
+            }
+        }
+        manager.cleanReminderState();
         return manager;
     }
 }

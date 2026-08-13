@@ -34,6 +34,10 @@ public class ModPackets {
         registrar.playToServer(ExchangeActionPacket.TYPE, ExchangeActionPacket.STREAM_CODEC, ExchangeActionPacket::handle);
         registrar.playToServer(VaultActionPacket.TYPE, VaultActionPacket.STREAM_CODEC, VaultActionPacket::handle);
         registrar.playToServer(SupplyDropActionPacket.TYPE, SupplyDropActionPacket.STREAM_CODEC, SupplyDropActionPacket::handle);
+        registrar.playToServer(MonumentActionPacket.TYPE, MonumentActionPacket.STREAM_CODEC, MonumentActionPacket::handle);
+        registrar.playToServer(MonumentLootActionPacket.TYPE, MonumentLootActionPacket.STREAM_CODEC, MonumentLootActionPacket::handle);
+        registrar.playToClient(SyncMonumentsPacket.TYPE, SyncMonumentsPacket.STREAM_CODEC, SyncMonumentsPacket::handle);
+        registrar.playToClient(SyncMonumentLootPacket.TYPE, SyncMonumentLootPacket.STREAM_CODEC, SyncMonumentLootPacket::handle);
 
         // War: Client → Server
         registrar.playToServer(WageWarPacket.TYPE, WageWarPacket.STREAM_CODEC, WageWarPacket::handle);
@@ -66,6 +70,7 @@ public class ModPackets {
         registrar.playToClient(SyncEconomyPacket.TYPE, SyncEconomyPacket.STREAM_CODEC, SyncEconomyPacket::handle);
         registrar.playToClient(SyncMarketPacket.TYPE, SyncMarketPacket.STREAM_CODEC, SyncMarketPacket::handle);
         registrar.playToClient(SyncSoldListingsPacket.TYPE, SyncSoldListingsPacket.STREAM_CODEC, SyncSoldListingsPacket::handle);
+        registrar.playToClient(SyncMarketDeliveriesPacket.TYPE, SyncMarketDeliveriesPacket.STREAM_CODEC, SyncMarketDeliveriesPacket::handle);
         registrar.playToClient(SyncResourceWarAccessPacket.TYPE, SyncResourceWarAccessPacket.STREAM_CODEC, SyncResourceWarAccessPacket::handle);
         registrar.playToClient(SyncSupplyDropPacket.TYPE, SyncSupplyDropPacket.STREAM_CODEC, SyncSupplyDropPacket::handle);
         registrar.playToClient(SyncSupplyDropSettingsPacket.TYPE, SyncSupplyDropSettingsPacket.STREAM_CODEC, SyncSupplyDropSettingsPacket::handle);

@@ -1,6 +1,7 @@
 package com.admin82.factions.menu;
 
 import com.admin82.factions.economy.Currency;
+import com.admin82.factions.economy.MarketDelivery;
 import com.admin82.factions.economy.MarketListing;
 import com.admin82.factions.economy.SoldListing;
 import com.admin82.factions.network.packet.MarketActionPacket;
@@ -23,6 +24,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
@@ -54,6 +56,7 @@ public class MarketMenu extends AbstractContainerMenu {
     // ── Server-pushed data ────────────────────────────────────────────────────
     private final AtomicReference<List<MarketListing>> listingsRef    = new AtomicReference<>(List.of());
     private final AtomicReference<List<SoldListing>>   soldRef        = new AtomicReference<>(List.of());
+    private final AtomicReference<List<MarketDelivery>> deliveriesRef = new AtomicReference<>(List.of());
     private final AtomicLong    walletRef       = new AtomicLong(0L);
     private final AtomicInteger myListingsCount = new AtomicInteger(0);
     private final AtomicInteger maxSlotsRef     = new AtomicInteger(1);
@@ -107,11 +110,18 @@ public class MarketMenu extends AbstractContainerMenu {
     public MarketMenu(int containerId, Inventory inv, BlockPos pos) {
         super(ModMenuTypes.MARKET.get(), containerId);
         this.pos = pos;
+        addInventorySlots(inv);
         if (FMLEnvironment.dist == Dist.CLIENT && this instanceof IModularUIHolderMenu h) h.setModularUI(createModularUI(inv.player));
     }
 
     public MarketMenu(int containerId, Inventory inv, FriendlyByteBuf buf) {
         this(containerId, inv, buf.readBlockPos());
+    }
+
+    private void addInventorySlots(Inventory inventory) {
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            addSlot(new Slot(inventory, slot, -10000, -10000));
+        }
     }
 
     // ── Public sync API ───────────────────────────────────────────────────────
@@ -134,6 +144,13 @@ public class MarketMenu extends AbstractContainerMenu {
 
     public void updateSoldListings(List<SoldListing> sold) {
         soldRef.set(sold);
+        if (currentTab == Tab.MY_LISTINGS && createStep == CreateStep.LIST && myListArea != null) {
+            myListArea.clearAllChildren(); fillMyList(myListArea);
+        }
+    }
+
+    public void updateDeliveries(List<MarketDelivery> deliveries) {
+        deliveriesRef.set(deliveries);
         if (currentTab == Tab.MY_LISTINGS && createStep == CreateStep.LIST && myListArea != null) {
             myListArea.clearAllChildren(); fillMyList(myListArea);
         }
@@ -523,6 +540,29 @@ public class MarketMenu extends AbstractContainerMenu {
         var mc = Minecraft.getInstance();
         UUID myId = mc.player != null ? mc.player.getUUID() : null;
 
+        var allDeliveries = deliveriesRef.get().stream()
+            .filter(delivery -> myId != null && myId.equals(delivery.playerUUID)).toList();
+        var deliveries = allDeliveries.stream().limit(5).toList();
+        if (!deliveries.isEmpty()) area.addChildren(new Label().setText(
+            "§6§lPending Purchases §7(" + allDeliveries.size() + ") §8- claim at this market"));
+        for (MarketDelivery delivery : deliveries) {
+            var row = new UIElement();
+            row.layout(r -> r.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(22).width(440));
+            var icon = new ItemSlot(); icon.setItem(delivery.item); icon.layout(r -> r.width(20).height(20));
+            row.addChildren(
+                icon,
+                itemNameLabel(delivery.item, 180),
+                new Label().setText("§7" + delivery.reason).layout(r -> r.width(105)),
+                new Button().setText("§aClaim").setOnClick(event -> PacketDistributor.sendToServer(
+                    new MarketActionPacket(MarketActionPacket.Action.CLAIM_DELIVERY,
+                        delivery.deliveryId, -1, 0, 0, false)))
+                    .layout(r -> r.width(52).height(20)));
+            area.addChildren(row);
+        }
+        if (!deliveries.isEmpty()) {
+            area.addChildren(new Label().setText("§8─────────────────────────────────────────────"));
+        }
+
         // ── Sold listings (unclaimed proceeds) ─────────────────────────────────
         var mySold = soldRef.get().stream()
                 .filter(s -> myId != null && myId.equals(s.sellerUUID)).toList();
@@ -550,7 +590,7 @@ public class MarketMenu extends AbstractContainerMenu {
         // ── Active listings ────────────────────────────────────────────────────
         var mine = listingsRef.get().stream()
             .filter(l -> myId != null && myId.equals(l.sellerUUID) && !l.isAdminListing()).toList();
-        if (mine.isEmpty() && mySold.isEmpty()) {
+        if (mine.isEmpty() && mySold.isEmpty() && deliveries.isEmpty()) {
             area.addChildren(new Label().setText("§7No active listings. Click §aCreate New Listing§7 below."));
             return;
         }

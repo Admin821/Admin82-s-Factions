@@ -13,6 +13,13 @@ import java.util.Random;
 
 public class SupplyDropPool {
     public static final int SLOT_COUNT = 54;
+    private static final double[] APPEARANCE_CHANCES = {
+        100.0, 90.0, 80.0, 70.0, 60.0, 50.0, 25.0, 10.0, 5.0, 1.0, 0.1
+    };
+    private static final String[] RARITY_NAMES = {
+        "Common", "Common", "Uncommon", "Uncommon", "Rare", "Rare",
+        "Epic", "Epic", "Legendary", "Mythic", "Rarest"
+    };
 
     private final String name;
     private final ItemStack[] slots = new ItemStack[SLOT_COUNT];
@@ -65,6 +72,19 @@ public class SupplyDropPool {
         return index < 0 || index >= SLOT_COUNT ? 0 : rarityLevels[index];
     }
 
+    public static double getAppearanceChance(int rarityLevel) {
+        return APPEARANCE_CHANCES[Math.max(0, Math.min(10, rarityLevel))];
+    }
+
+    public static String getAppearanceChanceText(int rarityLevel) {
+        double chance = getAppearanceChance(rarityLevel);
+        return chance < 1.0 ? "0.1%" : (int) chance + "%";
+    }
+
+    public static String getRarityName(int rarityLevel) {
+        return RARITY_NAMES[Math.max(0, Math.min(10, rarityLevel))];
+    }
+
     public int[] getMinCountsCopy() {
         return Arrays.copyOf(minCounts, SLOT_COUNT);
     }
@@ -99,7 +119,7 @@ public class SupplyDropPool {
         for (int i = 0; i < SLOT_COUNT; i++) {
             ItemStack base = getSlot(i);
             if (base.isEmpty()) continue;
-            if (random.nextInt(11) < getRarityLevel(i)) continue;
+            if (random.nextDouble() * 100.0 >= getAppearanceChance(getRarityLevel(i))) continue;
             int min = getMinCount(i);
             int max = Math.max(min, getMaxCount(i));
             int count = min + random.nextInt(max - min + 1);

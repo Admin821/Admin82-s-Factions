@@ -510,23 +510,15 @@ public class SupplyDropMenu extends AbstractContainerMenu {
         panel.addChildren(
                 new Label().setText("§6§lRarity Table"),
                 new Label().setText("§8Chance an item appears"),
-                rarityRow("0", "Common", "100%"),
-                rarityRow("1", "Common", "91%"),
-                rarityRow("2", "Uncommon", "82%"),
-                rarityRow("3", "Uncommon", "73%"),
-                rarityRow("4", "Rare", "64%"),
-                rarityRow("5", "Rare", "55%"),
-                rarityRow("6", "Epic", "45%"),
-                rarityRow("7", "Epic", "36%"),
-                rarityRow("8", "Legendary", "27%"),
-                rarityRow("9", "Mythic", "18%"),
-                rarityRow("10", "Rarest", "9%"));
+                rarityRow(0), rarityRow(1), rarityRow(2), rarityRow(3), rarityRow(4), rarityRow(5),
+                rarityRow(6), rarityRow(7), rarityRow(8), rarityRow(9), rarityRow(10));
         return panel;
     }
 
     @OnlyIn(Dist.CLIENT)
-    private UIElement rarityRow(String rarity, String tier, String chance) {
-        var label = new Label().setText("§7" + rarity + " §8- §f" + tier + " §8- §a" + chance);
+    private UIElement rarityRow(int rarity) {
+        var label = new Label().setText("§7" + rarity + " §8- §f" + SupplyDropPool.getRarityName(rarity)
+                + " §8- §a" + SupplyDropPool.getAppearanceChanceText(rarity));
         label.layout(l -> l.height(13).width(160));
         return label;
     }

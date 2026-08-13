@@ -41,6 +41,9 @@ public class AdminsFactions {
                         output.accept(ModItems.CARE_PACKAGE.get());
                         output.accept(ModItems.MARKET_BLOCK.get());
                         output.accept(ModItems.CURRENCY_EXCHANGE_BLOCK.get());
+                        output.accept(ModItems.MONUMENT_CONTROLLER.get());
+                        output.accept(ModItems.MONUMENT_CRATE.get());
+                        output.accept(ModItems.ORE_GENERATOR.get());
                         output.accept(ModItems.COPPER_COIN.get());
                         output.accept(ModItems.SILVER_COIN.get());
                         output.accept(ModItems.GOLD_COIN.get());

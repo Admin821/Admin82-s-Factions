@@ -15,6 +15,7 @@ import com.admin82.factions.screen.ContainerHighlightRenderer;
 import com.admin82.factions.screen.CurrencyExchangeScreen;
 import com.admin82.factions.screen.FactionTableScreen;
 import com.admin82.factions.screen.MarketScreen;
+import com.admin82.factions.screen.MonumentScreen;
 import com.admin82.factions.screen.SupplyDropScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -54,6 +55,7 @@ public class AdminsFactionsClient {
         event.register(ModMenuTypes.MARKET.get(), MarketScreen::new);
         event.register(ModMenuTypes.CURRENCY_EXCHANGE.get(), CurrencyExchangeScreen::new);
         event.register(ModMenuTypes.SUPPLY_DROP.get(), SupplyDropScreen::new);
+        event.register(ModMenuTypes.MONUMENT.get(), MonumentScreen::new);
     }
 
     @SubscribeEvent

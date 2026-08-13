@@ -9,6 +9,9 @@ import com.admin82.factions.block.FactionTableBlock;
 import com.admin82.factions.block.FactionTableFillerBlock;
 import com.admin82.factions.block.MarketBlock;
 import com.admin82.factions.block.MarketFillerBlock;
+import com.admin82.factions.block.MonumentControllerBlock;
+import com.admin82.factions.block.MonumentCrateBlock;
+import com.admin82.factions.block.OreGeneratorBlock;
 import com.admin82.factions.block.OutpostManagerBlock;
 import com.admin82.factions.block.OutpostManagerFillerBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -147,6 +150,18 @@ public class ModBlocks {
                             .requiresCorrectToolForDrops()
             )
     );
+
+    public static final DeferredBlock<MonumentControllerBlock> MONUMENT_CONTROLLER = BLOCKS.register(
+            "monument_controller", () -> new MonumentControllerBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL).strength(5.0f, 3_600_000.0f).sound(SoundType.METAL).requiresCorrectToolForDrops()));
+
+    public static final DeferredBlock<MonumentCrateBlock> MONUMENT_CRATE = BLOCKS.register(
+            "monument_crate", () -> new MonumentCrateBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.WOOD).strength(3.0f, 3_600_000.0f).sound(SoundType.WOOD).requiresCorrectToolForDrops()));
+
+    public static final DeferredBlock<OreGeneratorBlock> ORE_GENERATOR = BLOCKS.register(
+            "ore_generator", () -> new OreGeneratorBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE).strength(-1.0f, 3_600_000.0f).sound(SoundType.STONE).noLootTable()));
 
     /** Invisible filler block that completes the Outpost Manager's 1×2 physical footprint. */
     public static final DeferredBlock<OutpostManagerFillerBlock> OUTPOST_MANAGER_FILLER = BLOCKS.register(

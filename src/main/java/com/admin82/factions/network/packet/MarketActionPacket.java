@@ -37,7 +37,7 @@ public record MarketActionPacket(
         int itemCount
 ) implements CustomPacketPayload {
 
-    public enum Action { CREATE, BUY, BID, CANCEL, REFRESH, CLAIM_SOLD, FULFILL_BUY_ORDER }
+    public enum Action { CREATE, BUY, BID, CANCEL, REFRESH, CLAIM_SOLD, FULFILL_BUY_ORDER, CLAIM_DELIVERY }
 
     public MarketActionPacket(Action action, UUID listingId, int inventorySlot, long price, int durationHours, boolean isAuction) {
         this(action, listingId, inventorySlot, price, durationHours, isAuction, MarketListing.ListingKind.PLAYER_SELL.ordinal());
@@ -145,7 +145,7 @@ public record MarketActionPacket(
                     if (!eco.deductWallet(sp.getUUID(), listing.price)) { sp.displayClientMessage(Component.literal("§cInsufficient funds."), true); break; }
 
                     if (listing.kind == MarketListing.ListingKind.ADMIN_SELL) {
-                        if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+                        market.deliverItem(server, sp.getUUID(), listing.item);
                         sp.displayClientMessage(Component.literal("§aPurchased from server shop!"), true);
                         break;
                     }
@@ -162,7 +162,7 @@ public record MarketActionPacket(
                     }
 
                     // Give item to buyer
-                    if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+                    market.deliverItem(server, sp.getUUID(), listing.item);
 
                     // Create a SoldListing so the seller must claim proceeds
                     String buyerName = sp.getGameProfile().getName();
@@ -188,7 +188,7 @@ public record MarketActionPacket(
                                 "§a[Market] §e" + buyerName + " §cpurchased §f" + sale.itemName
                                 + " §cfor §e" + Currency.format(fPrice)
                                 + " §c(§a" + Currency.format(fProceeds) + " §cafter tax)§c."
-                                + " §eGo to §eManage Listings§e to claim your earnings!"), false);
+                                + " §eOpen My Listings at the market to claim your earnings!"), false);
                         PacketDistributor.sendToPlayer(seller, new SyncSoldListingsPacket(
                                 market.getSoldListingsForPlayer(listing.sellerUUID)));
                     }
@@ -212,7 +212,7 @@ public record MarketActionPacket(
                     if (listing.kind == MarketListing.ListingKind.PLAYER_BUY_ORDER) {
                         eco.addWallet(sp.getUUID(), listing.price);
                     } else if (listing.kind == MarketListing.ListingKind.PLAYER_SELL) {
-                        if (!sp.getInventory().add(listing.item.copy())) sp.drop(listing.item.copy(), false);
+                        market.deliverItem(server, sp.getUUID(), listing.item);
                     }
                     market.removeListing(pkt.listingId());
                     sp.displayClientMessage(Component.literal("§aListing cancelled."), true);
@@ -244,20 +244,29 @@ public record MarketActionPacket(
                     eco.addWallet(sp.getUUID(), listing.price);
                     if (listing.kind == MarketListing.ListingKind.PLAYER_BUY_ORDER) {
                         ServerPlayer buyer = server.getPlayerList().getPlayer(listing.sellerUUID);
+                        market.queueDelivery(listing.sellerUUID, delivered, "Buy Order");
                         if (buyer != null) {
-                            if (!buyer.getInventory().add(delivered.copy())) buyer.drop(delivered.copy(), false);
-                            buyer.displayClientMessage(Component.literal("§a[Market] Your buy order was filled for §f"
-                                    + listing.item.getHoverName().getString() + "§a."), false);
+                            buyer.displayClientMessage(Component.literal("§a[Market] Your buy order for §f"
+                                    + listing.item.getHoverName().getString()
+                                    + " §awas filled. Claim it from My Listings at the market."), false);
                         }
                         market.removeListing(listing.listingId);
                     }
                     sp.displayClientMessage(Component.literal("§aBuy order filled for §e" + Currency.format(listing.price) + "§a."), true);
+                }
+                case CLAIM_DELIVERY -> {
+                    if (!market.claimDelivery(sp, pkt.listingId())) {
+                        sp.displayClientMessage(Component.literal("§cDelivery not found or already claimed."), true);
+                        break;
+                    }
+                    sp.displayClientMessage(Component.literal("§aMarket delivery claimed."), true);
                 }
                 case REFRESH -> { /* no-op: re-sync below handles it */ }
             }
 
             // Push any inventory slot changes (item added/removed) to the client
             sp.inventoryMenu.broadcastChanges();
+            if (sp.containerMenu != sp.inventoryMenu) sp.containerMenu.broadcastChanges();
 
             // Re-sync market to every player who currently has a market screen open
             var allListings = market.getListings().stream().toList();
@@ -271,6 +280,8 @@ public record MarketActionPacket(
                 // Also push this player's sold listings
                 PacketDistributor.sendToPlayer(online, new SyncSoldListingsPacket(
                         market.getSoldListingsForPlayer(online.getUUID())));
+                PacketDistributor.sendToPlayer(online, new SyncMarketDeliveriesPacket(
+                    market.getDeliveriesForPlayer(online.getUUID())));
             }
         });
     }

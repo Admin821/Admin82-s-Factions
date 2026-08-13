@@ -1,6 +1,7 @@
 package com.admin82.factions.screen;
 
 import com.admin82.factions.economy.MarketListing;
+import com.admin82.factions.economy.MarketDelivery;
 import com.admin82.factions.economy.SoldListing;
 import com.admin82.factions.menu.MarketMenu;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
@@ -41,6 +42,10 @@ public class MarketScreen extends AbstractContainerScreen<MarketMenu> {
     /** Called by {@link com.admin82.factions.network.packet.SyncSoldListingsPacket} when data arrives. */
     public void updateSoldListings(List<SoldListing> sold) {
         menu.updateSoldListings(sold);
+    }
+
+    public void updateDeliveries(List<MarketDelivery> deliveries) {
+        menu.updateDeliveries(deliveries);
     }
 
     @Override
