@@ -1,7 +1,10 @@
 package com.admin82.factions;
 
 import com.admin82.factions.compat.tacz.Tacz;
+import com.admin82.factions.compat.BurntCompat;
 import com.admin82.factions.registry.*;
+import net.neoforged.fml.ModList;
+import net.pixelbank.burnt.util.BurntProtection;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -70,6 +73,10 @@ public class AdminsFactions {
         modEventBus.addListener(com.admin82.factions.meter.MeterCapabilities::register);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+
+        if (ModList.get().isLoaded("burnt")){
+            BurntProtection.register(BurntCompat::isProtected);
+        }
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
