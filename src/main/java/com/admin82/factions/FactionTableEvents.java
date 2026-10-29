@@ -398,4 +398,21 @@ public class FactionTableEvents {
             event.setCanGrief(false);
         }
     }
+
+    /**
+     * Extinguishes fire that spreads into or ignites inside claimed chunks.
+     * No vanilla/NeoForge event fires when fire ticks onto a new block, so this
+     * reacts to the neighbor update that placement triggers instead. Matching on
+     * the #minecraft:fire tag and BaseFireBlock also covers fire-rework mods
+     * (e.g. Burnt Basic/Burnt Additions) since they extend/tag their fire the same way.
+     */
+    @SubscribeEvent
+    public static void onFireNeighborNotify(BlockEvent.NeighborNotifyEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
+        BlockState state = event.getState();
+        if (!state.is(net.minecraft.tags.BlockTags.FIRE)
+                && !(state.getBlock() instanceof net.minecraft.world.level.block.BaseFireBlock)) return;
+        if (getProtectedClaimAt(level, event.getPos()) == null) return;
+        level.removeBlock(event.getPos(), false);
+    }
 }

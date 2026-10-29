@@ -42,6 +42,12 @@ public class Config {
     public static final ModConfigSpec.IntValue VASSAL_TAX_PERCENT;
     public static final ModConfigSpec.IntValue VASSAL_BUYOUT_COPPER;
 
+    // ── Monument PMC AI ─────────────────────────────────────────────────────
+
+    public static final ModConfigSpec.BooleanValue MONUMENT_PMCS_ENABLED;
+    public static final ModConfigSpec.DoubleValue MONUMENT_PMC_CROUCH_EXPOSURE;
+    public static final ModConfigSpec.DoubleValue MONUMENT_PMC_PRONE_EXPOSURE;
+
     static {
         BUILDER.push("economy");
         CLAIM_COST_COPPER        = BUILDER.comment("Cost to claim one chunk, in copper coins (100 copper = 1 silver).")
@@ -95,6 +101,15 @@ public class Config {
                                       .defineInRange("taxPercent", 15, 0, 100);
         VASSAL_BUYOUT_COPPER = BUILDER.comment("Total copper a vassal faction must pay from their vault to purchase independence (default 500 gold = 5,000,000 copper).")
                                       .defineInRange("buyoutCopperValue", 5_000_000, 1000, Integer.MAX_VALUE);
+        BUILDER.pop();
+
+        BUILDER.push("monumentPmcAi");
+        MONUMENT_PMCS_ENABLED = BUILDER.comment("Spawn hostile Rogue PMCs when a monument respawns.")
+            .define("enabled", true);
+        MONUMENT_PMC_CROUCH_EXPOSURE = BUILDER.comment("Aim acquisition multiplier against crouching players.")
+            .defineInRange("crouchExposureMultiplier", 0.65, 0.05, 1.0);
+        MONUMENT_PMC_PRONE_EXPOSURE = BUILDER.comment("Aim acquisition multiplier against prone/crawling/swimming players.")
+            .defineInRange("proneExposureMultiplier", 0.35, 0.01, 1.0);
         BUILDER.pop();
     }
 

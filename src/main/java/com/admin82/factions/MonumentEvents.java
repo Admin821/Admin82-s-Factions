@@ -5,7 +5,11 @@ import com.admin82.factions.blockentity.MonumentCrateBlockEntity;
 import com.admin82.factions.supplydrop.SupplyDropPool;
 import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
+import com.admin82.factions.entity.monument.RoguePmcEntity;
+import com.admin82.factions.entity.monument.RoguePmcRole;
 import com.admin82.factions.registry.ModBlocks;
+import com.admin82.factions.registry.ModEntities;
+import com.admin82.factions.menu.MonumentMenu;
 import com.admin82.factions.util.BypassManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -18,15 +22,22 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -37,6 +48,7 @@ import java.util.Set;
 
 @EventBusSubscriber(modid = AdminsFactions.MODID)
 public final class MonumentEvents {
+    private static final String AI_DROP_MONUMENT_TAG = "AdminFactionsMonumentAiDrop";
     private static int tickCounter;
     private static final Map<UUID, UUID> PLAYER_MONUMENTS = new HashMap<>();
     private static final Map<String, Set<BlockPos>> PENDING_ORE_RESETS = new HashMap<>();
@@ -130,7 +142,117 @@ public final class MonumentEvents {
             }
             respawnedAny = true;
         }
+        if (Config.MONUMENT_PMCS_ENABLED.get()) {
+            respawnedAny |= replenishPmcSquad(level, monument);
+        }
         return respawnedAny;
+    }
+
+    private static boolean replenishPmcSquad(ServerLevel level, MonumentEntry monument) {
+        List<Long> chunks = new ArrayList<>(monument.getDesignatedChunks());
+        for (long chunkKey : chunks) {
+            ChunkPos chunk = new ChunkPos(chunkKey);
+            level.getChunk(chunk.x, chunk.z);
+        }
+        AABB territory = monumentBounds(level, monument);
+        level.getEntitiesOfClass(ItemEntity.class, territory, item ->
+                item.getPersistentData().hasUUID(AI_DROP_MONUMENT_TAG)
+                        && monument.id.equals(item.getPersistentData().getUUID(AI_DROP_MONUMENT_TAG)))
+                .forEach(ItemEntity::discard);
+
+        List<RoguePmcEntity> survivors = level.getEntitiesOfClass(RoguePmcEntity.class, territory,
+                pmc -> monument.id.equals(pmc.getMonumentId()) && pmc.isAlive());
+        boolean initialGeneration = !monument.hasAiGenerationStarted() && survivors.isEmpty();
+        if (!monument.hasAiGenerationStarted()) monument.markAiGenerationStarted();
+        boolean allRevived = true;
+        for (RoguePmcRole role : RoguePmcRole.values()) {
+            int count;
+            if (initialGeneration) {
+                int minimum = monument.getAiMinimumCount(role);
+                int maximum = Math.max(minimum, monument.getAiMaximumCount(role));
+                count = minimum + level.random.nextInt(maximum - minimum + 1);
+            } else {
+                count = monument.getDeadAiCount(role);
+            }
+            for (int index = 0; index < count; index++) {
+                boolean spawned = false;
+                for (int attempt = 0; attempt < 8; attempt++) {
+                    ChunkPos chunk = new ChunkPos(chunks.get(level.random.nextInt(chunks.size())));
+                    int x = chunk.getMinBlockX() + 2 + level.random.nextInt(12);
+                    int z = chunk.getMinBlockZ() + 2 + level.random.nextInt(12);
+                    if (!level.hasChunk(x >> 4, z >> 4)) continue;
+                    int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                    BlockPos spawnPos = new BlockPos(x, y, z);
+                    RoguePmcEntity pmc = ModEntities.pmcType(role).spawn(level, spawnPos, MobSpawnType.EVENT);
+                    if (pmc == null) continue;
+                    pmc.bindToMonument(monument.id, monument.controllerPos);
+                    pmc.applyConfiguredLoadout(monument.getAiLoadout(role));
+                    if (!initialGeneration) monument.reviveAi(role);
+                    spawned = true;
+                    break;
+                }
+                if (!spawned) allRevived = false;
+            }
+        }
+        List<RoguePmcEntity> activeSquad = level.getEntitiesOfClass(RoguePmcEntity.class, territory,
+                pmc -> monument.id.equals(pmc.getMonumentId()) && pmc.isAlive());
+        assignBalancedSquads(activeSquad);
+        syncOpenAiEditors(level.getServer(), monument);
+        return allRevived;
+    }
+
+    private static void assignBalancedSquads(List<RoguePmcEntity> pmcs) {
+        if (pmcs.isEmpty()) return;
+        pmcs.sort(Comparator.comparing(RoguePmcEntity::getUUID));
+        int squadCount = Math.max(1, (pmcs.size() + 4) / 5);
+        UUID[] squadIds = new UUID[squadCount];
+        for (int index = 0; index < squadCount; index++) squadIds[index] = UUID.randomUUID();
+        for (int index = 0; index < pmcs.size(); index++) {
+            pmcs.get(index).assignSquad(squadIds[index % squadCount]);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRoguePmcDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof RoguePmcEntity pmc)
+                || !(pmc.level() instanceof ServerLevel level) || pmc.getMonumentId() == null) return;
+        MonumentData data = MonumentData.get(level.getServer());
+        MonumentEntry monument = data.get(pmc.getMonumentId());
+        if (monument == null) return;
+        monument.markAiDead(pmc.getRole());
+        for (ItemStack stack : monument.getAiDropPool().generateItems(new java.util.Random(level.random.nextLong()))) {
+            ItemEntity drop = new ItemEntity(level, pmc.getX(), pmc.getY() + 0.25, pmc.getZ(), stack);
+            drop.getPersistentData().putUUID(AI_DROP_MONUMENT_TAG, monument.id);
+            drop.setDefaultPickUpDelay();
+            level.addFreshEntity(drop);
+        }
+        data.changed();
+        syncOpenAiEditors(level.getServer(), monument);
+    }
+
+    private static void syncOpenAiEditors(MinecraftServer server, MonumentEntry monument) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.containerMenu instanceof MonumentMenu menu
+                    && monument.id.equals(menu.getSelectedId())) {
+                menu.syncAiEditor(monument);
+            }
+        }
+    }
+
+    private static AABB monumentBounds(ServerLevel level, MonumentEntry monument) {
+        int minX = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (long key : monument.getDesignatedChunks()) {
+            ChunkPos chunk = new ChunkPos(key);
+            minX = Math.min(minX, chunk.getMinBlockX());
+            minZ = Math.min(minZ, chunk.getMinBlockZ());
+            maxX = Math.max(maxX, chunk.getMaxBlockX());
+            maxZ = Math.max(maxZ, chunk.getMaxBlockZ());
+        }
+        return new AABB(minX, level.getMinBuildHeight(), minZ,
+                maxX + 1.0, level.getMaxBuildHeight(), maxZ + 1.0).inflate(16.0);
     }
 
     private static void resetMinedGenerators(MinecraftServer server) {

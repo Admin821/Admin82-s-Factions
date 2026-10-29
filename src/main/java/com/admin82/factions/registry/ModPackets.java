@@ -36,8 +36,14 @@ public class ModPackets {
         registrar.playToServer(SupplyDropActionPacket.TYPE, SupplyDropActionPacket.STREAM_CODEC, SupplyDropActionPacket::handle);
         registrar.playToServer(MonumentActionPacket.TYPE, MonumentActionPacket.STREAM_CODEC, MonumentActionPacket::handle);
         registrar.playToServer(MonumentLootActionPacket.TYPE, MonumentLootActionPacket.STREAM_CODEC, MonumentLootActionPacket::handle);
+        registrar.playToServer(MonumentAiActionPacket.TYPE, MonumentAiActionPacket.STREAM_CODEC, MonumentAiActionPacket::handle);
+        registrar.playToServer(MonumentAiRangesPacket.TYPE, MonumentAiRangesPacket.STREAM_CODEC, MonumentAiRangesPacket::handle);
+        registrar.playToServer(MonumentAiLoadoutItemPacket.TYPE, MonumentAiLoadoutItemPacket.STREAM_CODEC, MonumentAiLoadoutItemPacket::handle);
+        registrar.playToServer(AiCombatProfilePacket.TYPE, AiCombatProfilePacket.STREAM_CODEC, AiCombatProfilePacket::handle);
         registrar.playToClient(SyncMonumentsPacket.TYPE, SyncMonumentsPacket.STREAM_CODEC, SyncMonumentsPacket::handle);
         registrar.playToClient(SyncMonumentLootPacket.TYPE, SyncMonumentLootPacket.STREAM_CODEC, SyncMonumentLootPacket::handle);
+        registrar.playToClient(SyncMonumentAiPacket.TYPE, SyncMonumentAiPacket.STREAM_CODEC, SyncMonumentAiPacket::handle);
+        registrar.playToClient(SyncAiCombatProfilePacket.TYPE, SyncAiCombatProfilePacket.STREAM_CODEC, SyncAiCombatProfilePacket::handle);
 
         // War: Client → Server
         registrar.playToServer(WageWarPacket.TYPE, WageWarPacket.STREAM_CODEC, WageWarPacket::handle);

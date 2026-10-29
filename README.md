@@ -1,5 +1,7 @@
 # Custom Monuments
 
+Requires Minecraft 1.21.1, NeoForge, LDLib2, and the [unofficial TaCZ 1.21.1 NeoForge port](https://modrinth.com/mod/tacz-1.21.1) version `1.1.8-hotfix-r6` or newer on both the client and server.
+
 Server operators can place a **Monument Controller** to create a protected monument. Its controller chunk is designated automatically. Use the controller's **Chunk Map** tab to add or remove monument chunks. The map defaults to 11×11, can zoom from 7×7 through 25×25 with the mouse wheel or `+`/`-` controls, and can pan beyond the visible grid. Place **Monument Loot Crates** inside designated chunks to link them automatically; sneak-use a crate to cycle between Supply, Ammo, and Gun variants.
 
 The Chunk Map uses the same sampled terrain rendering as the Faction Table claim map. Monument chunks have green borders, the controller chunk is gold, and chunks claimed by any faction have red borders. Terrain is shown when the operator is in the monument's dimension; otherwise the unloaded background is displayed with the ownership overlays.

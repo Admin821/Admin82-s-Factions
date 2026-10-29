@@ -5,10 +5,12 @@ import com.admin82.factions.client.model.CarePackageModel;
 import com.admin82.factions.client.renderer.CarePackageBlockEntityRenderer;
 import com.admin82.factions.client.renderer.CarePackageItemRenderer;
 import com.admin82.factions.client.renderer.SupplyDropVisualRenderer;
+import com.admin82.factions.client.renderer.RoguePmcRenderer;
 import com.admin82.factions.registry.ModBlockEntities;
 import com.admin82.factions.registry.ModEntities;
 import com.admin82.factions.registry.ModItems;
 import com.admin82.factions.registry.ModMenuTypes;
+import com.admin82.factions.screen.AiCombatProfileScreen;
 import com.admin82.factions.screen.BarracksScreen;
 import com.admin82.factions.screen.ChunkBorderRenderer;
 import com.admin82.factions.screen.ContainerHighlightRenderer;
@@ -56,11 +58,16 @@ public class AdminsFactionsClient {
         event.register(ModMenuTypes.CURRENCY_EXCHANGE.get(), CurrencyExchangeScreen::new);
         event.register(ModMenuTypes.SUPPLY_DROP.get(), SupplyDropScreen::new);
         event.register(ModMenuTypes.MONUMENT.get(), MonumentScreen::new);
+        event.register(ModMenuTypes.AI_COMBAT_PROFILES.get(), AiCombatProfileScreen::new);
     }
 
     @SubscribeEvent
     static void onRegisterEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.SUPPLY_DROP_VISUAL.get(), SupplyDropVisualRenderer::new);
+        event.registerEntityRenderer(ModEntities.ROGUE_SNIPER.get(), RoguePmcRenderer::new);
+        event.registerEntityRenderer(ModEntities.ROGUE_ASSAULT.get(), RoguePmcRenderer::new);
+        event.registerEntityRenderer(ModEntities.ROGUE_HEAVY_GUNNER.get(), RoguePmcRenderer::new);
+        event.registerEntityRenderer(ModEntities.ROGUE_LIGHT_GUNNER.get(), RoguePmcRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.CARE_PACKAGE.get(), CarePackageBlockEntityRenderer::new);
     }
 

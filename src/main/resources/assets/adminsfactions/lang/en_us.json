@@ -24,6 +24,11 @@
   "item.adminsfactions.monument_crate":           "Monument Loot Crate",
   "item.adminsfactions.ore_generator":            "Ore Generator",
 
+  "entity.adminsfactions.rogue_sniper":       "Rogue Sniper PMC",
+  "entity.adminsfactions.rogue_assault":      "Rogue Assault PMC",
+  "entity.adminsfactions.rogue_heavy_gunner": "Rogue Heavy Gunner PMC",
+  "entity.adminsfactions.rogue_light_gunner": "Rogue Light Gunner PMC",
+
   "gui.adminsfactions.faction_table": "Faction Table",
   "gui.adminsfactions.barracks":      "Barracks",
   "gui.adminsfactions.supply_drop":   "Supply Drop",

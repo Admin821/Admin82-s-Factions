@@ -77,6 +77,7 @@ public class MonumentControllerBlock extends BaseEntityBlock {
             views.forEach(view -> view.write(buf));
             buf.writeBoolean(true);
             buf.writeUUID(selected.id);
+            buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
         });
         return InteractionResult.CONSUME;
     }

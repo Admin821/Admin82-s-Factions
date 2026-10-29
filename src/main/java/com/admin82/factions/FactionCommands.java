@@ -7,6 +7,7 @@ import com.admin82.factions.economy.ExchangeManager;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.menu.AiCombatProfileMenu;
 import com.admin82.factions.menu.SupplyDropMenu;
 import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
@@ -291,27 +292,17 @@ public class FactionCommands {
                                 ctx.getSource(),
                                 IntegerArgumentType.getInteger(ctx, "seconds")))))
 
-<<<<<<< Updated upstream
-                // /faction Bypass
-                .then(Commands.literal("Bypass")
-                    .requires(src -> src.hasPermission(2))
-                    .executes(ctx -> {
-                        ServerPlayer player = ctx.getSource().getPlayer();
-                        if(BypassManager.isBypassing(player.getUUID())){
-                            ctx.getSource().sendSuccess(() -> Component.literal("Bypass Dissabled"), true);
-                        } else {
-                            ctx.getSource().sendSuccess(() -> Component.literal("Bypass Enabled"), true);
-                        }
-                        return toggleBypass(player.getUUID());
-                    }))
-=======
                 .then(monumentCommand())
+
+                .then(Commands.literal("ai")
+                    .requires(src -> src.hasPermission(2))
+                    .then(Commands.literal("edit")
+                        .executes(ctx -> cmdAiEdit(ctx.getSource()))))
 
                 // /faction bypass
                 .then(Commands.literal("bypass")
                     .requires(src -> src.hasPermission(2))
                     .executes(ctx -> cmdToggleBypass(ctx.getSource())))
->>>>>>> Stashed changes
 
         );
         // /factionreturn — teleports any faction member to their barracks (no op needed)
@@ -326,6 +317,21 @@ public class FactionCommands {
                 .then(Commands.literal("edit")
                         .requires(src -> src.hasPermission(2))
                     .executes(ctx -> cmdMonumentEdit(ctx.getSource())));
+    }
+
+    private static int cmdAiEdit(CommandSourceStack source) {
+        if (!(source.getEntity() instanceof ServerPlayer player)) {
+            source.sendFailure(Component.literal("§cOnly players can open the AI editor."));
+            return 0;
+        }
+        player.openMenu(new SimpleMenuProvider(
+                (id, inventory, menuPlayer) -> new AiCombatProfileMenu(id, inventory, menuPlayer),
+                Component.literal("AI Combat Profiles")),
+                buffer -> {
+                    AiCombatProfileMenu.writeOpenData(buffer, source.getServer());
+                    buffer.writeVarInt(0);
+                });
+        return 1;
     }
 
     private static int cmdToggleBypass(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -353,6 +359,7 @@ public class FactionCommands {
             buf.writeVarInt(views.size());
             views.forEach(view -> view.write(buf));
             buf.writeBoolean(false);
+            buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
         });
         return 1;
     }
@@ -658,6 +665,7 @@ public class FactionCommands {
                     buf.writeVarInt(mode.ordinal());
                     buf.writeVarInt(names.size());
                     for (String name : names) buf.writeUtf(name, 64);
+                    buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
                 });
         return 1;
     }

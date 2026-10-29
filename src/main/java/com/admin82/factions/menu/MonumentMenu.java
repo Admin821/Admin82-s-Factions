@@ -5,7 +5,13 @@ import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
 import com.admin82.factions.monument.MonumentView;
 import com.admin82.factions.network.packet.MonumentActionPacket;
+import com.admin82.factions.network.packet.MonumentAiActionPacket;
+import com.admin82.factions.network.packet.MonumentAiLoadoutItemPacket;
+import com.admin82.factions.network.packet.MonumentAiRangesPacket;
 import com.admin82.factions.network.packet.MonumentLootActionPacket;
+import com.admin82.factions.network.packet.SyncMonumentAiPacket;
+import com.admin82.factions.entity.monument.RoguePmcRole;
+import com.tacz.guns.api.item.builder.GunItemBuilder;
 import com.admin82.factions.registry.ModMenuTypes;
 import com.admin82.factions.supplydrop.SupplyDropPool;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
@@ -22,8 +28,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,6 +41,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -67,6 +77,18 @@ public class MonumentMenu extends AbstractContainerMenu {
     private int[] lootMaxCounts = defaultLootCounts();
     private int[] lootRarityLevels = new int[LOOT_SLOTS];
     private int selectedLootSettingsSlot = -1;
+    private RoguePmcRole selectedAiRole = RoguePmcRole.ASSAULT;
+    private EditorMode editorMode = EditorMode.MONUMENT_LOOT;
+    private int[] aiMinimumCounts = new int[RoguePmcRole.values().length];
+    private int[] aiMaximumCounts = new int[RoguePmcRole.values().length];
+    private int[] aiDifficultyLevels = new int[RoguePmcRole.values().length];
+    private int deadAiCount;
+    private int[] aiDropMinCounts = defaultLootCounts();
+    private int[] aiDropMaxCounts = defaultLootCounts();
+    private int[] aiDropRarityLevels = new int[LOOT_SLOTS];
+    private int selectedLoadoutPickerSlot = -1;
+    private String loadoutSearchText = "";
+    private int loadoutSearchScroll;
     private int browserPage;
     private int controllerTab;
     private int mapOffsetX;
@@ -80,9 +102,20 @@ public class MonumentMenu extends AbstractContainerMenu {
     private float monumentMapAccumY;
     @Nullable private MonumentTerrainTexture monumentTerrainTexture;
 
+    private enum EditorMode { MONUMENT_LOOT, AI_LOADOUT, AI_DROPS }
+
     private final ItemStackHandler staging = new ItemStackHandler(LOOT_SLOTS) {
         @Override
         protected void onContentsChanged(int slot) {
+            if (saveEnabled && selectedId != null && server != null && editorMode != EditorMode.MONUMENT_LOOT) {
+                MonumentEntry entry = MonumentData.get(server).get(selectedId);
+                if (entry != null) {
+                    if (editorMode == EditorMode.AI_DROPS) entry.getAiDropPool().setSlot(slot, getStackInSlot(slot));
+                    else if (slot < 5) entry.setAiLoadoutSlot(selectedAiRole, slot, getStackInSlot(slot));
+                    MonumentData.get(server).changed();
+                    return;
+                }
+            }
             if (!saveEnabled || selectedId == null || currentLootPoolName == null || server == null) return;
             MonumentEntry entry = MonumentData.get(server).get(selectedId);
             if (entry == null) return;
@@ -164,6 +197,7 @@ public class MonumentMenu extends AbstractContainerMenu {
         SupplyDropPool pool = entry == null ? null : entry.getLootPool(poolName);
         if (entry == null || pool == null) return;
         saveEnabled = false;
+        editorMode = EditorMode.MONUMENT_LOOT;
         currentLootPoolName = pool.getName();
         selectedLootSettingsSlot = -1;
         for (int slot = 0; slot < LOOT_SLOTS; slot++) staging.setStackInSlot(slot, pool.getSlot(slot).copy());
@@ -180,6 +214,106 @@ public class MonumentMenu extends AbstractContainerMenu {
         lootMinCounts = minCounts.clone();
         lootMaxCounts = maxCounts.clone();
         lootRarityLevels = rarityLevels.clone();
+        editorMode = EditorMode.MONUMENT_LOOT;
+        selectedLootSettingsSlot = -1;
+    }
+
+    public void serverLoadAiRole(UUID monumentId, RoguePmcRole role) {
+        if (server == null || !monumentId.equals(selectedId)) return;
+        MonumentEntry entry = MonumentData.get(server).get(monumentId);
+        if (entry == null) return;
+        saveEnabled = false;
+        editorMode = EditorMode.AI_LOADOUT;
+        selectedAiRole = role;
+        List<ItemStack> loadout = entry.getAiLoadout(role);
+        List<ItemStack> defaults = defaultAiLoadout(role);
+        for (int slot = 0; slot < LOOT_SLOTS; slot++) {
+            ItemStack configured = slot < loadout.size() ? loadout.get(slot) : ItemStack.EMPTY;
+            ItemStack displayed = configured.isEmpty() && slot < defaults.size() ? defaults.get(slot) : configured;
+            staging.setStackInSlot(slot, displayed.copy());
+        }
+        saveEnabled = true;
+        broadcastChanges();
+        syncAiEditor(entry);
+    }
+
+    private List<ItemStack> defaultAiLoadout(RoguePmcRole role) {
+        List<ItemStack> defaults = new ArrayList<>(List.of(ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
+                ItemStack.EMPTY, ItemStack.EMPTY));
+        for (ResourceLocation gunId : role.gunIds()) {
+            ItemStack gun = GunItemBuilder.create().setId(gunId).setAmmoCount(999).build(server.registryAccess());
+            if (!gun.isEmpty()) {
+                defaults.set(0, gun);
+                break;
+            }
+        }
+        switch (role) {
+            case SNIPER -> {
+                defaults.set(2, new ItemStack(Items.CHAINMAIL_CHESTPLATE));
+                defaults.set(4, new ItemStack(Items.LEATHER_BOOTS));
+            }
+            case ASSAULT -> {
+                defaults.set(1, new ItemStack(Items.IRON_HELMET));
+                defaults.set(2, new ItemStack(Items.IRON_CHESTPLATE));
+            }
+            case HEAVY_GUNNER -> {
+                defaults.set(1, new ItemStack(Items.IRON_HELMET));
+                defaults.set(2, new ItemStack(Items.DIAMOND_CHESTPLATE));
+                defaults.set(3, new ItemStack(Items.IRON_LEGGINGS));
+                defaults.set(4, new ItemStack(Items.IRON_BOOTS));
+            }
+            case LIGHT_GUNNER -> {
+                defaults.set(2, new ItemStack(Items.LEATHER_CHESTPLATE));
+                defaults.set(4, new ItemStack(Items.LEATHER_BOOTS));
+            }
+        }
+        return defaults;
+    }
+
+    public void serverLoadAiDrops(UUID monumentId) {
+        if (server == null || !monumentId.equals(selectedId)) return;
+        MonumentEntry entry = MonumentData.get(server).get(monumentId);
+        if (entry == null) return;
+        saveEnabled = false;
+        editorMode = EditorMode.AI_DROPS;
+        selectedLootSettingsSlot = -1;
+        for (int slot = 0; slot < LOOT_SLOTS; slot++) {
+            staging.setStackInSlot(slot, entry.getAiDropPool().getSlot(slot).copy());
+        }
+        saveEnabled = true;
+        broadcastChanges();
+        syncAiEditor(entry);
+    }
+
+    public void syncAiEditor(MonumentEntry entry) {
+        if (serverPlayer == null) return;
+        int[] minimum = new int[RoguePmcRole.values().length];
+        int[] maximum = new int[RoguePmcRole.values().length];
+        int[] difficulty = new int[RoguePmcRole.values().length];
+        for (RoguePmcRole role : RoguePmcRole.values()) {
+            minimum[role.ordinal()] = entry.getAiMinimumCount(role);
+            maximum[role.ordinal()] = entry.getAiMaximumCount(role);
+            difficulty[role.ordinal()] = entry.getAiDifficultyLevel(role);
+        }
+        SupplyDropPool drops = entry.getAiDropPool();
+        PacketDistributor.sendToPlayer(serverPlayer, new SyncMonumentAiPacket(entry.id, minimum, maximum, difficulty,
+                entry.getDeadAiCount(), selectedAiRole.ordinal(), editorMode == EditorMode.AI_DROPS,
+                drops.getMinCountsCopy(), drops.getMaxCountsCopy(), drops.getRarityLevelsCopy()));
+    }
+
+    public void updateAiEditor(UUID monumentId, int[] minimum, int[] maximum, int[] difficulty, int deadCount,
+                               int selectedRole, boolean drops, int[] dropMinimum, int[] dropMaximum,
+                               int[] dropRarity) {
+        if (!monumentId.equals(selectedId)) return;
+        aiMinimumCounts = minimum.clone();
+        aiMaximumCounts = maximum.clone();
+        aiDifficultyLevels = difficulty.clone();
+        deadAiCount = deadCount;
+        selectedAiRole = RoguePmcRole.values()[Math.clamp(selectedRole, 0, RoguePmcRole.values().length - 1)];
+        editorMode = drops ? EditorMode.AI_DROPS : EditorMode.AI_LOADOUT;
+        aiDropMinCounts = dropMinimum.clone();
+        aiDropMaxCounts = dropMaximum.clone();
+        aiDropRarityLevels = dropRarity.clone();
         selectedLootSettingsSlot = -1;
     }
 
@@ -217,7 +351,8 @@ public class MonumentMenu extends AbstractContainerMenu {
         ItemStack result = stack.copy();
         if (slotIndex < LOOT_SLOTS) {
             if (!moveItemStackTo(stack, PLAYER_INV_OFFSET, PLAYER_INV_OFFSET + 36, true)) return ItemStack.EMPTY;
-        } else if (selectedId == null || !moveItemStackTo(stack, 0, LOOT_SLOTS, false)) {
+        } else if (selectedId == null || !moveItemStackTo(stack, 0,
+            editorMode == EditorMode.AI_LOADOUT ? 5 : LOOT_SLOTS, false)) {
             return ItemStack.EMPTY;
         }
         if (stack.isEmpty()) slot.set(ItemStack.EMPTY); else slot.setChanged();
@@ -311,24 +446,331 @@ public class MonumentMenu extends AbstractContainerMenu {
         var settingsButton = new Button().setText("Settings & Loot")
                 .setOnClick(event -> {
                     controllerTab = 0;
+                editorMode = EditorMode.MONUMENT_LOOT;
+                String poolName = currentLootPoolName != null ? currentLootPoolName
+                    : selected.lootPoolNames().getFirst();
+                PacketDistributor.sendToServer(new MonumentLootActionPacket(
+                    MonumentLootActionPacket.Action.SELECT_POOL, selected.id(), poolName, 0, 0, 0, 0));
                     body.clearAllChildren();
                     body.addChildren(buildControllerPanel(content, selected));
-                }).layout(l -> l.width(150).height(22));
+                }).layout(l -> l.width(135).height(22));
         var mapButton = new Button().setText("Chunk Map")
                 .setOnClick(event -> {
                     controllerTab = 1;
                     body.clearAllChildren();
                     body.addChildren(buildChunkMap(selected));
-                }).layout(l -> l.width(150).height(22));
+                }).layout(l -> l.width(110).height(22));
+            var aiButton = new Button().setText("AI Setup")
+                .setOnClick(event -> {
+                    controllerTab = 2;
+                    editorMode = EditorMode.AI_LOADOUT;
+                    PacketDistributor.sendToServer(new MonumentAiActionPacket(
+                        MonumentAiActionPacket.Action.SELECT_ROLE, selected.id(), selectedAiRole.ordinal(),
+                        0, 0, 0, 0));
+                    body.clearAllChildren();
+                    body.addChildren(buildAiSetup(selected));
+                }).layout(l -> l.width(110).height(22));
+            var aiDropsButton = new Button().setText("AI Drops")
+                .setOnClick(event -> {
+                    controllerTab = 3;
+                    editorMode = EditorMode.AI_DROPS;
+                    PacketDistributor.sendToServer(new MonumentAiActionPacket(
+                        MonumentAiActionPacket.Action.SELECT_DROPS, selected.id(), 0, 0, 0, 0, 0));
+                    body.clearAllChildren();
+                    body.addChildren(buildAiDrops(selected));
+                }).layout(l -> l.width(110).height(22));
         var backButton = new Button().setText("< All Monuments")
                 .setOnClick(event -> {
                     selectedId = null;
                     rebuildContent(content);
-                }).layout(l -> l.width(150).height(22));
-        navigation.addChildren(backButton, settingsButton, mapButton);
-        body.addChildren(controllerTab == 1 ? buildChunkMap(selected) : buildControllerPanel(content, selected));
+                }).layout(l -> l.width(135).height(22));
+        navigation.addChildren(backButton, settingsButton, mapButton, aiButton, aiDropsButton);
+        body.addChildren(switch (controllerTab) {
+            case 1 -> buildChunkMap(selected);
+            case 2 -> buildAiSetup(selected);
+            case 3 -> buildAiDrops(selected);
+            default -> buildControllerPanel(content, selected);
+        });
         panel.addChildren(navigation, body);
         return panel;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private UIElement buildAiSetup(MonumentView selected) {
+        if (selectedLoadoutPickerSlot >= 0) return buildLoadoutItemPicker(selected);
+        var panel = new UIElement();
+        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(14).paddingAll(6));
+        var ranges = new UIElement();
+        ranges.layout(l -> l.width(310).flexDirection(YogaFlexDirection.COLUMN).gapAll(5));
+        ranges.addChildren(
+                new Label().setText("§6§lMonument AI Roster"),
+                new Label().setText("§7Each refill rolls an inclusive count for every class."),
+                new Label().setText("§7Dead this cycle: §c" + deadAiCount + "  §8| Return only on refill."));
+        int[] minimumCounts = aiMinimumCounts.clone();
+        int[] maximumCounts = aiMaximumCounts.clone();
+        for (RoguePmcRole role : RoguePmcRole.values()) {
+            int roleIndex = role.ordinal();
+            var minimumField = field(Integer.toString(minimumCounts[roleIndex]),
+                value -> minimumCounts[roleIndex] = parse(value, minimumCounts[roleIndex]));
+            var maximumField = field(Integer.toString(maximumCounts[roleIndex]),
+                value -> maximumCounts[roleIndex] = parse(value, maximumCounts[roleIndex]));
+            minimumField.layout(l -> l.width(44).height(18));
+            maximumField.layout(l -> l.width(44).height(18));
+            var row = new UIElement();
+            row.layout(l -> l.width(300).height(23).flexDirection(YogaFlexDirection.ROW)
+                .alignItems(YogaAlign.CENTER).gapAll(6));
+            row.addChildren(
+                    new Label().setText("§f" + role.displayName().replace("Rogue ", "").replace(" PMC", ""))
+                    .layout(l -> l.width(100)),
+                new Label().setText("§7Min").layout(l -> l.width(24)), minimumField,
+                new Label().setText("§7Max").layout(l -> l.width(26)), maximumField);
+            ranges.addChildren(row);
+        }
+        ranges.addChildren(new Button().setText("Save All Ranges").setOnClick(event ->
+            PacketDistributor.sendToServer(new MonumentAiRangesPacket(
+                selected.id(), minimumCounts, maximumCounts)))
+            .layout(l -> l.width(128).height(20)));
+
+        var equipment = new UIElement();
+        equipment.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(5));
+        equipment.addChildren(new Label().setText("§6§lClass Weapons & Armor"));
+        var roleRow = new UIElement();
+        roleRow.layout(l -> l.height(23).flexDirection(YogaFlexDirection.ROW).gapAll(3));
+        for (RoguePmcRole role : RoguePmcRole.values()) {
+            roleRow.addChildren(new Button().setText((role == selectedAiRole ? "§a> " : "§7")
+                    + role.name().replace("_GUNNER", "").replace('_', ' '))
+                    .setOnClick(event -> {
+                        selectedAiRole = role;
+                        editorMode = EditorMode.AI_LOADOUT;
+                        PacketDistributor.sendToServer(new MonumentAiActionPacket(
+                                MonumentAiActionPacket.Action.SELECT_ROLE, selected.id(), role.ordinal(),
+                                0, 0, 0, 0));
+                    }).layout(l -> l.width(78).height(20)));
+        }
+        equipment.addChildren(roleRow,
+            buildDifficultyRow(selected),
+                new Label().setText("§8Shown gear is the class default. Right-click to override per monument."),
+                new Label().setText("§8Clear an override to restore the displayed class default."));
+        String[] labels = {"Weapon / Gun", "Helmet", "Chestplate", "Leggings", "Boots"};
+        for (int slot = 0; slot < 5; slot++) {
+            var row = new UIElement();
+            row.layout(l -> l.width(250).height(22).flexDirection(YogaFlexDirection.ROW)
+                    .alignItems(YogaAlign.CENTER).gapAll(5));
+            row.addChildren(new Label().setText("§7" + labels[slot]).layout(l -> l.width(105)), displaySlot(slot));
+            equipment.addChildren(row);
+        }
+        equipment.addChildren(new Label().setText("§7Player Inventory"));
+        addPlayerInventoryRows(equipment);
+        panel.addChildren(ranges, equipment);
+        return panel;
+    }
+
+        @OnlyIn(Dist.CLIENT)
+        private UIElement buildDifficultyRow(MonumentView selected) {
+        int level = Math.clamp(aiDifficultyLevels[selectedAiRole.ordinal()], 1, 5);
+        String[] names = {"Easy", "Relaxed", "Normal", "Hard", "Extreme"};
+        var row = new UIElement();
+        row.layout(l -> l.width(330).height(23).flexDirection(YogaFlexDirection.ROW)
+            .alignItems(YogaAlign.CENTER).gapAll(4));
+        row.addChildren(
+            new Label().setText("§7Difficulty").layout(l -> l.width(58)),
+            new Button().setText("-").setOnClick(event -> saveDifficulty(selected, level - 1))
+                .layout(l -> l.width(22).height(19)),
+            new Button().setText("+").setOnClick(event -> saveDifficulty(selected, level + 1))
+                .layout(l -> l.width(22).height(19)),
+            new Label().setText("§e" + names[level - 1] + " §8(" + level + "/5)")
+                .layout(l -> l.width(92)),
+            new Label().setText("§8Applies immediately"));
+        return row;
+        }
+
+        @OnlyIn(Dist.CLIENT)
+        private void saveDifficulty(MonumentView selected, int level) {
+        int clamped = Math.clamp(level, 1, 5);
+        aiDifficultyLevels[selectedAiRole.ordinal()] = clamped;
+        PacketDistributor.sendToServer(new MonumentAiActionPacket(
+            MonumentAiActionPacket.Action.SAVE_ROLE_DIFFICULTY, selected.id(), selectedAiRole.ordinal(),
+            clamped, 0, 0, 0));
+        refreshMonumentScreen();
+        }
+
+    @OnlyIn(Dist.CLIENT)
+    private UIElement buildLoadoutItemPicker(MonumentView selected) {
+        var panel = new UIElement();
+        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(5).paddingAll(8));
+        panel.addEventListener(UIEvents.MOUSE_WHEEL, event -> {
+            int maximum = Math.max(0, findLoadoutItems().size() - 8);
+            int previous = loadoutSearchScroll;
+            if (event.deltaY > 0) loadoutSearchScroll = Math.max(0, loadoutSearchScroll - 1);
+            else if (event.deltaY < 0) loadoutSearchScroll = Math.min(maximum, loadoutSearchScroll + 1);
+            if (loadoutSearchScroll != previous) refreshMonumentScreen();
+        });
+        String[] labels = {"Weapon / Gun", "Helmet", "Chestplate", "Leggings", "Boots"};
+        panel.addChildren(new Label().setText("§6§lSet " + labels[selectedLoadoutPickerSlot]
+                + " §7for " + selectedAiRole.displayName()));
+        var searchRow = new UIElement();
+        searchRow.layout(l -> l.width(640).height(23).flexDirection(YogaFlexDirection.ROW).gapAll(4));
+        var searchField = new TextField();
+        searchField.setValue(loadoutSearchText);
+        searchField.getTextFieldStyle().placeholder(Component.literal("Search item or block"));
+        searchField.bindObserver(value -> loadoutSearchText = value == null
+                ? "" : value.trim().toLowerCase(java.util.Locale.ROOT));
+        Runnable runSearch = () -> {
+            loadoutSearchScroll = 0;
+            refreshMonumentScreen();
+        };
+        searchField.addEventListener(UIEvents.KEY_DOWN, event -> {
+            if (event.keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER
+                    || event.keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
+                runSearch.run();
+                event.stopImmediatePropagation();
+            }
+        });
+        searchField.layout(l -> l.width(280).height(20));
+        searchRow.addChildren(searchField,
+                new Button().setText("Search").setOnClick(event -> runSearch.run())
+                        .layout(l -> l.width(58).height(20)),
+                new Button().setText("<").setOnClick(event -> {
+                    loadoutSearchScroll = Math.max(0, loadoutSearchScroll - 1);
+                    refreshMonumentScreen();
+                }).layout(l -> l.width(24).height(20)),
+                new Button().setText(">").setOnClick(event -> {
+                    int maximum = Math.max(0, findLoadoutItems().size() - 8);
+                    loadoutSearchScroll = Math.min(maximum, loadoutSearchScroll + 1);
+                    refreshMonumentScreen();
+                }).layout(l -> l.width(24).height(20)),
+                new Button().setText("Clear Slot").setOnClick(event -> selectLoadoutItem(selected, ""))
+                        .layout(l -> l.width(75).height(20)),
+                new Button().setText("Back").setOnClick(event -> {
+                    selectedLoadoutPickerSlot = -1;
+                    refreshMonumentScreen();
+                }).layout(l -> l.width(55).height(20)));
+        panel.addChildren(searchRow);
+
+        List<Item> results = findLoadoutItems();
+        loadoutSearchScroll = Math.clamp(loadoutSearchScroll, 0, Math.max(0, results.size() - 8));
+        if (results.isEmpty()) {
+            panel.addChildren(new Label().setText(loadoutSearchText.isBlank()
+                    ? "§8Type a name or item id, then click Search." : "§7No matching items."));
+            return panel;
+        }
+        for (Item item : results.stream().skip(loadoutSearchScroll).limit(8).toList()) {
+            ItemStack stack = new ItemStack(item);
+            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+            var row = new UIElement();
+            row.layout(l -> l.width(620).height(23).flexDirection(YogaFlexDirection.ROW).gapAll(5)
+                    .alignItems(YogaAlign.CENTER));
+            var icon = new ItemSlot();
+            icon.setItem(stack);
+            icon.layout(l -> l.width(20).height(20));
+            row.addChildren(icon,
+                    new Label().setText("§f" + stack.getHoverName().getString()).layout(l -> l.width(220)),
+                    new Label().setText("§8" + id).layout(l -> l.flex(1)),
+                    new Button().setText("§aSet").setOnClick(event -> selectLoadoutItem(selected, id.toString()))
+                            .layout(l -> l.width(45).height(20)));
+            panel.addChildren(row);
+        }
+        return panel;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private List<Item> findLoadoutItems() {
+        if (loadoutSearchText.isBlank()) return List.of();
+        return BuiltInRegistries.ITEM.stream()
+                .filter(item -> item != Items.AIR)
+                .filter(item -> {
+                    ItemStack stack = new ItemStack(item);
+                    String name = stack.getHoverName().getString().toLowerCase(java.util.Locale.ROOT);
+                    String id = BuiltInRegistries.ITEM.getKey(item).toString().toLowerCase(java.util.Locale.ROOT);
+                    return name.contains(loadoutSearchText) || id.contains(loadoutSearchText);
+                })
+                .sorted(java.util.Comparator.comparing(item -> BuiltInRegistries.ITEM.getKey(item).toString()))
+                .limit(200)
+                .toList();
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private void selectLoadoutItem(MonumentView selected, String itemId) {
+        PacketDistributor.sendToServer(new MonumentAiLoadoutItemPacket(selected.id(), selectedAiRole.ordinal(),
+                selectedLoadoutPickerSlot, itemId));
+        selectedLoadoutPickerSlot = -1;
+        loadoutSearchText = "";
+        loadoutSearchScroll = 0;
+        refreshMonumentScreen();
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void refreshMonumentScreen() {
+        if (Minecraft.getInstance().screen instanceof com.admin82.factions.screen.MonumentScreen screen) {
+            screen.refreshContent();
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private UIElement buildAiDrops(MonumentView selected) {
+        var panel = new UIElement();
+        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(10).paddingAll(6));
+        var left = new UIElement();
+        left.layout(l -> l.width(355).flexDirection(YogaFlexDirection.COLUMN).gapAll(3));
+        left.addChildren(
+                new Label().setText("§6§lAI Death Drop Pool"),
+                new Label().setText("§7Right-click an item to set count and rarity."));
+        var lootGrid = new UIElement();
+        lootGrid.layout(l -> l.width(180).flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        for (int row = 0; row < 6; row++) {
+            var slotRow = new UIElement();
+            slotRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(18).gapAll(1));
+            for (int col = 0; col < 9; col++) slotRow.addChildren(displaySlot(row * 9 + col));
+            lootGrid.addChildren(slotRow);
+        }
+        left.addChildren(lootGrid, new Label().setText("§7Player Inventory"));
+        addPlayerInventoryRows(left);
+        panel.addChildren(left, buildAiDropSettingsEditor(selected));
+        return panel;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private UIElement buildAiDropSettingsEditor(MonumentView selected) {
+        var editor = new UIElement();
+        editor.layout(l -> l.width(260).flexDirection(YogaFlexDirection.COLUMN).gapAll(3));
+        int slot = selectedLootSettingsSlot;
+        if (slot < 0 || slot >= LOOT_SLOTS || slots.get(slot).getItem().isEmpty()) {
+            editor.addChildren(new Label().setText("§6§lRarity §8- appearance chance"));
+            for (int rarity = 0; rarity <= 10; rarity++) editor.addChildren(monumentRarityRow(rarity));
+            return editor;
+        }
+        ItemStack stack = slots.get(slot).getItem();
+        int[] minimum = {Math.max(1, aiDropMinCounts[slot])};
+        int[] maximum = {Math.max(minimum[0], aiDropMaxCounts[slot])};
+        int[] rarity = {Math.clamp(aiDropRarityLevels[slot], 0, 10)};
+        var minimumField = field(Integer.toString(minimum[0]), value -> minimum[0] = parse(value, minimum[0]));
+        var maximumField = field(Integer.toString(maximum[0]), value -> maximum[0] = parse(value, maximum[0]));
+        var rarityField = field(Integer.toString(rarity[0]), value -> rarity[0] = parse(value, rarity[0]));
+        minimumField.layout(l -> l.width(55).height(17));
+        maximumField.layout(l -> l.width(55).height(17));
+        rarityField.layout(l -> l.width(55).height(17));
+        editor.addChildren(
+                new Label().setText("§6" + stack.getHoverName().getString()),
+                compactLabeled("§7Minimum", minimumField),
+                compactLabeled("§7Maximum", maximumField),
+                compactLabeled("§7Rarity 0-10", rarityField),
+                new Button().setText("§aSave Drop Settings").setOnClick(event ->
+                        PacketDistributor.sendToServer(new MonumentAiActionPacket(
+                                MonumentAiActionPacket.Action.SAVE_DROP_SLOT_SETTINGS, selected.id(), 0,
+                                minimum[0], maximum[0], slot, rarity[0])))
+                        .layout(l -> l.width(145).height(19)));
+        return editor;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private void addPlayerInventoryRows(UIElement parent) {
+        for (int row = 0; row < 4; row++) {
+            var slotRow = new UIElement();
+            slotRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(18).gapAll(1));
+            int start = row < 3 ? PLAYER_INV_OFFSET + row * 9 : PLAYER_INV_OFFSET + 27;
+            for (int col = 0; col < 9; col++) slotRow.addChildren(displaySlot(start + col));
+            parent.addChildren(slotRow);
+        }
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -847,7 +1289,16 @@ public class MonumentMenu extends AbstractContainerMenu {
         display.addEventListener(UIEvents.TICK, event -> display.setItem(slots.get(index).getItem().copy()));
         display.addEventListener(UIEvents.MOUSE_UP, event -> {
             if (!(Minecraft.getInstance().screen instanceof com.admin82.factions.screen.MonumentScreen screen)) return;
-            if (index < LOOT_SLOTS && event.button == 1 && !slots.get(index).getItem().isEmpty()) {
+            if (editorMode == EditorMode.AI_LOADOUT && index < 5 && event.button == 1) {
+                selectedLoadoutPickerSlot = index;
+                loadoutSearchText = "";
+                loadoutSearchScroll = 0;
+                screen.refreshContent();
+                return;
+            }
+            if (editorMode == EditorMode.AI_LOADOUT && index < 5) return;
+                if (editorMode != EditorMode.AI_LOADOUT && index < LOOT_SLOTS
+                    && event.button == 1 && !slots.get(index).getItem().isEmpty()) {
                 selectedLootSettingsSlot = index;
                 screen.refreshContent();
                 return;

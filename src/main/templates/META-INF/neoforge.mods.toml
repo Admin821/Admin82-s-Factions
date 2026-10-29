@@ -89,6 +89,14 @@ config="${mod_id}.mixins.compat.json"
     ordering="AFTER"
     side="BOTH"
 
+[[dependencies.${mod_id}]]
+    modId="tacz"
+    type="required"
+    reason="Monument PMCs use TaCZ guns and server-authoritative firing APIs."
+    versionRange="[${tacz_version},)"
+    ordering="AFTER"
+    side="BOTH"
+
 # Here's another dependency
 [[dependencies.${mod_id}]]
     modId="minecraft"
