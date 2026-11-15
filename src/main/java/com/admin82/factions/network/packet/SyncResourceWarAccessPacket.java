@@ -1,11 +1,13 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.screen.ResourceWarHudOverlay;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -52,8 +54,8 @@ public record SyncResourceWarAccessPacket(
         });
     }
 
-    @net.neoforged.api.distmarker.OnlyIn(Dist.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     private static void handleClient(SyncResourceWarAccessPacket pkt) {
-        com.admin82.factions.screen.ResourceWarHudOverlay.update(pkt);
+        ResourceWarHudOverlay.update(pkt);
     }
 }

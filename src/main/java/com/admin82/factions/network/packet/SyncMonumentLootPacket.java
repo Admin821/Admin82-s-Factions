@@ -1,7 +1,7 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
-import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.screen.MonumentScreen;
 import com.admin82.factions.supplydrop.SupplyDropPool;
 import net.minecraft.client.Minecraft;

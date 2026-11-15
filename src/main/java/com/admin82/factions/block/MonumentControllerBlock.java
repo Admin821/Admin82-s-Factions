@@ -1,11 +1,12 @@
 package com.admin82.factions.block;
 
 import com.admin82.factions.blockentity.MonumentControllerBlockEntity;
+import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
+import com.admin82.factions.monument.MonumentMoves;
 import com.admin82.factions.monument.MonumentView;
-import com.admin82.factions.menu.MonumentMenu;
-import com.admin82.factions.faction.FactionManager;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -23,9 +24,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-import javax.annotation.Nullable;
-import java.util.UUID;
 import java.util.Comparator;
+import java.util.UUID;
+import javax.annotation.Nullable;
 
 public class MonumentControllerBlock extends BaseEntityBlock {
     public static final MapCodec<MonumentControllerBlock> CODEC = simpleCodec(MonumentControllerBlock::new);
@@ -45,6 +46,7 @@ public class MonumentControllerBlock extends BaseEntityBlock {
             player.displayClientMessage(Component.literal("§cOnly server operators can place monument controllers."), true);
             return;
         }
+        if (MonumentMoves.tryPlace(player, serverLevel, pos)) return;
         MonumentData data = MonumentData.get(serverLevel.getServer());
         String name = uniqueName(data);
         data.add(new MonumentEntry(UUID.randomUUID(), name, 1, pos, serverLevel.dimension().location().toString()));

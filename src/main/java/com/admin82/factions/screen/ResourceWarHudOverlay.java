@@ -1,5 +1,6 @@
 package com.admin82.factions.screen;
 
+import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.network.packet.SyncResourceWarAccessPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -19,14 +20,14 @@ import net.neoforged.neoforge.client.event.RenderGuiEvent;
  *   Blocks: 38 / 50 remaining
  */
 @OnlyIn(Dist.CLIENT)
-@EventBusSubscriber(modid = com.admin82.factions.AdminsFactions.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = AdminsFactions.MODID, value = Dist.CLIENT)
 public class ResourceWarHudOverlay {
 
     private static long expiresAt    = 0L;
     private static int  blockLimit   = 0;
     private static int  blocksBroken = 0;
 
-    // ── State ─────────────────────────────────────────────────────────────────
+    // State
 
     public static void update(SyncResourceWarAccessPacket pkt) {
         expiresAt    = pkt.expiresAt();
@@ -34,7 +35,7 @@ public class ResourceWarHudOverlay {
         blocksBroken = pkt.blocksBroken();
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // Render
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
@@ -54,13 +55,13 @@ public class ResourceWarHudOverlay {
         int x    = (screenW - barW) / 2;
         int y    = 50;
 
-        // ── Header ────────────────────────────────────────────────────────────
+        // Header
         String header = "§6[Resource War Access]";
         int hw = mc.font.width(header);
         gfx.drawString(mc.font, header, (screenW - hw) / 2, y, 0xFFFFAA00, true);
         y += 10;
 
-        // ── Timer bar ─────────────────────────────────────────────────────────
+        // Timer bar
         long msLeft   = expiresAt - now;
         float timePct = Math.max(0f, Math.min(1f, msLeft / (10f * 60_000f)));
         int totalSec  = (int) (msLeft / 1000L);
@@ -80,7 +81,7 @@ public class ResourceWarHudOverlay {
                 0xFFFFFFFF, true);
         y += barH + 4;
 
-        // ── Block counter ─────────────────────────────────────────────────────
+        // Block counter
         int blocksLeft = Math.max(0, blockLimit - blocksBroken);
         String blockStr = "Blocks remaining: §c" + blocksLeft + "§r / §7" + blockLimit;
         int bw = mc.font.width(blockStr);

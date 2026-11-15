@@ -1,10 +1,10 @@
 package com.admin82.factions.item;
 
 import com.admin82.factions.block.FactionTableBlock;
+import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
-import com.admin82.factions.economy.EconomyManager;
-import com.admin82.factions.menu.FactionTableMenu;
+import com.admin82.factions.menu.factiontable.FactionTableMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
@@ -19,6 +19,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.List;
 
@@ -49,7 +50,7 @@ public class FactionTableItem extends BlockItem {
         Faction playerFaction = manager.getFactionForPlayer(player.getUUID());
 
         if (playerFaction == null) {
-            // ── No faction: open Create Faction screen WITHOUT placing the block ──
+            // No faction: open Create Faction screen WITHOUT placing the block
             BlockPos targetPos = context.getClickedPos().relative(context.getClickedFace());
 
             // Position must be free to place into
@@ -57,16 +58,16 @@ public class FactionTableItem extends BlockItem {
                 return InteractionResult.FAIL;
             }
 
-            // ── Must have a free 2×2 footprint (east, south, south-east) ────────────
+            // Must have a free 2×2 footprint (east, south, south-east)
             if (!FactionTableBlock.has2x2Space(level, targetPos)) {
                 player.displayClientMessage(
                         Component.literal("§cNot enough space! The Faction Table needs a clear 2×2 area."), true);
                 return InteractionResult.FAIL;
             }
 
-            // ── Must be placed outdoors (at or near the surface) and not covered ──
+            // Must be placed outdoors (at or near the surface) and not covered
             int surfaceY = ((ServerLevel) level).getHeight(
-                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     targetPos.getX(), targetPos.getZ());
             if (targetPos.getY() < surfaceY - 1) {
                 player.displayClientMessage(
@@ -87,7 +88,7 @@ public class FactionTableItem extends BlockItem {
                         buf.writeBlockPos(targetPos);
                         buf.writeBoolean(false); // No faction
                         buf.writeDouble(EconomyManager.get(player.server).getClaimRateMultiplier());
-                        // Vassal data — must always be written to match FactionTableBlock's protocol
+                        // Vassal data, must always be written to match FactionTableBlock's protocol
                         buf.writeBoolean(false); // isVassal
                         buf.writeBoolean(false); // isSuzerain
                         buf.writeUtf("");        // vassalSuzerainName
@@ -101,7 +102,7 @@ public class FactionTableItem extends BlockItem {
             return InteractionResult.CONSUME;
         }
 
-        // ── Has a faction: let BlockItem handle placement normally.
+        // Has a faction: let BlockItem handle placement normally.
         // setPlacedBy in FactionTableBlock will catch duplicates.
         return super.useOn(context);
     }

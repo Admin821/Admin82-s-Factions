@@ -5,7 +5,6 @@ import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.faction.FactionMember;
 import com.admin82.factions.faction.FactionPermission;
-import com.admin82.factions.faction.FactionRole;
 import com.admin82.factions.util.BypassManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -21,10 +20,10 @@ import static com.admin82.factions.AdminsFactions.MODID;
 /**
  * Client → Server: deposit or withdraw coins between personal wallet / faction vault.
  *
- * DEPOSIT_WALLET  — physical coins → personal wallet balance
- * WITHDRAW_WALLET — personal wallet balance → physical coins
- * DEPOSIT_FACTION — personal wallet balance → faction vault
- * WITHDRAW_FACTION — faction vault → personal wallet balance (requires VAULT_WITHDRAW perm or owner)
+ * DEPOSIT_WALLET , physical coins → personal wallet balance
+ * WITHDRAW_WALLET, personal wallet balance → physical coins
+ * DEPOSIT_FACTION, personal wallet balance → faction vault
+ * WITHDRAW_FACTION, faction vault → personal wallet balance (requires VAULT_WITHDRAW perm or owner)
  */
 public record VaultActionPacket(Action action, long amount) implements CustomPacketPayload {
 
@@ -58,28 +57,28 @@ public record VaultActionPacket(Action action, long amount) implements CustomPac
                         sp.displayClientMessage(Component.literal("§cNot enough coins in your inventory."), true);
                         return;
                     }
-                    eco.addWallet(sp.getUUID(), amount);
+                    eco.addWallet(sp.getUUID(), amount, "Deposited coins");
                     sp.displayClientMessage(Component.literal("§aDeposited §e"
                             + Currency.format(amount) + "§a into your wallet."), true);
-                    sp.inventoryMenu.broadcastChanges();
+                    com.admin82.factions.network.InventorySync.push(sp);
                 }
                 case WITHDRAW_WALLET -> {
-                    if (!eco.deductWallet(sp.getUUID(), amount)) {
+                    if (!eco.deductWallet(sp.getUUID(), amount, "Withdrew as coins")) {
                         sp.displayClientMessage(Component.literal("§cInsufficient wallet balance."), true);
                         return;
                     }
                     EconomyManager.giveCopperToInventory(sp, amount);
                     sp.displayClientMessage(Component.literal("§aWithdrew §e"
                             + Currency.format(amount) + "§a from your wallet."), true);
-                    sp.inventoryMenu.broadcastChanges();
+                    com.admin82.factions.network.InventorySync.push(sp);
                 }
                 case DEPOSIT_FACTION -> {
                     if (faction == null) { sp.displayClientMessage(Component.literal("§cNot in a faction."), true); return; }
-                    if (!eco.deductWallet(sp.getUUID(), amount)) {
+                    if (!eco.deductWallet(sp.getUUID(), amount, "Deposited to faction vault")) {
                         sp.displayClientMessage(Component.literal("§cInsufficient wallet balance."), true);
                         return;
                     }
-                    eco.addVault(faction.getId(), amount);
+                    eco.addVault(faction.getId(), amount, "Deposit by " + sp.getGameProfile().getName());
                     sp.displayClientMessage(Component.literal("§aDeposited §e"
                             + Currency.format(amount) + "§a into the faction vault."), true);
                 }
@@ -94,11 +93,11 @@ public record VaultActionPacket(Action action, long amount) implements CustomPac
                         sp.displayClientMessage(Component.literal("§cYou don't have permission to withdraw from the vault."), true);
                         return;
                     }
-                    if (!eco.deductVault(faction.getId(), amount)) {
+                    if (!eco.deductVault(faction.getId(), amount, "Withdrawal by " + sp.getGameProfile().getName())) {
                         sp.displayClientMessage(Component.literal("§cInsufficient vault balance."), true);
                         return;
                     }
-                    eco.addWallet(sp.getUUID(), amount);
+                    eco.addWallet(sp.getUUID(), amount, "Withdrew from faction vault");
                     sp.displayClientMessage(Component.literal("§aWithdrew §e"
                             + Currency.format(amount) + "§a from the faction vault."), true);
                 }

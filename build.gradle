@@ -88,6 +88,11 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+
+
+
+
+
         // This run config launches GameTestServer and runs all registered gametests, then exits.
         // By default, the server will crash when no gametests are provided.
         // The gametest system is also enabled by default for other run configs under the /test command.
@@ -142,7 +147,13 @@ configurations {
 
 dependencies {
     implementation "com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all"
-    implementation "maven.modrinth:tacz-1.21.1:${tacz_version}"
+    // TaCZ is optional: compiled against, present in dev runs, not required by the built mod
+    compileOnly "maven.modrinth:tacz-1.21.1:${tacz_version}"
+    localRuntime "maven.modrinth:tacz-1.21.1:${tacz_version}"
+    // NTM: Continuum, only in dev runs (for testing meters with NTM wires and ducts). Not on a maven,
+    // so put the jars from its GitHub releases in ./libs: hbm-neoforge-*.jar and golemcore-neoforge-*.jar.
+    def ntmJars = fileTree(dir: 'libs', include: ['hbm-neoforge-*.jar', 'golemcore-neoforge-*.jar'])
+    if (!ntmJars.isEmpty()) localRuntime ntmJars
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
@@ -179,6 +190,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
             neo_version            : neo_version,
+            neo_min_version        : neo_min_version,
             loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,

@@ -1,6 +1,6 @@
 package com.admin82.factions.blockentity;
 
-import com.admin82.factions.menu.FactionTableMenu;
+import com.admin82.factions.menu.factiontable.FactionTableMenu;
 import com.admin82.factions.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -13,8 +13,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import javax.annotation.Nullable;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 public class FactionTableBlockEntity extends BlockEntity implements MenuProvider {
 

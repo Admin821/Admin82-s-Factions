@@ -1,14 +1,13 @@
 package com.admin82.factions.screen;
 
+import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.network.packet.OpenKitSelectionPacket;
 import com.admin82.factions.network.packet.SelectKitPacket;
-import com.admin82.factions.barracks.KitData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -22,7 +21,7 @@ import java.util.List;
  *
  *   ┌─────────────────────────────────────────────────────────┐
  *   │   ⚔ Choose Your Kit                                     │
- *   │   Select a kit — it will be consumed once taken.         │
+ *   │   Select a kit, it will be consumed once taken.         │
  *   ├──────────┬──────────┬──────────┐                        │
  *   │ Kit Name │ Kit Name │ Kit Name │                        │
  *   │ H C L B  │ H C L B  │ H C L B  │                        │
@@ -44,9 +43,9 @@ public class KitSelectionScreen extends Screen {
     private final List<OpenKitSelectionPacket.KitEntry> allKits;
     private int page = 0;
 
-    // Tooltip state — populated while rendering cards, drawn once after everything else
+    // Tooltip state, populated while rendering cards, drawn once after everything else
     private ItemStack pendingTooltipItem = ItemStack.EMPTY;
-    private java.util.List<net.minecraft.network.chat.Component> pendingTooltipLines = null;
+    private List<Component> pendingTooltipLines = null;
     private int pendingTooltipX, pendingTooltipY;
 
     public KitSelectionScreen(List<OpenKitSelectionPacket.KitEntry> kits) {
@@ -54,7 +53,7 @@ public class KitSelectionScreen extends Screen {
         this.allKits = new ArrayList<>(kits);
     }
 
-    // ── Layout helpers ────────────────────────────────────────────────────────
+    // Layout helpers
 
     private List<OpenKitSelectionPacket.KitEntry> pageKits() {
         int from = page * KITS_PER_PAGE;
@@ -74,7 +73,7 @@ public class KitSelectionScreen extends Screen {
     private int cardX(int col) { return gridStartX() + col * (CARD_W + CARD_GAP); }
     private int cardY(int row) { return gridStartY() + row * (CARD_H + CARD_GAP); }
 
-    // ── Widget setup ──────────────────────────────────────────────────────────
+    // Widget setup
 
     @Override
     protected void init() {
@@ -121,7 +120,7 @@ public class KitSelectionScreen extends Screen {
         onClose();
     }
 
-    // ── Rendering ─────────────────────────────────────────────────────────────
+    // Rendering
 
     /** Prevent the Gaussian blur shader from being applied to the world background. */
     @Override
@@ -129,7 +128,7 @@ public class KitSelectionScreen extends Screen {
 
     /** Prevent the semi-transparent dark overlay from renderBackground overwriting our fill. */
     @Override
-    public void renderTransparentBackground(net.minecraft.client.gui.GuiGraphics g) { /* no-op */ }
+    public void renderTransparentBackground(GuiGraphics g) { /* no-op */ }
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -137,7 +136,7 @@ public class KitSelectionScreen extends Screen {
         pendingTooltipItem = ItemStack.EMPTY;
         pendingTooltipLines = null;
 
-        // Fully-opaque dark background — no world bleed-through, no blur
+        // Fully-opaque dark background, no world bleed-through, no blur
         g.fill(0, 0, width, height, 0xFF0A0A18);
 
         // Title & subtitle
@@ -186,7 +185,7 @@ public class KitSelectionScreen extends Screen {
     }
 
     /** Registers a text-list tooltip to be drawn at the end of the frame. */
-    private void hoverLines(java.util.List<net.minecraft.network.chat.Component> lines, int mx, int my) {
+    private void hoverLines(List<Component> lines, int mx, int my) {
         if (pendingTooltipItem.isEmpty() && pendingTooltipLines == null) {
             pendingTooltipLines = lines;
             pendingTooltipX = mx;
@@ -221,14 +220,14 @@ public class KitSelectionScreen extends Screen {
         g.drawCenteredString(font, "§e§l" + kit.name(),
                 cx + CARD_W / 2, cy + 5, 0xFFFFFF);
 
-        // Count badge — top-right corner shows how many copies can still be taken
+        // Count badge, top-right corner shows how many copies can still be taken
         String countStr = "×" + kit.count();
         int countColor = kit.count() >= 3 ? 0xFF55FF55 : kit.count() == 2 ? 0xFFFFAA00 : 0xFFFF5555;
         g.drawString(font, countStr, cx + CARD_W - font.width(countStr) - 4, cy + 5, countColor, true);
 
         int itemY = cy + 18;
 
-        // ── Armor + offhand row ──────────────────────────────────────────────
+        // Armor + offhand row
         g.drawString(font, "§8Armor:", cx + 4, itemY, 0x888888, false);
         itemY += 10;
 
@@ -253,7 +252,7 @@ public class KitSelectionScreen extends Screen {
         }
         itemY += 20;
 
-        // ── Inventory rows — all 4 rows by slot position ─────────────────────
+        // Inventory rows, all 4 rows by slot position
         g.drawString(font, "§8Items:", cx + 4, itemY, 0x888888, false);
         itemY += 10;
 
@@ -286,21 +285,21 @@ public class KitSelectionScreen extends Screen {
         itemY += 20;
     }
 
-    // ── Screen settings ───────────────────────────────────────────────────────
+    // Screen settings
 
     @Override
     public boolean isPauseScreen() { return false; }
 
-    /** Prevent ESC from closing this screen — players must pick a kit or click No Kit. */
+    /** Prevent ESC from closing this screen, players must pick a kit or click No Kit. */
     @Override
     public boolean shouldCloseOnEsc() { return false; }
 
     /** Block Escape and the inventory key (E) from dismissing the kit picker. */
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256) return true; // Escape — consume, do not close
-        var mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc.options.keyInventory.matches(keyCode, scanCode)) return true; // E — consume, do not close
+        if (keyCode == 256) return true; // Escape, consume, do not close
+        var mc = Minecraft.getInstance();
+        if (mc.options.keyInventory.matches(keyCode, scanCode)) return true; // E, consume, do not close
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

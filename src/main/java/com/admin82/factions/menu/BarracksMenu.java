@@ -5,6 +5,7 @@ import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.network.packet.BarracksActionPacket;
 import com.admin82.factions.network.packet.RequestMoveBarracksPacket;
 import com.admin82.factions.registry.ModMenuTypes;
+import com.admin82.factions.screen.BarracksScreen;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.slot.ItemHandlerSlot;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
@@ -19,18 +20,19 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -40,19 +42,19 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
 import org.appliedenergistics.yoga.YogaFlexDirection;
 
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 public class BarracksMenu extends AbstractContainerMenu {
 
-    // ── Constants ─────────────────────────────────────────────────────────────
+    // Constants
 
     private static final int STAGING_OFFSET = 0;            // staging slots 0-39
     private static final int PLAYER_INV_OFFSET = KitData.SLOT_COUNT; // slots 40-75
     private static final int MAX_KITS = 3;
 
-    // ── Shared state (both sides) ─────────────────────────────────────────────
+    // Shared state (both sides)
 
     private final BlockPos barrPos;
     private final UUID ownerPlayerId;
@@ -70,13 +72,13 @@ public class BarracksMenu extends AbstractContainerMenu {
     /** Client-only: the editorArea element of the currently active Kit Creator panel. */
     private UIElement kitEditorArea = null;
 
-    // ── Server-only state ─────────────────────────────────────────────────────
+    // Server-only state
 
     @Nullable private MinecraftServer server;
     @Nullable private String currentEditingKitName;
     private boolean stagingSaveEnabled = false;
 
-    // ── Staging inventory handler ─────────────────────────────────────────────
+    // Staging inventory handler
 
     private final ItemStackHandler stagingHandler = new ItemStackHandler(KitData.SLOT_COUNT) {
         @Override
@@ -92,12 +94,12 @@ public class BarracksMenu extends AbstractContainerMenu {
     /** Slot objects added to the container (reused by UI ItemSlot elements). */
     final Slot[] stagingSlots = new Slot[KitData.SLOT_COUNT];
 
-    // ── UI tab ────────────────────────────────────────────────────────────────
+    // UI tab
 
     private enum Tab { KIT_CREATOR, KIT_MANAGER }
     private Tab currentTab = Tab.KIT_CREATOR;
 
-    // ── Constructors ──────────────────────────────────────────────────────────
+    // Constructors
 
     /** Server-side constructor (direct open from BarracksBlock or BlockEntity). */
     public BarracksMenu(int containerId, Inventory inv, BlockPos barrPos,
@@ -155,7 +157,7 @@ public class BarracksMenu extends AbstractContainerMenu {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
                     if (stack.isEmpty()) return true;
-                    if (stack.getItem() instanceof net.minecraft.world.item.ArmorItem a)
+                    if (stack.getItem() instanceof ArmorItem a)
                         return a.getType().getSlot() == targetEquip;
                     return false;
                 }
@@ -178,7 +180,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         addSlot(new Slot(playerInventory, 40, -10000, -10000));
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
+    // Public API
 
     public BlockPos getBarrPos() { return barrPos; }
     @Nullable public UUID getLinkedFactionId() { return linkedFactionId; }
@@ -191,6 +193,16 @@ public class BarracksMenu extends AbstractContainerMenu {
     /** Server: load a kit's items into the staging handler. */
     public void serverLoadKit(String kitName) {
         if (server == null) return;
+        // Loose items in the editor (no kit loaded) would be overwritten: hand them back first.
+        if (currentEditingKitName == null) {
+            var owner = server.getPlayerList().getPlayer(ownerPlayerId);
+            for (int i = 0; i < KitData.SLOT_COUNT && owner != null; i++) {
+                ItemStack loose = stagingHandler.getStackInSlot(i);
+                if (loose.isEmpty()) continue;
+                stagingHandler.setStackInSlot(i, ItemStack.EMPTY);
+                if (!owner.getInventory().add(loose)) owner.drop(loose, false);
+            }
+        }
         stagingSaveEnabled = false;
         currentEditingKitName = kitName;
         KitData kit = BarracksData.get(server).getKit(ownerPlayerId, kitName);
@@ -210,6 +222,44 @@ public class BarracksMenu extends AbstractContainerMenu {
     }
 
     @Nullable public String getCurrentEditingKitName() { return currentEditingKitName; }
+
+    @Override
+    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        // The kit being edited may have been taken (Quick Take) or deleted since it was loaded: its items
+        // must not be pulled out of the editor a second time.
+        if (server != null && currentEditingKitName != null
+                && BarracksData.get(server).getKit(ownerPlayerId, currentEditingKitName) == null) {
+            serverClearStaging();
+            broadcastChanges();
+            return;
+        }
+        super.clicked(slotId, button, clickType, player);
+        saveStagingToKit();
+    }
+
+    /**
+     * Saves every editor slot into the kit after each click. Slot edits made in place (shift-click,
+     * stacking) don't report a change on their own, so saving only on change could lose or duplicate items.
+     */
+    private void saveStagingToKit() {
+        if (server == null || !stagingSaveEnabled || currentEditingKitName == null) return;
+        ItemStack[] items = new ItemStack[KitData.SLOT_COUNT];
+        for (int i = 0; i < KitData.SLOT_COUNT; i++) items[i] = stagingHandler.getStackInSlot(i).copy();
+        BarracksData.get(server).saveKitAllSlots(ownerPlayerId, currentEditingKitName, items);
+    }
+
+    /** Items put in the editor while no kit was loaded belong to nobody's kit: give them back on close. */
+    @Override
+    public void removed(Player player) {
+        super.removed(player);
+        if (server == null || currentEditingKitName != null) return;
+        for (int i = 0; i < KitData.SLOT_COUNT; i++) {
+            ItemStack stack = stagingHandler.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            stagingHandler.setStackInSlot(i, ItemStack.EMPTY);
+            if (!player.getInventory().add(stack)) player.drop(stack, false);
+        }
+    }
     @Nullable public MinecraftServer getServer() { return server; }
 
     @Override
@@ -242,9 +292,7 @@ public class BarracksMenu extends AbstractContainerMenu {
                 barrPos.getX() + 0.5, barrPos.getY() + 0.5, barrPos.getZ() + 0.5) <= 64.0;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // UI CONSTRUCTION
-    // ══════════════════════════════════════════════════════════════════════════
 
     @OnlyIn(Dist.CLIENT)
     private ModularUI createModularUI(Player player) {
@@ -256,7 +304,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         root.layout(l -> l.width(420).height(340).flexDirection(YogaFlexDirection.COLUMN));
         root.addClass("panel_bg");
 
-        // ── Tab bar ───────────────────────────────────────────────────────────
+        // Tab bar
         var tabBar = new UIElement();
         tabBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(21).width(420).gapAll(2).paddingHorizontal(2));
 
@@ -337,14 +385,14 @@ public class BarracksMenu extends AbstractContainerMenu {
         };
     }
 
-    // ── Kit Creator ───────────────────────────────────────────────────────────
+    // Kit Creator
 
     @OnlyIn(Dist.CLIENT)
     private UIElement buildKitCreatorPanel(Player player) {
         var panel = new UIElement();
         panel.layout(l -> l.flex(1).width(420).flexDirection(YogaFlexDirection.COLUMN));
 
-        // ── Main split row ────────────────────────────────────────────────────
+        // Main split row
         var splitRow = new UIElement();
         splitRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).flex(1).width(420));
 
@@ -369,7 +417,7 @@ public class BarracksMenu extends AbstractContainerMenu {
                 Component.literal(newKitNameVal[0].isEmpty() ? "" : "")));
         statusLabel.layout(l -> l.height(0)); // hidden by default
 
-        var nameField = new TextField().setValue("").bindObserver(v -> newKitNameVal[0] = v);
+        var nameField = UiKit.textField("").setValue("").bindObserver(v -> newKitNameVal[0] = v);
         nameField.layout(l -> l.width(102).height(18));
 
         var createBtn = new Button().setText("§a+ Create Kit")
@@ -384,7 +432,7 @@ public class BarracksMenu extends AbstractContainerMenu {
                 .layout(l -> l.width(102).height(19));
         leftCol.addChildren(nameField, createBtn);
 
-        // ── Rebuild kit list on tick when count changes ───────────────────────
+        // Rebuild kit list on tick when count changes
         int[] lastKitHash = {Integer.MIN_VALUE};
         String[] lastSelected = {"__INIT__"};
         kitListArea.addEventListener(UIEvents.TICK, ev -> {
@@ -411,7 +459,7 @@ public class BarracksMenu extends AbstractContainerMenu {
                                     Component.literal("§eKit: §f" + kitName),
                                     Component.literal("§7Click to edit this kit's items."),
                                     Component.literal("§8Shift+Right-click to delete.")));
-                    kitBtn.addEventListener(UIEvents.MOUSE_UP, mev -> {
+                    UiKit.onClick(kitBtn, mev -> {
                         if (mev.button == 1) { // right click = delete
                             PacketDistributor.sendToServer(new BarracksActionPacket(
                                     BarracksActionPacket.Action.DELETE_KIT, kitName, -1, null));
@@ -424,7 +472,7 @@ public class BarracksMenu extends AbstractContainerMenu {
             }
         });
 
-        // ── Right: kit editor ─────────────────────────────────────────────────
+        // Right: kit editor
         var rightCol = new UIElement();
         rightCol.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN)
                 .paddingAll(4).gapAll(4));
@@ -462,7 +510,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         splitRow.addChildren(leftCol, rightCol);
 
-        // ── Quick Take bar ────────────────────────────────────────────────────
+        // Quick Take bar
         var quickTakeBar = buildQuickTakeBar();
 
         panel.addChildren(splitRow, quickTakeBar);
@@ -481,7 +529,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         return wrap;
     }
 
-    // ── Kit Manager ───────────────────────────────────────────────────────────
+    // Kit Manager
 
     @OnlyIn(Dist.CLIENT)
     private UIElement buildKitManagerPanel(Player player) {
@@ -605,7 +653,7 @@ public class BarracksMenu extends AbstractContainerMenu {
             }
         });
 
-        // ── Move Barracks button (faction owners only) ─────────────────────────────────
+        // Move Barracks button (faction owners only)
         var moveRow = new UIElement();
         moveRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).width(416)
                 .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(YogaAlign.CENTER));
@@ -662,13 +710,13 @@ public class BarracksMenu extends AbstractContainerMenu {
         var display = new ItemSlot();
         display.addEventListener(UIEvents.TICK, ev ->
                 display.setItem(slots.get(containerSlotIdx).getItem().copy()));
-        display.addEventListener(UIEvents.MOUSE_UP, ev -> {
-            if (!(net.minecraft.client.Minecraft.getInstance().screen
-                    instanceof com.admin82.factions.screen.BarracksScreen bs)) return;
-            net.minecraft.world.inventory.ClickType type =
-                    net.minecraft.client.gui.screens.Screen.hasShiftDown()
-                            ? net.minecraft.world.inventory.ClickType.QUICK_MOVE
-                            : net.minecraft.world.inventory.ClickType.PICKUP;
+        UiKit.onClick(display, ev -> {
+            if (!(Minecraft.getInstance().screen
+                    instanceof BarracksScreen bs)) return;
+            ClickType type =
+                    Screen.hasShiftDown()
+                            ? ClickType.QUICK_MOVE
+                            : ClickType.PICKUP;
             bs.interactWithSlot(containerSlotIdx, ev.button, type);
         });
         return display;
@@ -693,7 +741,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         return wrap;
     }
 
-    // ── Player inventory section ──────────────────────────────────────────────
+    // Player inventory section
 
     @OnlyIn(Dist.CLIENT)
     private UIElement buildPlayerInventorySection() {
@@ -763,7 +811,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         return section;
     }
 
-    // ── Quick Take bar ────────────────────────────────────────────────────────
+    // Quick Take bar
 
     @OnlyIn(Dist.CLIENT)
     private UIElement buildQuickTakeBar() {

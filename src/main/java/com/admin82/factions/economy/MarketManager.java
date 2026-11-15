@@ -1,8 +1,16 @@
 package com.admin82.factions.economy;
 
+import com.admin82.factions.Config;
+import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.network.LiveSync;
+import com.admin82.factions.network.packet.SyncSoldListingsPacket;
+import com.admin82.factions.war.VassalManager;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -10,10 +18,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.neoforge.network.PacketDistributor;
-import com.admin82.factions.network.packet.SyncSoldListingsPacket;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import javax.annotation.Nullable;
 
 /** Persistent storage for all market listings. */
 public class MarketManager extends SavedData {
@@ -25,8 +32,59 @@ public class MarketManager extends SavedData {
     private final List<SoldListing>   soldListings  = new ArrayList<>();
     private final List<MarketDelivery> pendingDeliveries = new ArrayList<>();
     private final Map<UUID, Long> lastReminderAt = new HashMap<>();
+    /** Messages for players who were offline when something happened (e.g. buy order fills). */
+    private final Map<UUID, List<String>> pendingNotices = new HashMap<>();
+    private static final int MAX_NOTICES_PER_PLAYER = 30;
+    /** Bumped on every change, so open market screens know when to refresh (see LiveSync). */
+    private long version;
 
-    // ── Singleton ─────────────────────────────────────────────────────────────
+    public long getVersion() { return version; }
+
+    @Override
+    public void setDirty(boolean dirty) {
+        if (dirty) version++;
+        super.setDirty(dirty);
+    }
+    /** Newest-first market activity per player (bought, sold, bids, orders...). */
+    private final Map<UUID, Deque<Transaction>> marketHistory = new HashMap<>();
+    /** Oldest-first completed sales per item id, for price stats and charts. */
+    private final Map<String, Deque<PricePoint>> priceHistory = new HashMap<>();
+
+    // History
+
+    /** Adds a line to a player's market activity. {@code amount} is signed copper (0 = info only). */
+    public void logMarket(UUID player, long amount, String text, ItemStack icon) {
+        Transaction.push(marketHistory.computeIfAbsent(player, ignored -> new ArrayDeque<>()),
+                new Transaction(System.currentTimeMillis(), amount, -1L, text, icon.isEmpty() ? ItemStack.EMPTY : icon.copyWithCount(1)));
+        setDirty();
+    }
+
+    public List<Transaction> getMarketHistory(UUID player) {
+        return List.copyOf(marketHistory.getOrDefault(player, new ArrayDeque<>()));
+    }
+
+    /** Records a completed sale for the item's price history. */
+    public void recordSale(ItemStack item, long unitPrice, int quantity, int source) {
+        if (item.isEmpty() || unitPrice <= 0 || quantity <= 0) return;
+        String key = BuiltInRegistries.ITEM.getKey(item.getItem()).toString();
+        Deque<PricePoint> points = priceHistory.computeIfAbsent(key, ignored -> new ArrayDeque<>());
+        points.addLast(new PricePoint(System.currentTimeMillis(), unitPrice, quantity, source));
+        while (points.size() > PricePoint.MAX_POINTS) points.removeFirst();
+        setDirty();
+    }
+
+    /** Every item's sale history, oldest sale first (for the Stocks page). */
+    public Map<String, List<PricePoint>> allPriceHistory() {
+        Map<String, List<PricePoint>> out = new HashMap<>();
+        priceHistory.forEach((id, points) -> out.put(id, List.copyOf(points)));
+        return out;
+    }
+
+    public List<PricePoint> getPriceHistory(String itemId) {
+        return List.copyOf(priceHistory.getOrDefault(itemId, new ArrayDeque<>()));
+    }
+
+    // Singleton
 
     public static MarketManager get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -35,7 +93,7 @@ public class MarketManager extends SavedData {
         );
     }
 
-    // ── API ───────────────────────────────────────────────────────────────────
+    // API
 
     public List<MarketListing> getListings() {
         return Collections.unmodifiableList(listings);
@@ -61,6 +119,25 @@ public class MarketManager extends SavedData {
         return listings.stream().filter(l -> l.sellerUUID.equals(playerUUID)).toList();
     }
 
+    /**
+     * Takes vassal tax out of a seller's proceeds (already after market tax) when the seller's faction is a
+     * vassal, and returns what's left for the seller. Every kind of sale goes through here.
+     */
+    public static long afterVassalTax(MinecraftServer server, UUID seller, long proceeds) {
+        if (proceeds <= 0) return proceeds;
+        var faction = FactionManager.get(server).getFactionForPlayer(seller);
+        var vassals = VassalManager.get(server);
+        if (faction == null || !vassals.isVassal(faction.getId())) return proceeds;
+        long tax = Math.min(proceeds, Math.max(1, proceeds * Config.VASSAL_TAX_PERCENT.get() / 100));
+        vassals.accumulateTax(faction.getId(), tax);
+        return proceeds - tax;
+    }
+
+    /** How many listings and buy orders a player may have up at once (the "Listings per player" setting). */
+    public static int listingLimit() {
+        return Config.MAX_LISTINGS_PER_PLAYER.get();
+    }
+
     /** Count of active non-admin listings by a player (used for slot limits). */
     public int countPlayerListings(UUID playerUUID) {
         return (int) listings.stream().filter(l -> l.sellerUUID.equals(playerUUID) && !l.isAdminListing()).count();
@@ -71,7 +148,7 @@ public class MarketManager extends SavedData {
         return (int) listings.stream().filter(l -> l.kind == MarketListing.ListingKind.ADMIN_SELL).count();
     }
 
-    // ── Sold listings (unclaimed proceeds) ─────────────────────────────
+    // Sold listings (unclaimed proceeds)
 
     public void addSoldListing(SoldListing sale) {
         soldListings.add(sale);
@@ -94,14 +171,33 @@ public class MarketManager extends SavedData {
 
     public void queueDelivery(UUID playerUUID, ItemStack item, String reason) {
         if (item.isEmpty()) return;
-        MarketDelivery delivery = new MarketDelivery();
-        delivery.deliveryId = UUID.randomUUID();
-        delivery.playerUUID = playerUUID;
-        delivery.item = item.copy();
-        delivery.reason = reason;
-        delivery.createdAt = System.currentTimeMillis();
-        pendingDeliveries.add(delivery);
+        int remaining = item.getCount();
+        int maxStack = Math.max(1, item.getMaxStackSize());
+        while (remaining > 0) {
+            int count = Math.min(maxStack, remaining);
+            remaining -= count;
+            MarketDelivery delivery = new MarketDelivery();
+            delivery.deliveryId = UUID.randomUUID();
+            delivery.playerUUID = playerUUID;
+            delivery.item = item.copyWithCount(count);
+            delivery.reason = reason;
+            delivery.createdAt = System.currentTimeMillis();
+            pendingDeliveries.add(delivery);
+        }
         lastReminderAt.put(playerUUID, System.currentTimeMillis());
+        setDirty();
+    }
+
+    /** Tells the player now if online, otherwise stores the message for their next login. */
+    public void notifyPlayer(MinecraftServer server, UUID playerUUID, String message) {
+        ServerPlayer player = server.getPlayerList().getPlayer(playerUUID);
+        if (player != null) {
+            player.displayClientMessage(Component.literal(message), false);
+            return;
+        }
+        List<String> notices = pendingNotices.computeIfAbsent(playerUUID, ignored -> new ArrayList<>());
+        notices.add(message);
+        while (notices.size() > MAX_NOTICES_PER_PLAYER) notices.remove(0);
         setDirty();
     }
 
@@ -123,6 +219,11 @@ public class MarketManager extends SavedData {
     }
 
     public void notifyLoginSummary(ServerPlayer player) {
+        List<String> notices = pendingNotices.remove(player.getUUID());
+        if (notices != null && !notices.isEmpty()) {
+            notices.forEach(notice -> player.displayClientMessage(Component.literal(notice), false));
+            setDirty();
+        }
         if (sendClaimSummary(player, "§e[Market] While you were away:")) {
             lastReminderAt.put(player.getUUID(), System.currentTimeMillis());
             setDirty();
@@ -181,22 +282,33 @@ public class MarketManager extends SavedData {
             toRemove.add(listing.listingId);
 
             if (listing.kind == MarketListing.ListingKind.PLAYER_BUY_ORDER) {
-                eco.addWallet(listing.sellerUUID, listing.price);
-                ServerPlayer buyer = server.getPlayerList().getPlayer(listing.sellerUUID);
-                if (buyer != null) {
-                    buyer.displayClientMessage(Component.literal(
-                            "§e[Market] Buy order expired. Refunded §a" + Currency.format(listing.price) + "§e."), false);
-                }
+                if (listing.escrow > 0) eco.addWallet(listing.sellerUUID, listing.escrow, "Buy order expired (refund)");
+                logMarket(listing.sellerUUID, listing.escrow, "Buy order expired: " + listing.orderFilled + "/"
+                        + listing.orderQuantity + " " + listing.item.getHoverName().getString() + " (refund)", listing.item);
+                notifyPlayer(server, listing.sellerUUID, "§e[Market] Your buy order for §f"
+                        + listing.orderQuantity + " " + listing.item.getHoverName().getString()
+                        + " §eexpired with §f" + listing.orderFilled + "/" + listing.orderQuantity
+                        + " §efilled. Refunded §a" + Currency.format(listing.escrow) + "§e to your wallet.");
             } else if (listing.kind == MarketListing.ListingKind.ADMIN_BUY_ORDER || listing.kind == MarketListing.ListingKind.ADMIN_SELL) {
                 // Server/admin listings are not backed by player escrow or inventory.
             } else if (listing.isAuction && listing.highestBidder != null) {
                 // Auction sold: deliver item to winner, create a claimable SoldListing for seller
                 deliverItem(server, listing.highestBidder, listing.item);
                 long proceeds = listing.netProceeds(listing.highestBid);
+                Treasury.record(server, Treasury.Source.MARKET_TAX_AUCTION, listing.highestBid - proceeds,
+                        resolvePlayerName(server, listing.sellerUUID), listing.item.getCount() + "× "
+                        + listing.item.getHoverName().getString() + " sold for " + Currency.format(listing.highestBid).replaceAll("§.", ""));
+                proceeds = afterVassalTax(server, listing.sellerUUID, proceeds);
 
                 String buyerName = resolvePlayerName(server, listing.highestBidder);
                 SoldListing sale = makeSoldListing(listing.sellerUUID, listing.item, buyerName, proceeds);
                 addSoldListing(sale);
+                int count = Math.max(1, listing.item.getCount());
+                recordSale(listing.item, Math.max(1, listing.highestBid / count), count, PricePoint.AUCTION);
+                logMarket(listing.highestBidder, -listing.highestBid, "Won auction: " + count + "× "
+                        + sale.itemName, listing.item);
+                logMarket(listing.sellerUUID, proceeds, "Auction sold to " + buyerName + ": " + count + "× "
+                        + sale.itemName + " (after tax)", listing.item);
 
                 // Notify seller if online
                 ServerPlayer seller = server.getPlayerList().getPlayer(listing.sellerUUID);
@@ -213,6 +325,8 @@ public class MarketManager extends SavedData {
             } else if (!listing.unpaidUpkeep) {
                 // Return unsold item to seller
                 deliverItem(server, listing.sellerUUID, listing.item);
+                logMarket(listing.sellerUUID, 0, "Listing expired unsold: " + listing.item.getHoverName().getString()
+                        + " (returned)", listing.item);
             }
             // Unpaid-upkeep listings that expire unsold are just removed (chunks already freed)
         }
@@ -238,7 +352,7 @@ public class MarketManager extends SavedData {
         ItemStack remaining = item.copy();
         player.getInventory().add(remaining);
         if (!remaining.isEmpty()) player.drop(remaining, false);
-        player.inventoryMenu.broadcastChanges();
+        com.admin82.factions.network.InventorySync.push(player);
         if (player.containerMenu != player.inventoryMenu) player.containerMenu.broadcastChanges();
     }
 
@@ -256,16 +370,16 @@ public class MarketManager extends SavedData {
     }
 
     /** Resolves a player's display name; falls back to UUID string. */
-    private static String resolvePlayerName(MinecraftServer server, UUID uuid) {
+    public static String resolvePlayerName(MinecraftServer server, UUID uuid) {
         ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
         if (sp != null) return sp.getGameProfile().getName();
         return server.getProfileCache()
                 .get(uuid)
-                .map(com.mojang.authlib.GameProfile::getName)
+                .map(GameProfile::getName)
                 .orElse(uuid.toString().substring(0, 8));
     }
 
-    // ── Serialization ─────────────────────────────────────────────────────────
+    // Serialization
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider reg) {
@@ -286,6 +400,27 @@ public class MarketManager extends SavedData {
             reminders.add(reminder);
         });
         tag.put("marketReminders", reminders);
+        var notices = new ListTag();
+        pendingNotices.forEach((playerId, messages) -> {
+            var entry = new CompoundTag();
+            entry.putUUID("player", playerId);
+            var lines = new ListTag();
+            messages.forEach(message -> lines.add(StringTag.valueOf(message)));
+            entry.put("messages", lines);
+            notices.add(entry);
+        });
+        tag.put("pendingNotices", notices);
+        tag.put("marketHistory", EconomyManager.saveHistory(marketHistory, reg));
+        var prices = new ListTag();
+        priceHistory.forEach((itemId, points) -> {
+            var entry = new CompoundTag();
+            entry.putString("item", itemId);
+            var list2 = new ListTag();
+            points.forEach(point -> list2.add(point.save()));
+            entry.put("points", list2);
+            prices.add(entry);
+        });
+        tag.put("priceHistory", prices);
         return tag;
     }
 
@@ -308,6 +443,24 @@ public class MarketManager extends SavedData {
             if (reminder.hasUUID("player")) {
                 manager.lastReminderAt.put(reminder.getUUID("player"), reminder.getLong("timestamp"));
             }
+        }
+        var notices = tag.getList("pendingNotices", Tag.TAG_COMPOUND);
+        for (int i = 0; i < notices.size(); i++) {
+            CompoundTag entry = notices.getCompound(i);
+            if (!entry.hasUUID("player")) continue;
+            var lines = entry.getList("messages", Tag.TAG_STRING);
+            List<String> messages = new ArrayList<>();
+            for (int line = 0; line < lines.size(); line++) messages.add(lines.getString(line));
+            if (!messages.isEmpty()) manager.pendingNotices.put(entry.getUUID("player"), messages);
+        }
+        EconomyManager.loadHistory(tag.getList("marketHistory", Tag.TAG_COMPOUND), manager.marketHistory, reg);
+        var prices = tag.getList("priceHistory", Tag.TAG_COMPOUND);
+        for (int i = 0; i < prices.size(); i++) {
+            CompoundTag entry = prices.getCompound(i);
+            Deque<PricePoint> points = new ArrayDeque<>();
+            var pointList = entry.getList("points", Tag.TAG_COMPOUND);
+            for (int point = 0; point < pointList.size(); point++) points.addLast(PricePoint.load(pointList.getCompound(point)));
+            if (!points.isEmpty()) manager.priceHistory.put(entry.getString("item"), points);
         }
         manager.cleanReminderState();
         return manager;

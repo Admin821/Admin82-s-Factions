@@ -5,8 +5,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import javax.annotation.Nullable;
 
 /**
  * Persistent store for vassal relationships, accumulated taxes, and pending conquest decisions.
@@ -19,10 +19,10 @@ public class VassalManager extends SavedData {
     private final Map<UUID, UUID> vassalToSuzerain  = new HashMap<>();
     /** vassalFactionId → copper accumulated but not yet collected by suzerain */
     private final Map<UUID, Long> accumulatedTax     = new HashMap<>();
-    /** attackerFactionId → defeatedFactionId — waiting for the conqueror to choose */
+    /** attackerFactionId → defeatedFactionId, waiting for the conqueror to choose */
     private final Map<UUID, UUID> pendingConquests   = new HashMap<>();
 
-    // ── Static access ─────────────────────────────────────────────────────────
+    // Static access
 
     public static VassalManager get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -31,7 +31,7 @@ public class VassalManager extends SavedData {
         );
     }
 
-    // ── Vassal relationship ───────────────────────────────────────────────────
+    // Vassal relationship
 
     public boolean isVassal(UUID factionId) { return vassalToSuzerain.containsKey(factionId); }
 
@@ -50,6 +50,8 @@ public class VassalManager extends SavedData {
     }
 
     public void makeVassal(UUID vassalId, UUID suzerainId) {
+        // A vassal that conquers its own overlord is freed first, so two factions can never be each other's vassal.
+        if (vassalId.equals(vassalToSuzerain.get(suzerainId))) freeVassal(suzerainId);
         vassalToSuzerain.put(vassalId, suzerainId);
         setDirty();
     }
@@ -60,7 +62,7 @@ public class VassalManager extends SavedData {
         setDirty();
     }
 
-    // ── Tax ───────────────────────────────────────────────────────────────────
+    // Tax
 
     /** Add copper to the pending tax for a vassal faction. */
     public void accumulateTax(UUID vassalId, long copper) {
@@ -80,7 +82,7 @@ public class VassalManager extends SavedData {
         return amount;
     }
 
-    // ── Pending conquests ─────────────────────────────────────────────────────
+    // Pending conquests
 
     public void addPendingConquest(UUID attackerFactionId, UUID defeatedFactionId) {
         pendingConquests.put(attackerFactionId, defeatedFactionId);
@@ -100,7 +102,7 @@ public class VassalManager extends SavedData {
         return Collections.unmodifiableMap(pendingConquests);
     }
 
-    // ── SavedData ─────────────────────────────────────────────────────────────
+    // SavedData
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {

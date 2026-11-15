@@ -1,0 +1,6 @@
+{
+  "seam_extractor_beam": {
+    "sounds": [{ "name": "adminsfactions:seam_extractor_beam", "stream": false }],
+    "subtitle": "subtitles.adminsfactions.seam_extractor_beam"
+  }
+}

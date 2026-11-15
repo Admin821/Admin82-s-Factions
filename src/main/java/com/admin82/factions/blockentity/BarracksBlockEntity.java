@@ -1,7 +1,5 @@
 package com.admin82.factions.blockentity;
 
-import com.admin82.factions.barracks.BarracksData;
-import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.menu.BarracksMenu;
 import com.admin82.factions.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -15,8 +13,8 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import javax.annotation.Nullable;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 public class BarracksBlockEntity extends BlockEntity implements MenuProvider {
 

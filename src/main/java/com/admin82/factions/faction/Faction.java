@@ -5,8 +5,8 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import javax.annotation.Nullable;
 
 public class Faction {
     private final UUID id;
@@ -58,7 +58,7 @@ public class Faction {
         }
     }
 
-    // ── Getters / Setters ──────────────────────────────────────────────────────
+    // Getters / Setters
 
     public UUID getId() { return id; }
     public long getCreatedAt() { return createdAt; }
@@ -74,7 +74,7 @@ public class Faction {
     public void setPower(int power) { this.power = power; }
     public List<FactionMember> getMembers() { return Collections.unmodifiableList(members); }
 
-    // ── Member management ──────────────────────────────────────────────────────
+    // Member management
 
     @Nullable
     public FactionMember getMember(UUID uuid) {
@@ -91,7 +91,7 @@ public class Faction {
         members.removeIf(m -> m.getUuid().equals(uuid));
     }
 
-    // ── Permissions ───────────────────────────────────────────────────────────
+    // Permissions
 
     public boolean getPermission(FactionPermission permission) {
         return permissions.getOrDefault(permission, permission.getDefaultValue());
@@ -122,7 +122,7 @@ public class Faction {
         return Collections.unmodifiableMap(rolePermissions);
     }
 
-    // ── Land claims ───────────────────────────────────────────────────────────
+    // Land claims
 
     public List<LandClaim> getLandClaims() { return Collections.unmodifiableList(landClaims); }
 
@@ -131,6 +131,22 @@ public class Faction {
     }
 
     public void addClaim(LandClaim claim) { landClaims.add(claim); }
+
+    @Nullable
+    public LandClaim getClaim(int chunkX, int chunkZ, String dimension) {
+        return landClaims.stream().filter(c -> c.matches(chunkX, chunkZ, dimension)).findFirst().orElse(null);
+    }
+
+    /** Replaces the claim at the same chunk with {@code updated}. Returns false if no such claim exists. */
+    public boolean replaceClaim(LandClaim updated) {
+        for (int i = 0; i < landClaims.size(); i++) {
+            if (landClaims.get(i).matches(updated.chunkX(), updated.chunkZ(), updated.dimension().toString())) {
+                landClaims.set(i, updated);
+                return true;
+            }
+        }
+        return false;
+    }
 
     public void replaceLandClaims(List<LandClaim> claims) {
         landClaims.clear();
@@ -141,14 +157,14 @@ public class Faction {
         return landClaims.removeIf(c -> c.matches(chunkX, chunkZ, dimension));
     }
 
-    // ── Wars ──────────────────────────────────────────────────────────────────
+    // Wars
 
     public List<WarEntry> getWars() { return Collections.unmodifiableList(wars); }
     public void addWar(WarEntry war) { wars.add(war); }
     public void removeWar(UUID targetFactionId) { wars.removeIf(w -> w.targetFactionId().equals(targetFactionId)); }
     public boolean isAtWarWith(UUID targetId) { return wars.stream().anyMatch(w -> w.targetFactionId().equals(targetId)); }
 
-    // ── NBT Serialization ─────────────────────────────────────────────────────
+    // NBT Serialization
 
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
@@ -238,7 +254,7 @@ public class Faction {
         return faction;
     }
 
-    // ── Network Serialization ─────────────────────────────────────────────────
+    // Network Serialization
 
     public void toNetwork(FriendlyByteBuf buf) {
         buf.writeUUID(id);

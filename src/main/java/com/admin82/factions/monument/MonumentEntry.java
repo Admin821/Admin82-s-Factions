@@ -4,25 +4,26 @@ import com.admin82.factions.entity.monument.RoguePmcRole;
 import com.admin82.factions.supplydrop.SupplyDropPool;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.LongTag;
-import net.minecraft.core.SectionPos;
-import net.minecraft.world.level.ChunkPos;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 
-import java.util.Collections;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
-import java.util.EnumMap;
+import java.util.UUID;
 
 public class MonumentEntry {
     public static final long DEFAULT_RESPAWN_TICKS = 20L * 60L * 30L;
@@ -42,6 +43,9 @@ public class MonumentEntry {
     private final Map<RoguePmcRole, List<ItemStack>> aiLoadouts = new EnumMap<>(RoguePmcRole.class);
     private final Map<RoguePmcRole, Integer> deadAiCounts = new EnumMap<>(RoguePmcRole.class);
     private SupplyDropPool aiDropPool = new SupplyDropPool("AI Drops");
+    /** Bit i set = guard class RoguePmcRole.values()[i] can drop the item in that AI drop slot. */
+    public static final int ALL_AI_CLASSES = (1 << RoguePmcRole.values().length) - 1;
+    private final int[] aiDropClassMasks = defaultAiDropClassMasks();
     private boolean aiGenerationStarted;
     private String name;
     private int tier;
@@ -86,6 +90,21 @@ public class MonumentEntry {
         return aiLoadouts.getOrDefault(role, emptyLoadout()).stream().map(ItemStack::copy).toList();
     }
     public SupplyDropPool getAiDropPool() { return aiDropPool; }
+    public int getAiDropClassMask(int slot) {
+        return slot < 0 || slot >= aiDropClassMasks.length ? ALL_AI_CLASSES : aiDropClassMasks[slot];
+    }
+    public void setAiDropClassMask(int slot, int mask) {
+        if (slot >= 0 && slot < aiDropClassMasks.length) aiDropClassMasks[slot] = mask & ALL_AI_CLASSES;
+    }
+    public int[] getAiDropClassMasksCopy() { return aiDropClassMasks.clone(); }
+    public boolean canAiClassDrop(int slot, RoguePmcRole role) {
+        return (getAiDropClassMask(slot) & (1 << role.ordinal())) != 0;
+    }
+    private static int[] defaultAiDropClassMasks() {
+        int[] masks = new int[SupplyDropPool.SLOT_COUNT];
+        Arrays.fill(masks, ALL_AI_CLASSES);
+        return masks;
+    }
     public int getDeadAiCount() { return deadAiCounts.values().stream().mapToInt(Integer::intValue).sum(); }
     public int getDeadAiCount(RoguePmcRole role) { return deadAiCounts.getOrDefault(role, 0); }
     public boolean hasAiGenerationStarted() { return aiGenerationStarted; }
@@ -205,6 +224,7 @@ public class MonumentEntry {
         }
         tag.put("aiRoles", aiRoleList);
         tag.put("aiDropPool", aiDropPool.save(registries));
+        tag.putIntArray("aiDropClassMasks", aiDropClassMasks);
         ListTag crateList = new ListTag();
         crates.forEach((pos, poolName) -> {
             CompoundTag crateTag = new CompoundTag();
@@ -261,6 +281,10 @@ public class MonumentEntry {
         }
         if (tag.contains("aiDropPool", Tag.TAG_COMPOUND)) {
             entry.aiDropPool = SupplyDropPool.load(tag.getCompound("aiDropPool"), registries);
+        }
+        int[] savedMasks = tag.getIntArray("aiDropClassMasks");
+        for (int slot = 0; slot < Math.min(savedMasks.length, entry.aiDropClassMasks.length); slot++) {
+            entry.aiDropClassMasks[slot] = savedMasks[slot] & ALL_AI_CLASSES;
         }
         ListTag crateList = tag.getList("crates", Tag.TAG_COMPOUND);
         for (int i = 0; i < crateList.size(); i++) {

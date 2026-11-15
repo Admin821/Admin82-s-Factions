@@ -3,6 +3,7 @@ package com.admin82.factions.network.packet;
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.war.*;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
@@ -10,6 +11,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -54,7 +56,7 @@ public record SendWarDemandPacket(
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    // ── Server handler ────────────────────────────────────────────────────────
+    // Server handler
 
     public static void handle(SendWarDemandPacket pkt, IPayloadContext context) {
         context.enqueueWork(() -> {
@@ -82,38 +84,58 @@ public record SendWarDemandPacket(
                 return;
             }
 
-            // Require at least one non-zero term
-            if (pkt.moneyAmount() <= 0
-                    && pkt.itemId().isEmpty()
-                    && pkt.landChunks() <= 0
-                    && !pkt.vassalTerm()) {
-                player.displayClientMessage(Component.literal("§cSpecify at least one demand term."), false);
+            // Validate terms. A demand with no terms is a white-peace offer.
+            long money = Math.max(0, pkt.moneyAmount());
+            String itemId = pkt.itemId() == null ? "" : pkt.itemId().trim();
+            int itemCount = itemId.isEmpty() ? 0 : Math.max(1, Math.min(6400, pkt.itemCount()));
+            if (!itemId.isEmpty()) {
+                ResourceLocation id = ResourceLocation.tryParse(
+                        itemId.contains(":") ? itemId : "minecraft:" + itemId);
+                var item = id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
+                if (item == null || item == Items.AIR) {
+                    player.displayClientMessage(Component.literal("§cUnknown item §e" + itemId + "§c."), false);
+                    return;
+                }
+                itemId = id.toString();
+            }
+            int land = Math.max(0, Math.min(pkt.landChunks(), Math.max(0, receiver.getLandClaims().size() - 1)));
+            if (pkt.landChunks() > land) {
+                player.displayClientMessage(Component.literal("§c" + receiver.getName() + " only has §e" + land
+                        + "§c chunks besides their core chunk."), false);
                 return;
+            }
+
+            // Only one open demand per side: a new one replaces the previous.
+            for (WarDemand old : negMgr.getDemandsForWar(war.warId)) {
+                if (old.status == WarDemand.Status.PENDING && old.senderFactionId.equals(sender.getId())) {
+                    negMgr.resolveDemand(old.demandId, WarDemand.Status.WITHDRAWN);
+                }
             }
 
             WarDemand demand = new WarDemand(
                     war.warId,
                     sender.getId(), sender.getName(),
                     receiver.getId(), receiver.getName(),
-                    pkt.moneyAmount(),
-                    pkt.itemId(), pkt.itemCount(),
-                    pkt.landChunks(),
+                    money,
+                    itemId, itemCount,
+                    land,
                     pkt.vassalTerm()
             );
             negMgr.addDemand(demand);
 
-            notifyFaction(player.server, sender,
-                    Component.literal("§e[Negotiations] §7Demand sent to §c" + receiver.getName() + "§7."));
-            notifyFaction(player.server, receiver,
-                    Component.literal("§e[Negotiations] §c" + sender.getName()
-                            + " §7sent you a demand — check the §eWars §7tab!"));
+            String what = demand.isWhitePeace() ? "a peace offer" : "a demand";
+            notifyFaction(player.server, sender, Component.literal("§e[Negotiations] §7" + player.getName().getString()
+                    + " sent " + what + " to §c" + receiver.getName() + "§7: " + demand.termsSummary()));
+            notifyFaction(player.server, receiver, Component.literal("§e[Negotiations] §c" + sender.getName()
+                    + " §7sent you " + what + ": " + demand.termsSummary()
+                    + " §8(open Wars → Negotiate on the Faction Table; expires in 10 min)"));
 
             broadcastDemandsToFaction(player.server, sender.getId(),   war.warId, negMgr, fmgr);
             broadcastDemandsToFaction(player.server, receiver.getId(), war.warId, negMgr, fmgr);
         });
     }
 
-    // ── Package-visible helpers ───────────────────────────────────────────────
+    // Package-visible helpers
 
     static void notifyFaction(MinecraftServer server, Faction faction, Component msg) {
         for (FactionMember m : faction.getMembers()) {

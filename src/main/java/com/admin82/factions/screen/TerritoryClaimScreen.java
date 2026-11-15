@@ -16,7 +16,7 @@ import java.util.*;
  */
 public class TerritoryClaimScreen extends Screen {
 
-    // ── Data ──────────────────────────────────────────────────────────────────
+    // Data
 
     private final UUID         defeatedFactionId;
     private final String       defeatedFactionName;
@@ -24,7 +24,7 @@ public class TerritoryClaimScreen extends Screen {
     private final List<String> allKeys;
     private final Set<String>  selected = new LinkedHashSet<>();
 
-    // ── Pagination ────────────────────────────────────────────────────────────
+    // Pagination
 
     private static final int COLS       = 3;
     private static final int ROWS       = 5;
@@ -39,7 +39,7 @@ public class TerritoryClaimScreen extends Screen {
         this.allKeys             = chunkKeys;
     }
 
-    // ── Init ──────────────────────────────────────────────────────────────────
+    // Init
 
     @Override
     protected void init() {
@@ -82,7 +82,7 @@ public class TerritoryClaimScreen extends Screen {
             );
         }
 
-        // ── Navigation ────────────────────────────────────────────────────────
+        // Navigation
         int navY = top + ROWS * (btnH + gapY) + 6;
         if (page > 0) {
             addRenderableWidget(Button.builder(Component.literal("◀ Prev"),
@@ -95,7 +95,7 @@ public class TerritoryClaimScreen extends Screen {
                     .bounds(cx + 70, navY, 60, 20).build());
         }
 
-        // ── Confirm / Skip ────────────────────────────────────────────────────
+        // Confirm / Skip
         int bottomY = navY + 28;
         int selCount = selected.size();
         String claimLabel = selCount > 0
@@ -115,7 +115,7 @@ public class TerritoryClaimScreen extends Screen {
                 .bounds(cx + 4, bottomY, 60, 22).build());
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // Render
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partialTick) {
@@ -138,12 +138,12 @@ public class TerritoryClaimScreen extends Screen {
         super.render(g, mx, my, partialTick);
     }
 
-    // ── No pause ──────────────────────────────────────────────────────────────
+    // No pause
 
     @Override
     public boolean isPauseScreen() { return false; }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     /** Formats "5,-3,minecraft:overworld" → "X:5 Z:-3" (drops dimension for brevity). */
     private static String formatKey(String key) {

@@ -2,6 +2,7 @@ package com.admin82.factions.block;
 
 import com.admin82.factions.economy.ExchangeManager;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
+import com.admin82.factions.network.packet.ExchangeActionPacket;
 import com.admin82.factions.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -14,10 +15,10 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -29,9 +30,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Map;
 
 /**
- * The Currency Exchange block — lets players swap items for coins at admin-set rates.
+ * The Currency Exchange block, lets players swap items for coins at admin-set rates. A field ATM two blocks tall:
+ * this is the bottom half, with an invisible {@link CurrencyExchangeFillerBlock} above it.
  */
-public class CurrencyExchangeBlock extends Block {
+public class CurrencyExchangeBlock extends Block implements MultiblockPreview {
 
     public static final MapCodec<CurrencyExchangeBlock> CODEC = simpleCodec(CurrencyExchangeBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -51,11 +53,23 @@ public class CurrencyExchangeBlock extends Block {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
+        BlockPos above = context.getClickedPos().above();
+        if (above.getY() >= context.getLevel().getMaxBuildHeight() || !context.getLevel().getBlockState(above).canBeReplaced(context)) {
+            if (context.getPlayer() != null && !context.getLevel().isClientSide) {
+                context.getPlayer().displayClientMessage(
+                        Component.literal("§cNot enough space! The Currency Exchange is 2 blocks tall."), true);
+            }
+            return null;
+        }
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
-    private static Direction getFillerDirection(BlockState state) {
-        return state.getValue(FACING).getCounterClockWise();
+    /** The ATM's footprint; the same for both halves. */
+    static final VoxelShape SHAPE = Block.box(1, 0, 1, 15, 16, 15);
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
+        return SHAPE;
     }
 
     // Prevent the block from occluding adjacent block faces.
@@ -75,13 +89,13 @@ public class CurrencyExchangeBlock extends Block {
         super.setPlacedBy(level, pos, state, placer, stack);
         if (level.isClientSide) return;
 
-        BlockPos fillerPos = pos.relative(getFillerDirection(state));
+        BlockPos fillerPos = pos.above();
         if (!level.getBlockState(fillerPos).canBeReplaced()) {
             level.removeBlock(pos, false);
             if (placer instanceof Player player && !player.getAbilities().instabuild) {
                 player.getInventory().add(new ItemStack(state.getBlock()));
                 player.displayClientMessage(
-                        Component.literal("§cNot enough space! Currency Exchange needs a clear 1×2 area."), true);
+                        Component.literal("§cNot enough space! The Currency Exchange is 2 blocks tall."), true);
             }
             return;
         }
@@ -116,6 +130,7 @@ public class CurrencyExchangeBlock extends Block {
             }
             buf.writeVarInt(0); // LDLib2 UISyncManager initial pack: 0 sync values
         });
+        ExchangeActionPacket.sendSync(sp);
         return InteractionResult.CONSUME;
     }
 
@@ -123,11 +138,23 @@ public class CurrencyExchangeBlock extends Block {
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
-            BlockPos fillerPos = pos.relative(getFillerDirection(state));
+            BlockPos fillerPos = pos.above();
             if (level.getBlockState(fillerPos).is(ModBlocks.CURRENCY_EXCHANGE_FILLER.get())) {
                 level.removeBlock(fillerPos, false);
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    // Placement preview
+
+    @Override
+    public BlockState previewState(BlockPlaceContext ctx) {
+        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
+    }
+
+    @Override
+    public java.util.List<BlockPos> previewCells(BlockPos pos, BlockState state) {
+        return java.util.List.of(pos, pos.above());
     }
 }

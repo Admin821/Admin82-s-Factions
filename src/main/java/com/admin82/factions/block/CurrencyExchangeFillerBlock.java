@@ -18,6 +18,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
+/** Top half of the Currency Exchange (the screen and sign); the model is drawn by the bottom half below it. */
 public class CurrencyExchangeFillerBlock extends Block {
 
     public static final MapCodec<CurrencyExchangeFillerBlock> CODEC = simpleCodec(CurrencyExchangeFillerBlock::new);
@@ -42,6 +43,11 @@ public class CurrencyExchangeFillerBlock extends Block {
     }
 
     @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
+        return CurrencyExchangeBlock.SHAPE;
+    }
+
+    @Override
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return Shapes.empty();
     }
@@ -51,10 +57,28 @@ public class CurrencyExchangeFillerBlock extends Block {
         return false;
     }
 
+    /**
+     * Exchanges placed before it became 2 tall left their filler beside them; a filler with no exchange under it
+     * removes itself (on a random tick, or as soon as someone clicks it).
+     */
+    @Override
+    protected boolean isRandomlyTicking(BlockState state) {
+        return true;
+    }
+
+    @Override
+    protected void randomTick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        if (!level.getBlockState(pos.below()).is(ModBlocks.CURRENCY_EXCHANGE.get())) level.removeBlock(pos, false);
+    }
+
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                Player player, BlockHitResult hit) {
-        BlockPos mainPos = pos.relative(state.getValue(FACING).getClockWise());
+        if (!level.isClientSide && !level.getBlockState(pos.below()).is(ModBlocks.CURRENCY_EXCHANGE.get())) {
+            level.removeBlock(pos, false);
+            return InteractionResult.CONSUME;
+        }
+        BlockPos mainPos = pos.below();
         BlockState mainState = level.getBlockState(mainPos);
         if (mainState.is(ModBlocks.CURRENCY_EXCHANGE.get())) {
             BlockHitResult mainHit = new BlockHitResult(hit.getLocation(), hit.getDirection(), mainPos, hit.isInside());
@@ -66,7 +90,7 @@ public class CurrencyExchangeFillerBlock extends Block {
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide) {
-            BlockPos mainPos = pos.relative(state.getValue(FACING).getClockWise());
+            BlockPos mainPos = pos.below();
             if (level.getBlockState(mainPos).is(ModBlocks.CURRENCY_EXCHANGE.get())) {
                 level.destroyBlock(mainPos, !player.getAbilities().instabuild, player);
             }
@@ -78,7 +102,7 @@ public class CurrencyExchangeFillerBlock extends Block {
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())) {
-            BlockPos mainPos = pos.relative(state.getValue(FACING).getClockWise());
+            BlockPos mainPos = pos.below();
             if (level.getBlockState(mainPos).is(ModBlocks.CURRENCY_EXCHANGE.get())) {
                 level.removeBlock(mainPos, false);
             }

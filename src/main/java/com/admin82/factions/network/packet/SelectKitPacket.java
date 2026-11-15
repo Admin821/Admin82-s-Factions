@@ -3,6 +3,7 @@ package com.admin82.factions.network.packet;
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.barracks.BarracksData;
 import com.admin82.factions.barracks.KitData;
+import com.admin82.factions.menu.BarracksMenu;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
@@ -61,8 +62,13 @@ public record SelectKitPacket(String kitName) implements CustomPacketPayload {
             // Give items to player
             giveKitToPlayer(sp, kit);
 
-            // Consume (delete) the kit
+            // Consume (delete) the kit, and empty the Barracks editor if it still shows this kit.
             bData.deleteKit(ownerId, pkt.kitName());
+            if (sp.containerMenu instanceof BarracksMenu menu
+                    && pkt.kitName().equalsIgnoreCase(String.valueOf(menu.getCurrentEditingKitName()))) {
+                menu.serverClearStaging();
+                menu.broadcastChanges();
+            }
 
             // Sync updated private kit list to this player (if Barracks GUI is open).
             List<String> names = bData.getKits(ownerId).stream().map(KitData::getName).toList();
@@ -73,7 +79,7 @@ public record SelectKitPacket(String kitName) implements CustomPacketPayload {
         });
     }
 
-    private static void giveKitToPlayer(ServerPlayer player, KitData kit) {
+    static void giveKitToPlayer(ServerPlayer player, KitData kit) {
         EquipmentSlot[] armorSlots = {
                 EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
         };
@@ -103,6 +109,6 @@ public record SelectKitPacket(String kitName) implements CustomPacketPayload {
                 if (!player.getInventory().add(offhand.copy())) player.drop(offhand.copy(), false);
             }
         }
-        player.inventoryMenu.broadcastChanges();
+        com.admin82.factions.network.InventorySync.push(player);
     }
 }

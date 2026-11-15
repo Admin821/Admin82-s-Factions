@@ -14,8 +14,12 @@ import com.admin82.factions.block.MonumentCrateBlock;
 import com.admin82.factions.block.OreGeneratorBlock;
 import com.admin82.factions.block.OutpostManagerBlock;
 import com.admin82.factions.block.OutpostManagerFillerBlock;
-import net.minecraft.world.level.block.SoundType;
+import com.admin82.factions.block.OutpostStorageBlock;
+import com.admin82.factions.meter.MeterBlock;
+import com.admin82.factions.meter.MeterKind;
+import com.admin82.factions.meter.MeterTopBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -143,11 +147,35 @@ public class ModBlocks {
     public static final DeferredBlock<OutpostManagerBlock> OUTPOST_MANAGER = BLOCKS.register(
             "outpost_manager",
             () -> new OutpostManagerBlock(
+                    // The flag: each break by an attacker knocks off 1 HP, so it breaks quickly by hand.
                     BlockBehaviour.Properties.of()
-                            .mapColor(MapColor.STONE)
-                            .strength(5.0f, 3_600_000.0f)
-                            .sound(SoundType.STONE)
-                            .requiresCorrectToolForDrops()
+                            .mapColor(MapColor.WOOD)
+                            .strength(1.5f, 3_600_000.0f)
+                            .sound(SoundType.WOOD)
+            )
+    );
+
+    public static final DeferredBlock<OutpostStorageBlock> OUTPOST_STORAGE = BLOCKS.register(
+            "outpost_storage",
+            () -> new OutpostStorageBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.WOOD)
+                            .strength(-1.0f, 3_600_000.0f) // unbreakable: it goes with the outpost
+                            .sound(SoundType.WOOD)
+                            .noOcclusion()
+            )
+    );
+
+    /** The space the storage box's computer takes up in the block above it. */
+    public static final DeferredBlock<com.admin82.factions.block.OutpostStorageTopBlock> OUTPOST_STORAGE_TOP = BLOCKS.register(
+            "outpost_storage_top",
+            () -> new com.admin82.factions.block.OutpostStorageTopBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.WOOD)
+                            .strength(-1.0f, 3_600_000.0f)
+                            .sound(SoundType.WOOD)
+                            .noOcclusion()
+                            .noLootTable()
             )
     );
 
@@ -157,7 +185,8 @@ public class ModBlocks {
 
     public static final DeferredBlock<MonumentCrateBlock> MONUMENT_CRATE = BLOCKS.register(
             "monument_crate", () -> new MonumentCrateBlock(BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.WOOD).strength(3.0f, 3_600_000.0f).sound(SoundType.WOOD).requiresCorrectToolForDrops()));
+                    .mapColor(MapColor.WOOD).strength(3.0f, 3_600_000.0f).sound(SoundType.WOOD).requiresCorrectToolForDrops()
+                    .noOcclusion()));
 
     public static final DeferredBlock<OreGeneratorBlock> ORE_GENERATOR = BLOCKS.register(
             "ore_generator", () -> new OreGeneratorBlock(BlockBehaviour.Properties.of()
@@ -168,11 +197,38 @@ public class ModBlocks {
             "outpost_manager_filler",
             () -> new OutpostManagerFillerBlock(
                     BlockBehaviour.Properties.of()
-                            .mapColor(MapColor.STONE)
-                            .strength(5.0f, 3_600_000.0f)
-                            .sound(SoundType.STONE)
-                            .requiresCorrectToolForDrops()
+                            .mapColor(MapColor.WOOD)
+                            .strength(1.5f, 3_600_000.0f)
+                            .sound(SoundType.WOOD)
                             .noLootTable()
             )
     );
+
+    // Power and fluid meters: a 2-tall block. The bottom stores, the top is the dial you open.
+    public static final DeferredBlock<MeterTopBlock> POWER_METER_TOP = BLOCKS.register(
+            "power_meter_top", () -> new MeterTopBlock(meterProperties().noLootTable()));
+    public static final DeferredBlock<MeterTopBlock> FLUID_METER_TOP = BLOCKS.register(
+            "fluid_meter_top", () -> new MeterTopBlock(meterProperties().noLootTable()));
+    public static final DeferredBlock<MeterBlock> POWER_METER = BLOCKS.register(
+            "power_meter", () -> new MeterBlock(meterProperties(), MeterKind.POWER, POWER_METER_TOP::get));
+    public static final DeferredBlock<MeterBlock> FLUID_METER = BLOCKS.register(
+            "fluid_meter", () -> new MeterBlock(meterProperties(), MeterKind.FLUID, FLUID_METER_TOP::get));
+
+    /** Mines the fake ore seam of the chunk it stands in. */
+    public static final DeferredBlock<com.admin82.factions.seam.SeamExtractorBlock> SEAM_EXTRACTOR = BLOCKS.register(
+            "seam_extractor", () -> new com.admin82.factions.seam.SeamExtractorBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL).strength(4.0f, 6.0f).sound(SoundType.METAL).requiresCorrectToolForDrops()
+                    .noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
+                    .lightLevel(s -> s.getValue(com.admin82.factions.seam.SeamExtractorBlock.ACTIVE) ? 9 : 0)));
+    /** The rest of the 2x2x3 Seam Extractor. */
+    public static final DeferredBlock<com.admin82.factions.seam.SeamExtractorPartBlock> SEAM_EXTRACTOR_PART = BLOCKS.register(
+            "seam_extractor_part", () -> new com.admin82.factions.seam.SeamExtractorPartBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL).strength(4.0f, 6.0f).sound(SoundType.METAL).requiresCorrectToolForDrops()
+                    .noOcclusion().noLootTable().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)));
+
+    private static BlockBehaviour.Properties meterProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.5f, 6.0f)
+                .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()
+                .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK); // pistons can't split the halves
+    }
 }

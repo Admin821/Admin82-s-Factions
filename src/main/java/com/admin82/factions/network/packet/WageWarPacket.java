@@ -5,6 +5,7 @@ import com.admin82.factions.Config;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.war.ActiveWar;
+import com.admin82.factions.war.FactionWarEvents;
 import com.admin82.factions.war.WarManager;
 import com.admin82.factions.war.WarType;
 import net.minecraft.network.FriendlyByteBuf;
@@ -55,7 +56,7 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    // ── Server handler ────────────────────────────────────────────────────────
+    // Server handler
 
     public static void handle(WageWarPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
@@ -79,8 +80,30 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
                 return;
             }
 
+            String pactBlock = AllianceRules.warBlockedReason(player.server, attacker.getId(), defender.getId());
+            String leftBlock = AllianceRules.leftRecentlyReason(player.server, player.getUUID(), defender.getId());
+            if (pactBlock == null && leftBlock != null) pactBlock = "§c[Alliance] " + leftBlock;
+            if (pactBlock != null) {
+                player.displayClientMessage(Component.literal(pactBlock), false);
+                return;
+            }
+
             if (warmgr.getWarBetween(attacker.getId(), defender.getId()) != null) {
                 player.displayClientMessage(Component.literal("§cAlready at war with that faction."), false);
+                return;
+            }
+
+            // A faction that just lost its core has nothing to capture until it places a new table.
+            if (fmgr.getFactionTable(defender.getId()) == null) {
+                player.displayClientMessage(Component.literal("§c[War] " + defender.getName()
+                        + " has no faction table right now (they lost their core). Wait until they place a new one."), false);
+                return;
+            }
+
+            // One war at a time, for the attacker as well as the defender.
+            if (warmgr.isFactionInActiveWar(attacker.getId())) {
+                player.displayClientMessage(Component.literal(
+                        "§c[War] Your faction is already in a war. Finish it before starting another."), false);
                 return;
             }
 
@@ -105,7 +128,7 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
             // Check that enough of the defender's members are online
             int minPct = warmgr.getMinOnlinePercentageForWar();
             if (minPct > 0) {
-                java.util.List<FactionMember> defMembers = defender.getMembers();
+                List<FactionMember> defMembers = defender.getMembers();
                 if (!defMembers.isEmpty()) {
                     int online = (int) defMembers.stream()
                             .filter(m -> player.server.getPlayerList().getPlayer(m.getUuid()) != null)
@@ -124,7 +147,20 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
             // Validate committed attackers are real faction members
             List<UUID> validAttackers = new ArrayList<>();
             for (UUID uid : packet.attackerUUIDs()) {
-                if (attacker.getMember(uid) != null) validAttackers.add(uid);
+                // Only online members can be committed; offline attackers could never be eliminated.
+                if (attacker.getMember(uid) != null && player.server.getPlayerList().getPlayer(uid) != null) validAttackers.add(uid);
+            }
+            // Players who recently left the defenders (or one of their allies) can't fight them yet.
+            List<String> benched = new ArrayList<>();
+            validAttackers.removeIf(uid -> {
+                if (AllianceRules.leftRecentlyReason(player.server, uid, defender.getId()) == null) return false;
+                FactionMember m = attacker.getMember(uid);
+                benched.add(m != null ? m.getPlayerName() : uid.toString());
+                return true;
+            });
+            if (!benched.isEmpty()) {
+                player.displayClientMessage(Component.literal("§e" + String.join(", ", benched)
+                        + " §7left " + defender.getName() + " or one of its allies recently and can't fight them yet."), false);
             }
             if (validAttackers.isEmpty()) {
                 player.displayClientMessage(Component.literal("§cSelect at least one attacker."), false);
@@ -178,7 +214,7 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
         });
     }
 
-    // ── Broadcast helpers (package-visible for FactionWarEvents) ──────────────
+    // Broadcast helpers (package-visible for FactionWarEvents)
 
     static void notifyFaction(MinecraftServer server, Faction faction, Component msg) {
         for (FactionMember m : faction.getMembers()) {
@@ -194,8 +230,8 @@ public record WageWarPacket(UUID targetFactionId, List<UUID> attackerUUIDs, WarT
         String defenderName = df != null ? df.getName() : "Unknown";
         // Use outpost capture time during outpost phase, otherwise war config
         int captureTimeSec  = war.outpostPhase
-                ? com.admin82.factions.war.WarManager.get(server).getOutpostKothTime()
-                : com.admin82.factions.war.WarManager.get(server).getTableKothTime();
+                ? WarManager.get(server).getOutpostKothTime()
+                : WarManager.get(server).getTableKothTime();
         long now            = System.currentTimeMillis();
         int graceSec        = (int) Math.max(0, (war.graceEndsAt - now) / 1000L);
         int phaseOrdinal    = war.phase.ordinal();

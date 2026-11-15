@@ -3,6 +3,7 @@ package com.admin82.factions.network.packet;
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.*;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -36,6 +37,13 @@ public record DeclareWarPacket(String targetFactionName) implements CustomPacket
 
             Faction defender = manager.getFactionByName(packet.targetFactionName().trim());
             if (defender == null || defender.getId().equals(attacker.getId())) return;
+            String pactBlock = AllianceRules.warBlockedReason(player.server, attacker.getId(), defender.getId());
+            String leftBlock = AllianceRules.leftRecentlyReason(player.server, player.getUUID(), defender.getId());
+            if (pactBlock == null && leftBlock != null) pactBlock = "§c[Alliance] " + leftBlock;
+            if (pactBlock != null) {
+                player.displayClientMessage(Component.literal(pactBlock), false);
+                return;
+            }
 
             manager.declareWar(attacker.getId(), defender.getId());
             PacketDistributor.sendToPlayer(player, new SyncFactionDataPacket(manager.getFactionForPlayer(player.getUUID())));

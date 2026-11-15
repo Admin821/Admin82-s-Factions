@@ -2,7 +2,7 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.entity.monument.RoguePmcRole;
-import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.screen.MonumentScreen;
 import com.admin82.factions.supplydrop.SupplyDropPool;
 import net.minecraft.client.Minecraft;
@@ -16,7 +16,8 @@ import java.util.UUID;
 
 public record SyncMonumentAiPacket(UUID monumentId, int[] minimumCounts, int[] maximumCounts, int[] difficultyLevels,
                                    int deadCount, int selectedRole, boolean editingDrops,
-                                   int[] dropMinimumCounts, int[] dropMaximumCounts, int[] dropRarityLevels)
+                                   int[] dropMinimumCounts, int[] dropMaximumCounts, int[] dropRarityLevels,
+                                   int[] dropClassMasks)
         implements CustomPacketPayload {
     public static final Type<SyncMonumentAiPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(AdminsFactions.MODID, "sync_monument_ai"));
@@ -36,6 +37,7 @@ public record SyncMonumentAiPacket(UUID monumentId, int[] minimumCounts, int[] m
                     buf.writeVarInt(packet.dropMinimumCounts[index]);
                     buf.writeVarInt(packet.dropMaximumCounts[index]);
                     buf.writeVarInt(packet.dropRarityLevels[index]);
+                    buf.writeVarInt(packet.dropClassMasks[index]);
                 }
             },
             buf -> {
@@ -54,13 +56,15 @@ public record SyncMonumentAiPacket(UUID monumentId, int[] minimumCounts, int[] m
                 int[] dropMinimum = new int[SupplyDropPool.SLOT_COUNT];
                 int[] dropMaximum = new int[SupplyDropPool.SLOT_COUNT];
                 int[] dropRarity = new int[SupplyDropPool.SLOT_COUNT];
+                int[] dropClasses = new int[SupplyDropPool.SLOT_COUNT];
                 for (int index = 0; index < SupplyDropPool.SLOT_COUNT; index++) {
                     dropMinimum[index] = buf.readVarInt();
                     dropMaximum[index] = buf.readVarInt();
                     dropRarity[index] = buf.readVarInt();
+                    dropClasses[index] = buf.readVarInt();
                 }
                 return new SyncMonumentAiPacket(monumentId, minimum, maximum, difficulty, deadCount, selectedRole,
-                        editingDrops, dropMinimum, dropMaximum, dropRarity);
+                        editingDrops, dropMinimum, dropMaximum, dropRarity, dropClasses);
             });
 
     @Override
@@ -74,7 +78,7 @@ public record SyncMonumentAiPacket(UUID monumentId, int[] minimumCounts, int[] m
                     || !(Minecraft.getInstance().player.containerMenu instanceof MonumentMenu menu)) return;
             menu.updateAiEditor(packet.monumentId, packet.minimumCounts, packet.maximumCounts, packet.difficultyLevels,
                     packet.deadCount, packet.selectedRole, packet.editingDrops,
-                    packet.dropMinimumCounts, packet.dropMaximumCounts, packet.dropRarityLevels);
+                    packet.dropMinimumCounts, packet.dropMaximumCounts, packet.dropRarityLevels, packet.dropClassMasks);
             if (Minecraft.getInstance().screen instanceof MonumentScreen screen) screen.refreshContent();
         });
     }

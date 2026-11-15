@@ -8,12 +8,12 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 public class MonumentData extends SavedData {
     private static final String DATA_NAME = "adminsfactions_monuments";

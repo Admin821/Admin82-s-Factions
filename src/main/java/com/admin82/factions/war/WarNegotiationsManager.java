@@ -7,9 +7,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Persistent store for all wartime negotiation demands.
@@ -21,7 +21,7 @@ public class WarNegotiationsManager extends SavedData {
 
     private final Map<UUID, WarDemand> demands = new HashMap<>();
 
-    // ── Singleton access ──────────────────────────────────────────────────────
+    // Singleton access
 
     public static WarNegotiationsManager get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -30,7 +30,7 @@ public class WarNegotiationsManager extends SavedData {
         );
     }
 
-    // ── Mutation ──────────────────────────────────────────────────────────────
+    // Mutation
 
     public void addDemand(WarDemand demand) {
         demands.put(demand.demandId, demand);
@@ -83,7 +83,7 @@ public class WarNegotiationsManager extends SavedData {
         setDirty();
     }
 
-    // ── SavedData ─────────────────────────────────────────────────────────────
+    // SavedData
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {

@@ -1,7 +1,8 @@
 package com.admin82.factions.monument;
 
-import java.util.Locale;
 import net.minecraft.util.StringRepresentable;
+
+import java.util.Locale;
 
 public enum MonumentCrateType implements StringRepresentable {
     SUPPLY(0),

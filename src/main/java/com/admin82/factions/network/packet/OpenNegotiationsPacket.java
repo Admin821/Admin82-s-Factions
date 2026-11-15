@@ -4,6 +4,7 @@ import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.war.*;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -46,7 +47,19 @@ public record OpenNegotiationsPacket(UUID targetFactionId) implements CustomPack
             if (target == null) return;
 
             ActiveWar war = wmgr.getWarBetween(myFaction.getId(), target.getId());
-            if (war == null) return;
+            if (war == null) {
+                if (myFaction.isAtWarWith(target.getId())) {
+                    // The faction still lists a war that no longer runs: clear it.
+                    FactionWarEvents.endWarByAgreement(player.server, null,
+                            myFaction.getId(), target.getId());
+                    player.displayClientMessage(Component.literal(
+                            "§7That war had already ended; it has been removed from your list."), false);
+                } else {
+                    player.displayClientMessage(Component.literal(
+                            "§cYou are not at war with " + target.getName() + "."), false);
+                }
+                return;
+            }
 
             List<WarDemand> demands = negMgr.getDemandsForWar(war.warId);
             PacketDistributor.sendToPlayer(player, new SyncWarDemandsPacket(war.warId, demands));

@@ -1,12 +1,14 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.screen.ContainerHighlightRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -46,12 +48,12 @@ public record SyncContainerHighlightsPacket(List<BlockPos> positions) implements
         });
     }
 
-    @net.neoforged.api.distmarker.OnlyIn(Dist.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     private static void handleClient(SyncContainerHighlightsPacket pkt) {
         if (pkt.positions().isEmpty()) {
-            com.admin82.factions.screen.ContainerHighlightRenderer.clearHighlights();
+            ContainerHighlightRenderer.clearHighlights();
         } else {
-            com.admin82.factions.screen.ContainerHighlightRenderer.setHighlights(pkt.positions());
+            ContainerHighlightRenderer.setHighlights(pkt.positions());
         }
     }
 }

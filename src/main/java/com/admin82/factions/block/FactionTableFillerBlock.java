@@ -1,7 +1,7 @@
 package com.admin82.factions.block;
 
-import com.admin82.factions.FactionBlockProtection;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
+import com.admin82.factions.faction.FactionBlockProtection;
 import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
@@ -24,14 +24,14 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 /**
  * One of the three invisible "ghost" blocks that fill the remaining corners of the
  * 2×2 Faction Table footprint.  The main (north-west) block is a {@link FactionTableBlock};
- * these fillers have no block entity of their own — they redirect interaction and
+ * these fillers have no block entity of their own, they redirect interaction and
  * cascade removal back to the main block.
  */
 public class FactionTableFillerBlock extends Block {
 
     public static final MapCodec<FactionTableFillerBlock> CODEC = simpleCodec(FactionTableFillerBlock::new);
 
-    // ── Part enum ─────────────────────────────────────────────────────────────
+    // Part enum
 
     /**
      * Which corner of the 2×2 footprint this filler occupies, relative to the
@@ -65,7 +65,7 @@ public class FactionTableFillerBlock extends Block {
 
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
 
-    // ── Block setup ───────────────────────────────────────────────────────────
+    // Block setup
 
     @Override
     protected MapCodec<? extends Block> codec() { return CODEC; }
@@ -80,7 +80,7 @@ public class FactionTableFillerBlock extends Block {
         builder.add(PART);
     }
 
-    /** Fillers are invisible — the main block renders the entire 2×2 model. */
+    /** Fillers are invisible, the main block renders the entire 2×2 model. */
     @Override
     public RenderShape getRenderShape(BlockState state) {
         return RenderShape.INVISIBLE;
@@ -97,7 +97,7 @@ public class FactionTableFillerBlock extends Block {
         return false;
     }
 
-    // ── Interaction ───────────────────────────────────────────────────────────
+    // Interaction
 
     /** Redirect right-click (empty hand) to the main faction table block. */
     @Override
@@ -113,7 +113,7 @@ public class FactionTableFillerBlock extends Block {
         return InteractionResult.PASS;
     }
 
-    // ── Removal cascade ───────────────────────────────────────────────────────
+    // Removal cascade
 
     /**
      * When this filler is removed, cascade-remove the main block.

@@ -7,8 +7,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import javax.annotation.Nullable;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 public class OutpostManagerBlockEntity extends BlockEntity {
 

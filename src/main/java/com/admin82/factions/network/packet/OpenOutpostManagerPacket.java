@@ -1,12 +1,17 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.menu.OutpostManagerMenu;
+import com.admin82.factions.screen.OutpostManagerScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -21,7 +26,11 @@ public record OpenOutpostManagerPacket(
         float captureProgress, String capturingFactionName,
         // 11×11 territory map centred on the outpost chunk.
         // Each byte: 0 = unclaimed, 1 = own faction, 2 = other faction.
-        byte[] mapTiles, int centerChunkX, int centerChunkZ)
+        byte[] mapTiles, int centerChunkX, int centerChunkZ,
+        // 0 while supplied; otherwise when the unsupplied period ends (epoch ms).
+        long unsuppliedUntil, long upkeepCost, boolean capturable,
+        // Level and flag health; coins is -1 for players outside the owning faction.
+        int level, int hp, int maxHp, long coins, long upgradeCost, boolean canManage, String outpostName)
         implements CustomPacketPayload {
 
     public static final Type<OpenOutpostManagerPacket> TYPE = new Type<>(
@@ -43,6 +52,16 @@ public record OpenOutpostManagerPacket(
                         buf.writeBytes(pkt.mapTiles());
                         buf.writeInt(pkt.centerChunkX());
                         buf.writeInt(pkt.centerChunkZ());
+                        buf.writeLong(pkt.unsuppliedUntil());
+                        buf.writeLong(pkt.upkeepCost());
+                        buf.writeBoolean(pkt.capturable());
+                        buf.writeVarInt(pkt.level());
+                        buf.writeVarInt(pkt.hp());
+                        buf.writeVarInt(pkt.maxHp());
+                        buf.writeLong(pkt.coins());
+                        buf.writeLong(pkt.upgradeCost());
+                        buf.writeBoolean(pkt.canManage());
+                        buf.writeUtf(pkt.outpostName(), 64);
                     },
                     buf -> {
                         UUID id           = buf.readUUID();
@@ -61,7 +80,10 @@ public record OpenOutpostManagerPacket(
                         int ccz = buf.readInt();
                         return new OpenOutpostManagerPacket(
                                 id, owner, disint, canSpawn, isOwner,
-                                pos, dim, capProg, capName, tiles, ccx, ccz);
+                                pos, dim, capProg, capName, tiles, ccx, ccz,
+                                buf.readLong(), buf.readLong(), buf.readBoolean(),
+                                buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readLong(), buf.readLong(), buf.readBoolean(),
+                                buf.readUtf(64));
                     });
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
@@ -72,14 +94,14 @@ public record OpenOutpostManagerPacket(
         });
     }
 
-    @net.neoforged.api.distmarker.OnlyIn(Dist.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     private static void handleClient(OpenOutpostManagerPacket pkt) {
-        var mc = net.minecraft.client.Minecraft.getInstance();
+        var mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        var menu = new com.admin82.factions.menu.OutpostManagerMenu(1, mc.player.getInventory(), pkt);
+        var menu = new OutpostManagerMenu(com.admin82.factions.menu.UiKit.CLIENT_MENU_ID, mc.player.getInventory(), pkt);
         mc.player.containerMenu = menu;
-        mc.setScreen(new com.admin82.factions.screen.OutpostManagerScreen(
+        mc.setScreen(new OutpostManagerScreen(
                 menu, mc.player.getInventory(),
-                net.minecraft.network.chat.Component.literal("Outpost Manager")));
+                Component.literal("Outpost Manager")));
     }
 }

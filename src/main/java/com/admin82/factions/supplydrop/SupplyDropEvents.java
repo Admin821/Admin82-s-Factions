@@ -9,7 +9,9 @@ import com.admin82.factions.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
@@ -19,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.ArrayList;
@@ -33,6 +36,20 @@ public class SupplyDropEvents {
     private static final int SCHEDULE_CHECK_INTERVAL_TICKS = 20;
 
     private static final List<PendingDrop> PENDING_DROPS = new ArrayList<>();
+    /** About the size of the world border; larger values would overflow the random position. */
+    public static final int MAX_RADIUS = 29_000_000;
+
+    /** Pending drops only live in memory, so land them all when the server stops instead of losing the loot. */
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        MinecraftServer server = event.getServer();
+        for (PendingDrop drop : new ArrayList<>(PENDING_DROPS)) {
+            ServerLevel level = findLevel(server, drop.dimension);
+            discardDropVisuals(drop);
+            if (level != null) landDrop(server, level, drop);
+        }
+        PENDING_DROPS.clear();
+    }
     private static final Random RANDOM = new Random();
     private static int scheduleCheckTicks;
 
@@ -40,7 +57,7 @@ public class SupplyDropEvents {
         SupplyDropPool pool = SupplyDropData.get(server).getPool(poolName);
         if (pool == null || pool.nonEmptyItems().isEmpty()) return false;
 
-        int clampedRadius = Math.max(0, radius);
+        int clampedRadius = Math.max(0, Math.min(MAX_RADIUS, radius));
         int x = clampedRadius == 0 ? 0 : RANDOM.nextInt(clampedRadius * 2 + 1) - clampedRadius;
         int z = clampedRadius == 0 ? 0 : RANDOM.nextInt(clampedRadius * 2 + 1) - clampedRadius;
         BlockPos groundPos = findLandingPos(level, x, z);
@@ -217,11 +234,11 @@ public class SupplyDropEvents {
         String command = "/tp @s " + pos.getX() + " " + pos.getY() + " " + pos.getZ();
         return Component.literal("§e§n" + coords + "§r")
                 .withStyle(style -> style
-                        .withClickEvent(new net.minecraft.network.chat.ClickEvent(
-                                net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND,
+                        .withClickEvent(new ClickEvent(
+                                ClickEvent.Action.RUN_COMMAND,
                                 command))
-                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent(
-                                net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT,
+                        .withHoverEvent(new HoverEvent(
+                                HoverEvent.Action.SHOW_TEXT,
                                 Component.literal("§7Operators: click to teleport to this supply drop"))));
     }
 

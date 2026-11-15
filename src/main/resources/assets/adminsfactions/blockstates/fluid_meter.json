@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "adminsfactions:block/fluid_meter"
+    },
+    "facing=east": {
+      "model": "adminsfactions:block/fluid_meter",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "adminsfactions:block/fluid_meter",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "adminsfactions:block/fluid_meter",
+      "y": 270
+    }
+  }
+}

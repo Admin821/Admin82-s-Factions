@@ -2,15 +2,18 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.Config;
+import com.admin82.factions.command.FactionCommands;
 import com.admin82.factions.economy.Currency;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.*;
+import com.admin82.factions.war.CoreLoss;
 import com.admin82.factions.war.VassalManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -42,7 +45,7 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    // ── Server handler ────────────────────────────────────────────────────────
+    // Server handler
 
     public static void handle(ConquestActionPacket pkt, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
@@ -57,7 +60,7 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
             if (member == null) return;
 
             switch (pkt.action()) {
-                // ── Conquest decisions (require pending conquest + admin+ rank) ──
+                // Conquest decisions (require pending conquest + admin+ rank)
                 case MAKE_VASSAL -> {
                     UUID conquered = vmgr.getConqueredFaction(myFaction.getId());
                     if (!pkt.targetFactionId().equals(conquered)) return;
@@ -85,10 +88,17 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
                     Faction defeated = fmgr.getAllFactions().get(pkt.targetFactionId());
                     if (defeated == null) return;
 
+                    // Taking everything takes their core: with an outpost to fall back to, they survive there.
+                    if (CoreLoss.fallBack(sp.server, myFaction, defeated)) {
+                        vmgr.clearPendingConquest(myFaction.getId());
+                        sp.closeContainer();
+                        return;
+                    }
                     // Transfer vault
                     long loot = eco.getVault(defeated.getId());
                     eco.setVault(defeated.getId(), 0);
-                    eco.addVault(myFaction.getId(), loot);
+                    eco.logVault(defeated.getId(), -loot, "Vault taken by " + myFaction.getName() + " (conquest)", false);
+                    eco.addVault(myFaction.getId(), loot, "Conquest loot from " + defeated.getName());
 
                     // Transfer all land claims to the winner
                     var claims = new ArrayList<>(defeated.getLandClaims());
@@ -108,7 +118,7 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
                                     + (claims.size() == 1 ? "" : "s") + " §afrom §f" + defeatedName + "§a!"));
 
                     // Disband the defeated faction (removes their table, notifies members)
-                    com.admin82.factions.FactionCommands.performDisband(sp.server, defeated.getId(),
+                    FactionCommands.performDisband(sp.server, defeated.getId(),
                             Component.literal("§c[Conquest] Your faction §e" + defeatedName
                                     + " §chas been conquered by §e" + myFaction.getName()
                                     + "§c! All claims and vault have been seized."));
@@ -116,13 +126,13 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
                     sp.closeContainer();
                 }
 
-                // ── Suzerain management ────────────────────────────────────────
+                // Suzerain management
                 case COLLECT_TAX -> {
                     UUID suzerainId = vmgr.getSuzerain(pkt.targetFactionId());
                     if (!myFaction.getId().equals(suzerainId)) return;
                     long tax = vmgr.collectTax(pkt.targetFactionId());
                     if (tax > 0) {
-                        eco.addVault(myFaction.getId(), tax);
+                        eco.addVault(myFaction.getId(), tax, "Vassal tax collected");
                         sp.displayClientMessage(Component.literal("§a[Vassal] Collected §e"
                                 + Currency.format(tax) + " §ain taxes from your vassal."), false);
                     } else {
@@ -144,7 +154,7 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
                                     + " §ahas granted your faction full independence!"));
                 }
 
-                // ── Vassal buyout ──────────────────────────────────────────────
+                // Vassal buyout
                 case BUYOUT -> {
                     UUID suzerainId = vmgr.getSuzerain(myFaction.getId());
                     if (suzerainId == null) return;
@@ -156,8 +166,8 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
                                         + "§c, have §e" + Currency.format(vault) + "§c."), false);
                         return;
                     }
-                    eco.deductVault(myFaction.getId(), cost);
-                    eco.addVault(suzerainId, cost);
+                    eco.deductVault(myFaction.getId(), cost, "Bought independence");
+                    eco.addVault(suzerainId, cost, "Vassal bought independence: " + myFaction.getName());
                     Faction suzerain = fmgr.getAllFactions().get(suzerainId);
                     vmgr.freeVassal(myFaction.getId());
                     sp.displayClientMessage(Component.literal("§a[Vassal] Independence purchased for §e"
@@ -170,7 +180,7 @@ public record ConquestActionPacket(Action action, UUID targetFactionId) implemen
         });
     }
 
-    private static void notifyFaction(net.minecraft.server.MinecraftServer server,
+    private static void notifyFaction(MinecraftServer server,
                                       Faction faction, Component msg) {
         for (FactionMember m : faction.getMembers()) {
             ServerPlayer sp = server.getPlayerList().getPlayer(m.getUuid());

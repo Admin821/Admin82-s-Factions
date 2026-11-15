@@ -2,7 +2,6 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.*;
-import com.admin82.factions.war.WarManager;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

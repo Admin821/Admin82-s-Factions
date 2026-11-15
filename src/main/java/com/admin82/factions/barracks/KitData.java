@@ -12,12 +12,12 @@ import java.util.Arrays;
  * A named loadout stored in a faction Barracks.
  *
  * Slot layout (41 total):
- *   0–35  — inventory (left-to-right, top-to-bottom, matching player inv indices 9–44)
- *   36    — helmet
- *   37    — chestplate
- *   38    — leggings
- *   39    — boots
- *   40    — offhand
+ *   0–35 , inventory (left-to-right, top-to-bottom, matching player inv indices 9–44)
+ *   36   , helmet
+ *   37   , chestplate
+ *   38   , leggings
+ *   39   , boots
+ *   40   , offhand
  */
 public class KitData {
 
@@ -54,7 +54,7 @@ public class KitData {
         return copy;
     }
 
-    // ── NBT ───────────────────────────────────────────────────────────────────
+    // NBT
 
     public CompoundTag save(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();

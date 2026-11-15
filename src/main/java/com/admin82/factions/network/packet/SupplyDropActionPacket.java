@@ -14,8 +14,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public record SupplyDropActionPacket(Action action, @Nullable String data, int radius, int fallSeconds,
                                      int maxCount, int rarity) implements CustomPacketPayload {

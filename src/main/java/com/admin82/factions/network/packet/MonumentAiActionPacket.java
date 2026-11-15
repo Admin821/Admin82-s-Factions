@@ -2,7 +2,7 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.entity.monument.RoguePmcRole;
-import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,7 +17,7 @@ import java.util.UUID;
 public record MonumentAiActionPacket(Action action, UUID monumentId, int role,
                                      int firstValue, int secondValue, int slot, int rarity)
         implements CustomPacketPayload {
-    public enum Action { SELECT_ROLE, SELECT_DROPS, SAVE_ROLE_RANGE, SAVE_DROP_SLOT_SETTINGS, SAVE_ROLE_DIFFICULTY }
+    public enum Action { SELECT_ROLE, SELECT_DROPS, SAVE_ROLE_RANGE, SAVE_DROP_SLOT_SETTINGS, SAVE_ROLE_DIFFICULTY, SAVE_DROP_SLOT_CLASSES }
 
     public static final Type<MonumentAiActionPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(AdminsFactions.MODID, "monument_ai_action"));
@@ -61,6 +61,11 @@ public record MonumentAiActionPacket(Action action, UUID monumentId, int role,
                 case SAVE_DROP_SLOT_SETTINGS -> {
                     monument.getAiDropPool().setGenerationSettings(
                             packet.slot, packet.firstValue, packet.secondValue, packet.rarity);
+                    data.changed();
+                    menu.syncAiEditor(monument);
+                }
+                case SAVE_DROP_SLOT_CLASSES -> {
+                    monument.setAiDropClassMask(packet.slot, packet.firstValue);
                     data.changed();
                     menu.syncAiEditor(monument);
                 }

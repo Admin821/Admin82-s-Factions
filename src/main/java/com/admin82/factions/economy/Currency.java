@@ -14,7 +14,7 @@ public final class Currency {
     public static final long COPPER_PER_GOLD     = 10_000L;
     public static final long COPPER_PER_PLATINUM = 1_000_000L;
 
-    // ── Economy tuning constants ──────────────────────────────────────────────
+    // Economy tuning constants
     /** Cost to claim one chunk, in copper. */
     public static final long CLAIM_COST_COPPER            = 100L;   // 1 silver
     /** Upkeep cost per claim per 24 h, in copper (≈ 20 % of claim cost). */
@@ -24,7 +24,7 @@ public final class Currency {
 
     private Currency() {}
 
-    // ── Conversion helpers ────────────────────────────────────────────────────
+    // Conversion helpers
 
     public static long of(long platinum, long gold, long silver, long copper) {
         return platinum * COPPER_PER_PLATINUM
@@ -38,7 +38,30 @@ public final class Currency {
     public static long silverPart(long copper)     { return (copper % COPPER_PER_GOLD) / COPPER_PER_SILVER; }
     public static long copperRemainder(long copper){ return copper % COPPER_PER_SILVER; }
 
-    // ── Formatting ────────────────────────────────────────────────────────────
+    /** Coin names for amount dropdowns, smallest first. */
+    public static final java.util.List<String> COINS = java.util.List.of("Copper", "Silver", "Gold", "Platinum");
+
+    /** How many copper one of the named coin is worth. */
+    public static long perCoin(String coin) {
+        return switch (coin) {
+            case "Platinum" -> COPPER_PER_PLATINUM;
+            case "Gold" -> COPPER_PER_GOLD;
+            case "Silver" -> COPPER_PER_SILVER;
+            default -> 1L;
+        };
+    }
+
+    /** The biggest coin that {@code copper} is a whole number of (Copper for 0), so it can be shown as "number + coin". */
+    public static String wholeCoin(long copper) {
+        if (copper > 0) {
+            for (int i = COINS.size() - 1; i > 0; i--) {
+                if (copper % perCoin(COINS.get(i)) == 0) return COINS.get(i);
+            }
+        }
+        return "Copper";
+    }
+
+    // Formatting
 
     /**
      * Short coloured format, e.g. §d3p §r§62g §r§71s §r§c5c
@@ -58,7 +81,7 @@ public final class Currency {
         return sb.toString().stripTrailing();
     }
 
-    // ── Parsing ───────────────────────────────────────────────────────────────
+    // Parsing
 
     /**
      * Parses strings like "1p2g3s4c", "1g50c", "150" (treated as copper).
@@ -66,25 +89,32 @@ public final class Currency {
      */
     public static long parse(String input) {
         if (input == null || input.isBlank()) return 0;
-        String s = input.trim().toLowerCase();
+        String s = input.replace(" ", "").toLowerCase();
         // plain integer → copper
         try { return Long.parseLong(s); } catch (NumberFormatException ignored) {}
-        long total = 0;
-        long cur   = 0;
-        for (char ch : s.toCharArray()) {
-            if (ch >= '0' && ch <= '9') {
-                cur = cur * 10 + (ch - '0');
-            } else {
-                total += switch (ch) {
-                    case 'p' -> cur * COPPER_PER_PLATINUM;
-                    case 'g' -> cur * COPPER_PER_GOLD;
-                    case 's' -> cur * COPPER_PER_SILVER;
-                    case 'c' -> cur;
-                    default  -> 0;
-                };
-                cur = 0;
+        // Anything other than digits followed by p/g/s/c (like "1.5g" or "1,000") is rejected rather
+        // than quietly read as a different amount.
+        if (!s.matches("(\\d+[pgsc])+\\d*")) return -1;
+        try {
+            long total = 0;
+            long cur   = 0;
+            for (char ch : s.toCharArray()) {
+                if (ch >= '0' && ch <= '9') {
+                    cur = Math.addExact(Math.multiplyExact(cur, 10L), ch - '0');
+                } else {
+                    long unit = switch (ch) {
+                        case 'p' -> COPPER_PER_PLATINUM;
+                        case 'g' -> COPPER_PER_GOLD;
+                        case 's' -> COPPER_PER_SILVER;
+                        default  -> 1L;
+                    };
+                    total = Math.addExact(total, Math.multiplyExact(cur, unit));
+                    cur = 0;
+                }
             }
+            return Math.addExact(total, cur); // trailing number = copper
+        } catch (ArithmeticException overflow) {
+            return -1;
         }
-        return total + cur; // trailing number = copper
     }
 }

@@ -2,12 +2,12 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.*;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -45,7 +45,7 @@ public record TerritoryClaimActionPacket(
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    // ── Server handler ────────────────────────────────────────────────────────
+    // Server handler
 
     public static void handle(TerritoryClaimActionPacket pkt, IPayloadContext context) {
         context.enqueueWork(() -> {

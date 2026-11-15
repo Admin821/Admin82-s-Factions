@@ -2,8 +2,8 @@ package com.admin82.factions.item;
 
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
-import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.network.packet.OpenOutpostPlacementPacket;
+import com.admin82.factions.outpost.OutpostData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -27,6 +27,11 @@ public class OutpostItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context,
                                 List<Component> tooltip, TooltipFlag flag) {
+        var packed = com.admin82.factions.outpost.OutpostPack.packed(stack);
+        if (packed != null) {
+            com.admin82.factions.outpost.OutpostPack.describe(packed, tooltip);
+            return;
+        }
         TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.outpost.line1");
         TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.outpost.line2");
         TooltipHelper.addOptional(tooltip, "tooltip.adminsfactions.outpost.line3");
@@ -61,7 +66,10 @@ public class OutpostItem extends Item {
 
         // Store pending placement and open confirmation GUI
         OutpostData.get(player.server).setPending(player.getUUID(), targetPos, dim);
-        PacketDistributor.sendToPlayer(player, new OpenOutpostPlacementPacket(targetPos, dim));
+        var check = com.admin82.factions.network.packet.PlaceOutpostPacket.check(player, targetPos, dim);
+        if (player.containerMenu != player.inventoryMenu) player.doCloseContainer();
+        PacketDistributor.sendToPlayer(player, new OpenOutpostPlacementPacket(targetPos, dim, check.problem(),
+                check.slotsUsed(), check.slots(), check.upkeep()));
         return InteractionResult.CONSUME;
     }
 }

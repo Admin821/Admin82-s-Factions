@@ -2,11 +2,14 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.faction.FactionSummary;
+import com.admin82.factions.screen.FactionTableScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -55,10 +58,10 @@ public record SyncAllFactionsPacket(
         });
     }
 
-    @net.neoforged.api.distmarker.OnlyIn(Dist.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     private static void handleClient(SyncAllFactionsPacket packet) {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc.screen instanceof com.admin82.factions.screen.FactionTableScreen screen) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof FactionTableScreen screen) {
             screen.getMenu().updateAllFactions(packet.factions(), packet.otherClaimedChunks(), packet.availablePlayers());
         }
     }

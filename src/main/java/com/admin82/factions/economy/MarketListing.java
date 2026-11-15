@@ -1,15 +1,14 @@
 package com.admin82.factions.economy;
 
+import com.admin82.factions.Config;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
 
-import javax.annotation.Nullable;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Represents a single listing on the faction market.
@@ -44,6 +43,28 @@ public class MarketListing {
     /** What kind of market row this is: normal sale, buy order, or admin/server listing. */
     public ListingKind kind = ListingKind.PLAYER_SELL;
 
+    // Buy orders
+    // For buy orders, {@link #item} is a one-item template and {@link #price} is the price PER ITEM.
+    /** Total items wanted. 0 = unlimited (server buy orders). */
+    public int orderQuantity;
+    /** Items delivered so far. */
+    public int orderFilled;
+    /** Copper still held from the buyer's wallet to pay future fills (player buy orders). */
+    public long escrow;
+
+    /** Largest quantity a single player buy order can ask for. */
+    public static final int MAX_ORDER_QUANTITY = 6400;
+
+    public boolean isUnlimitedOrder() {
+        return isBuyOrder() && orderQuantity <= 0;
+    }
+
+    /** Items still wanted by this buy order. */
+    public int remainingQuantity() {
+        if (!isBuyOrder()) return 0;
+        return orderQuantity <= 0 ? Integer.MAX_VALUE : Math.max(0, orderQuantity - orderFilled);
+    }
+
     public boolean isBuyOrder() {
         return kind == ListingKind.PLAYER_BUY_ORDER || kind == ListingKind.ADMIN_BUY_ORDER;
     }
@@ -52,21 +73,21 @@ public class MarketListing {
         return kind == ListingKind.ADMIN_SELL || kind == ListingKind.ADMIN_BUY_ORDER;
     }
 
-    // ── Tax calculation ───────────────────────────────────────────────────────
+    // Tax calculation
 
     /**
      * Tax as a fraction (0.0 – 1.0).
      * BIN: 10 %. Auction: 10 % (4 h) → 24 % (24 h).
      */
     public double taxFraction() {
-        if (!isAuction) return 0.10;
+        // Read from the config (these used to be hard-coded and ignored the config file).
+        if (!isAuction) return Config.MARKET_TAX_BIN_PERCENT.get() / 100.0;
         return switch (durationHours) {
-            case 4  -> 0.10;
-            case 8  -> 0.12;
-            case 12 -> 0.16;
-            case 16 -> 0.20;
-            case 24 -> 0.24;
-            default -> 0.10;
+            case 8  -> Config.MARKET_TAX_AUCTION_8H.get() / 100.0;
+            case 12 -> Config.MARKET_TAX_AUCTION_12H.get() / 100.0;
+            case 16 -> Config.MARKET_TAX_AUCTION_16H.get() / 100.0;
+            case 24 -> Config.MARKET_TAX_AUCTION_24H.get() / 100.0;
+            default -> Config.MARKET_TAX_AUCTION_4H.get() / 100.0;
         };
     }
 
@@ -84,14 +105,14 @@ public class MarketListing {
         return true;
     }
 
-    // ── Serialization (NBT) ───────────────────────────────────────────────────
+    // Serialization (NBT)
 
     public CompoundTag save(HolderLookup.Provider reg) {
         var tag = new CompoundTag();
         tag.putUUID("listingId", listingId);
         tag.putUUID("sellerUUID", sellerUUID);
         if (sellerFactionId != null) tag.putUUID("sellerFactionId", sellerFactionId);
-        tag.put("item", item.isEmpty() ? new net.minecraft.nbt.CompoundTag() : item.save(reg));
+        tag.put("item", item.isEmpty() ? new CompoundTag() : item.save(reg));
         tag.putBoolean("isAuction", isAuction);
         tag.putLong("price", price);
         tag.putLong("highestBid", highestBid);
@@ -100,6 +121,9 @@ public class MarketListing {
         tag.putInt("durationHours", durationHours);
         tag.putBoolean("unpaidUpkeep", unpaidUpkeep);
         tag.putString("kind", kind.name());
+        tag.putInt("orderQuantity", orderQuantity);
+        tag.putInt("orderFilled", orderFilled);
+        tag.putLong("escrow", escrow);
         return tag;
     }
 
@@ -120,10 +144,22 @@ public class MarketListing {
             try { l.kind = ListingKind.valueOf(tag.getString("kind")); }
             catch (IllegalArgumentException ignored) { l.kind = ListingKind.PLAYER_SELL; }
         }
+        if (tag.contains("orderQuantity", Tag.TAG_INT)) {
+            l.orderQuantity = tag.getInt("orderQuantity");
+            l.orderFilled = tag.getInt("orderFilled");
+            l.escrow = tag.getLong("escrow");
+        } else if (l.isBuyOrder()) {
+            // Legacy buy order: one stack for one total price. Convert to quantity + price per item.
+            int count = Math.max(1, l.item.getCount());
+            l.orderQuantity = l.kind == ListingKind.ADMIN_BUY_ORDER ? 0 : count;
+            l.escrow = l.kind == ListingKind.PLAYER_BUY_ORDER ? l.price : 0L;
+            l.price = Math.max(1L, l.price / count);
+            l.item = l.item.copyWithCount(1);
+        }
         return l;
     }
 
-    // ── Network ───────────────────────────────────────────────────────────────
+    // Network
 
     public void toNetwork(RegistryFriendlyByteBuf buf) {
         buf.writeUUID(listingId);
@@ -140,6 +176,9 @@ public class MarketListing {
         buf.writeInt(durationHours);
         buf.writeBoolean(unpaidUpkeep);
         buf.writeVarInt(kind.ordinal());
+        buf.writeVarInt(orderQuantity);
+        buf.writeVarInt(orderFilled);
+        buf.writeLong(escrow);
     }
 
     public static MarketListing fromNetwork(RegistryFriendlyByteBuf buf) {
@@ -159,6 +198,9 @@ public class MarketListing {
         l.kind = kindOrdinal >= 0 && kindOrdinal < ListingKind.values().length
             ? ListingKind.values()[kindOrdinal]
             : ListingKind.PLAYER_SELL;
+        l.orderQuantity = buf.readVarInt();
+        l.orderFilled = buf.readVarInt();
+        l.escrow = buf.readLong();
         return l;
     }
 }

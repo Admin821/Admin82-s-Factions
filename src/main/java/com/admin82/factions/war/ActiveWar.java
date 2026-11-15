@@ -2,8 +2,12 @@ package com.admin82.factions.war;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 
 import java.util.*;
+import javax.annotation.Nullable;
 
 /**
  * Runtime state for one active war between two factions.
@@ -31,7 +35,7 @@ public class ActiveWar {
     public String   defenderDimension;
 
     /** Location of the ATTACKING faction table (counter-capture target for defenders). */
-    @javax.annotation.Nullable public BlockPos attackerTablePos;
+    @Nullable public BlockPos attackerTablePos;
     public String   attackerDimension = "";
     /** Defenders' capture progress toward the attacker's faction table. */
     public float    defenderCaptureProgress = 0f;
@@ -39,12 +43,12 @@ public class ActiveWar {
     /** When {@code true} the current capture target is the defender's outpost, not the table. */
     public boolean  outpostPhase  = false;
     /** Outpost block position during the outpost phase (null when not in outpost phase). */
-    @javax.annotation.Nullable
+    @Nullable
     public BlockPos outpostPos;
     public String   outpostDim    = "";
     /** UUID of the {@link com.admin82.factions.outpost.OutpostEntry} being contested. */
-    @javax.annotation.Nullable
-    public java.util.UUID outpostId;
+    @Nullable
+    public UUID outpostId;
 
     /**
      * For {@link WarType#TERRITORY} wars: the chunk keys ("cx,cz,dim") the attacker
@@ -66,7 +70,7 @@ public class ActiveWar {
         this.lastTickMs        = System.currentTimeMillis();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
     public int totalAttackerLives() {
         return attackerLives.values().stream().mapToInt(Integer::intValue).sum();
@@ -85,7 +89,7 @@ public class ActiveWar {
         return !attackerLives.isEmpty() && attackerLives.values().stream().allMatch(l -> l <= 0);
     }
 
-    // ── NBT ───────────────────────────────────────────────────────────────────
+    // NBT
 
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
@@ -110,8 +114,8 @@ public class ActiveWar {
         tag.putString("attackerDim", attackerDimension);
         tag.putFloat("defCapProg", defenderCaptureProgress);
 
-        net.minecraft.nbt.ListTag chunkList = new net.minecraft.nbt.ListTag();
-        targetChunkKeys.forEach(k -> chunkList.add(net.minecraft.nbt.StringTag.valueOf(k)));
+        ListTag chunkList = new ListTag();
+        targetChunkKeys.forEach(k -> chunkList.add(StringTag.valueOf(k)));
         tag.put("targetChunkKeys", chunkList);
 
         CompoundTag al = new CompoundTag();
@@ -147,7 +151,7 @@ public class ActiveWar {
         war.defenderCaptureProgress = tag.contains("defCapProg") ? tag.getFloat("defCapProg") : 0f;
 
         if (tag.contains("targetChunkKeys")) {
-            var chunkList = tag.getList("targetChunkKeys", net.minecraft.nbt.Tag.TAG_STRING);
+            var chunkList = tag.getList("targetChunkKeys", Tag.TAG_STRING);
             for (int i = 0; i < chunkList.size(); i++) war.targetChunkKeys.add(chunkList.getString(i));
         }
 

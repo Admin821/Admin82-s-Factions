@@ -1,0 +1,244 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "cx": "0",
+        "cz": "0",
+        "active": "false"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_00"
+      }
+    },
+    {
+      "when": {
+        "cx": "0",
+        "cz": "0",
+        "active": "true"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_00_active"
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cx": "0",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_north_00"
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cx": "0",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_east_00"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cx": "0",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_south_00"
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cx": "0",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_west_00"
+      }
+    },
+    {
+      "when": {
+        "cx": "0",
+        "cz": "1",
+        "active": "false"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_01"
+      }
+    },
+    {
+      "when": {
+        "cx": "0",
+        "cz": "1",
+        "active": "true"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_01_active"
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cx": "0",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_north_01"
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cx": "0",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_east_01"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cx": "0",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_south_01"
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cx": "0",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_west_01"
+      }
+    },
+    {
+      "when": {
+        "cx": "1",
+        "cz": "0",
+        "active": "false"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_10"
+      }
+    },
+    {
+      "when": {
+        "cx": "1",
+        "cz": "0",
+        "active": "true"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_10_active"
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cx": "1",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_north_10"
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cx": "1",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_east_10"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cx": "1",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_south_10"
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cx": "1",
+        "cz": "0"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_west_10"
+      }
+    },
+    {
+      "when": {
+        "cx": "1",
+        "cz": "1",
+        "active": "false"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_11"
+      }
+    },
+    {
+      "when": {
+        "cx": "1",
+        "cz": "1",
+        "active": "true"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_11_active"
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cx": "1",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_north_11"
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cx": "1",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_east_11"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cx": "1",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_south_11"
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cx": "1",
+        "cz": "1"
+      },
+      "apply": {
+        "model": "adminsfactions:block/seam_extractor_panel_west_11"
+      }
+    }
+  ]
+}

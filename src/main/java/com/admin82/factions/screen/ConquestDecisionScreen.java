@@ -81,7 +81,7 @@ public class ConquestDecisionScreen extends Screen {
         super.render(g, mx, my, partial);
     }
 
-    /** Prevent closing with Escape — the server will resend this until a choice is made. */
+    /** Prevent closing with Escape, the server will resend this until a choice is made. */
     @Override
     public boolean isPauseScreen() { return false; }
 }

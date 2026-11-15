@@ -1,7 +1,34 @@
 {
   "variants": {
-    "type=supply": { "model": "adminsfactions:block/monument_crate_supply" },
-    "type=ammo": { "model": "adminsfactions:block/monument_crate_ammo" },
-    "type=gun": { "model": "adminsfactions:block/monument_crate_gun" }
+    "facing=north,open=false": {
+      "model": "adminsfactions:block/monument_crate_closed"
+    },
+    "facing=north,open=true": {
+      "model": "adminsfactions:block/monument_crate_open"
+    },
+    "facing=east,open=false": {
+      "model": "adminsfactions:block/monument_crate_closed",
+      "y": 90
+    },
+    "facing=east,open=true": {
+      "model": "adminsfactions:block/monument_crate_open",
+      "y": 90
+    },
+    "facing=south,open=false": {
+      "model": "adminsfactions:block/monument_crate_closed",
+      "y": 180
+    },
+    "facing=south,open=true": {
+      "model": "adminsfactions:block/monument_crate_open",
+      "y": 180
+    },
+    "facing=west,open=false": {
+      "model": "adminsfactions:block/monument_crate_closed",
+      "y": 270
+    },
+    "facing=west,open=true": {
+      "model": "adminsfactions:block/monument_crate_open",
+      "y": 270
+    }
   }
 }

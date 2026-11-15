@@ -8,11 +8,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public class SupplyDropData extends SavedData {
     private static final String DATA_NAME = "adminsfactions_supply_drops";
@@ -32,10 +35,10 @@ public class SupplyDropData extends SavedData {
     }
 
     public Collection<SupplyDropPool> getPools() {
-        return java.util.Collections.unmodifiableCollection(pools.values());
+        return Collections.unmodifiableCollection(pools.values());
     }
 
-    public java.util.List<String> getPoolNames() {
+    public List<String> getPoolNames() {
         return new ArrayList<>(pools.keySet());
     }
 
@@ -68,7 +71,7 @@ public class SupplyDropData extends SavedData {
         if (pool == null || intervalHours <= 0) return;
         scheduledPoolName = pool.getName();
         scheduleIntervalHours = Math.min(intervalHours, 24 * 365);
-        scheduleRadius = Math.max(0, radius);
+        scheduleRadius = Math.max(0, Math.min(SupplyDropEvents.MAX_RADIUS, radius));
         scheduleFallSeconds = Math.max(0, fallSeconds);
         nextScheduledDropAt = now + scheduleIntervalMillis();
         setDirty();
@@ -126,7 +129,7 @@ public class SupplyDropData extends SavedData {
     }
 
     private static String normalize(String name) {
-        return name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT);
+        return name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
     }
 
     @Override

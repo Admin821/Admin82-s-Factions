@@ -1,22 +1,19 @@
 package com.admin82.factions;
 
+import com.admin82.factions.compat.tacz.Tacz;
 import com.admin82.factions.registry.*;
-import org.slf4j.Logger;
-
 import com.mojang.logging.LogUtils;
-
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(AdminsFactions.MODID)
@@ -38,9 +35,14 @@ public class AdminsFactions {
                         output.accept(ModItems.BARRACKS.get());
                         output.accept(ModItems.FACTION_TABLE.get());
                         output.accept(ModItems.OUTPOST.get());
+                        output.accept(ModItems.WARBOND.get());
                         output.accept(ModItems.CARE_PACKAGE.get());
                         output.accept(ModItems.MARKET_BLOCK.get());
                         output.accept(ModItems.CURRENCY_EXCHANGE_BLOCK.get());
+                        output.accept(ModItems.POWER_METER.get());
+                        output.accept(ModItems.FLUID_METER.get());
+                        output.accept(ModItems.SEAM_VIEWER.get());
+                        output.accept(ModItems.SEAM_EXTRACTOR.get());
                         output.accept(ModItems.MONUMENT_CONTROLLER.get());
                         output.accept(ModItems.MONUMENT_CRATE.get());
                         output.accept(ModItems.ORE_GENERATOR.get());
@@ -64,6 +66,8 @@ public class AdminsFactions {
 
         // Register network packets
         modEventBus.addListener(ModPackets::register);
+        Tacz.init(); // optional: only hooks in when TaCZ is installed
+        modEventBus.addListener(com.admin82.factions.meter.MeterCapabilities::register);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }

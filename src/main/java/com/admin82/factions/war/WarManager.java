@@ -9,8 +9,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 /**
  * Persistent store for all active wars.
@@ -21,20 +22,6 @@ public class WarManager extends SavedData {
     private static final String DATA_NAME = "adminsfactions_wars";
 
     private final Map<UUID, ActiveWar> activeWars       = new HashMap<>();
-    /** -1 means use Config default; any positive value overrides it. */
-    private int     gracePeriodOverride      = -1;
-    /** -1 means use default (5); any positive value overrides the attacker TP spawn distance in chunks. */
-    private int     tpDistanceChunksOverride = -1;
-    /** Whether attackers are teleported to the front line when the grace period ends. Default OFF. */
-    private boolean warTpEnabled             = false;
-    /** Whether the war boundary is enforced for attackers. Default OFF. */
-    private boolean warBoundaryEnabled       = false;
-    /** Max blocks the Resource-War winner may break in the loser's territory. -1 = use default (50). */
-    private int     blockBreakLimitOverride  = -1;
-    /** Faction-table KOTH capture time in seconds. -1 = use Config default. */
-    private int     tableKothTimeOverride    = -1;
-    /** Outpost KOTH capture time in seconds. -1 = use OutpostEntry.CAPTURE_TIME_SECONDS (60). */
-    private int     outpostKothTimeOverride  = -1;
     /** Active Resource-War loot accesses keyed by loser faction ID. */
     private final Map<UUID, ResourceWarAccess> resourceWarAccesses = new HashMap<>();
     /**
@@ -42,14 +29,7 @@ public class WarManager extends SavedData {
      * declare war on that same defender again.
      */
     private final Map<String, Long> warCooldowns = new HashMap<>();
-    /** Duration of the post-war cooldown in seconds (default 24 h). */
-    private int afterWarCooldownSeconds    = 86_400;
-    /**
-     * Minimum percentage (0-100) of a defender's members that must be online before
-     * a war can be declared on them.  0 = no minimum.
-     */
-    private int minOnlinePercentageForWar  = 50;
-    // ── Static access ─────────────────────────────────────────────────────────
+    // Static access
 
     public static WarManager get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -58,87 +38,46 @@ public class WarManager extends SavedData {
         );
     }
 
-    // ── Grace period ──────────────────────────────────────────────────────────
+    // Settings. These live in the config file; see Config.
 
-    /** Returns the effective grace period in seconds (command override or config default). */
-    public int getGracePeriodSeconds() {
-        return gracePeriodOverride > 0 ? gracePeriodOverride : Config.WAR_GRACE_PERIOD_SECONDS.get();
-    }
+    public int getGracePeriodSeconds() { return Config.WAR_GRACE_PERIOD_SECONDS.get(); }
+    public void setGracePeriodSeconds(int seconds) { Config.set(Config.WAR_GRACE_PERIOD_SECONDS, clamp(seconds, 0, 86400)); }
 
-    /** Overrides the grace period for this world. Set to -1 to revert to config. */
-    public void setGracePeriodSeconds(int seconds) {
-        this.gracePeriodOverride = seconds;
-        setDirty();
-    }
+    public int getTpDistanceChunks() { return Config.WAR_TELEPORT_DISTANCE_CHUNKS.get(); }
+    public void setTpDistanceChunks(int chunks) { Config.set(Config.WAR_TELEPORT_DISTANCE_CHUNKS, clamp(chunks, 1, 50)); }
 
-    // ── TP spawn distance ──────────────────────────────────────────────
+    public boolean isWarTpEnabled() { return Config.WAR_TELEPORT_ATTACKERS.get(); }
+    public void setWarTpEnabled(boolean enabled) { Config.set(Config.WAR_TELEPORT_ATTACKERS, enabled); }
 
-    /** Returns the effective attacker TP distance in chunks (command override or default 5). */
-    public int getTpDistanceChunks() {
-        return tpDistanceChunksOverride > 0 ? tpDistanceChunksOverride : 5;
-    }
+    public boolean isWarBoundaryEnabled() { return Config.WAR_BOUNDARY_ENABLED.get(); }
+    public void setWarBoundaryEnabled(boolean enabled) { Config.set(Config.WAR_BOUNDARY_ENABLED, enabled); }
 
-    /** Overrides the TP spawn distance for this world (in chunks). Set to -1 to revert to default. */
-    public void setTpDistanceChunks(int chunks) {
-        this.tpDistanceChunksOverride = chunks;
-        setDirty();
-    }
+    public int getBlockBreakLimit() { return Config.WAR_RESOURCE_BLOCK_LIMIT.get(); }
+    public void setBlockBreakLimit(int limit) { Config.set(Config.WAR_RESOURCE_BLOCK_LIMIT, clamp(limit, 1, 1000)); }
 
-    // ── War TP toggle ─────────────────────────────────────────────────────────
+    public int getTableKothTime() { return Config.WAR_CAPTURE_TIME_SECONDS.get(); }
+    public void setTableKothTime(int seconds) { Config.set(Config.WAR_CAPTURE_TIME_SECONDS, clamp(seconds, 1, 86400)); }
 
-    /** Returns whether attackers are teleported to the front line when grace ends. */
-    public boolean isWarTpEnabled() { return warTpEnabled; }
+    public int getOutpostKothTime() { return Config.WAR_OUTPOST_CAPTURE_TIME_SECONDS.get(); }
+    public void setOutpostKothTime(int seconds) { Config.set(Config.WAR_OUTPOST_CAPTURE_TIME_SECONDS, clamp(seconds, 1, 86400)); }
 
-    /** Enables or disables the attacker teleport system for this world. */
-    public void setWarTpEnabled(boolean enabled) { this.warTpEnabled = enabled; setDirty(); }
+    public int getAfterWarCooldownSeconds() { return Config.WAR_COOLDOWN_SECONDS.get(); }
+    public void setAfterWarCooldownSeconds(int seconds) { Config.set(Config.WAR_COOLDOWN_SECONDS, clamp(seconds, 0, 604800)); }
 
-    // ── War boundary toggle ───────────────────────────────────────────────────
+    public int getMinOnlinePercentageForWar() { return Config.WAR_MIN_DEFENDERS_ONLINE_PERCENT.get(); }
+    public void setMinOnlinePercentageForWar(int percent) { Config.set(Config.WAR_MIN_DEFENDERS_ONLINE_PERCENT, clamp(percent, 0, 100)); }
 
-    /** Returns whether the war boundary is enforced for attackers. */
-    public boolean isWarBoundaryEnabled() { return warBoundaryEnabled; }
-
-    /** Enables or disables the war boundary for this world. */
-    public void setWarBoundaryEnabled(boolean enabled) { this.warBoundaryEnabled = enabled; setDirty(); }
-
-    // ── Block-break limit ────────────────────────────────────────────────
-
-    /** Returns how many blocks the Resource-War winner may break. Default 50. */
-    public int getBlockBreakLimit() {
-        return blockBreakLimitOverride > 0 ? blockBreakLimitOverride : 50;
-    }
-
-    public void setBlockBreakLimit(int limit) {
-        this.blockBreakLimitOverride = Math.max(1, limit);
-        setDirty();
-    }
-
-    // ── KOTH capture times ─────────────────────────────────────────────────────
-
-    /** Faction-table KOTH capture time. Default from Config. */
-    public int getTableKothTime() {
-        return tableKothTimeOverride > 0 ? tableKothTimeOverride : com.admin82.factions.Config.WAR_CAPTURE_TIME_SECONDS.get();
-    }
-    public void setTableKothTime(int seconds) { this.tableKothTimeOverride  = Math.max(1, seconds); setDirty(); }
-
-    /** Outpost KOTH capture time. Default 60 s. */
-    public int getOutpostKothTime() {
-        return outpostKothTimeOverride > 0 ? outpostKothTimeOverride : (int) com.admin82.factions.outpost.OutpostEntry.CAPTURE_TIME_SECONDS;
-    }
-    public void setOutpostKothTime(int seconds) { this.outpostKothTimeOverride = Math.max(1, seconds); setDirty(); }
-
-    public int getAfterWarCooldownSeconds() { return afterWarCooldownSeconds; }
-    public void setAfterWarCooldownSeconds(int seconds) {
-        this.afterWarCooldownSeconds = Math.max(0, seconds); setDirty();
-    }
+    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
 
     /**
      * Records that the attacker just finished a war against the defender.
      * They will be blocked from declaring war on the same faction again until the cooldown expires.
      */
     public void recordWarCooldown(UUID attackerId, UUID defenderId) {
-        if (afterWarCooldownSeconds <= 0) return;
+        int cooldown = getAfterWarCooldownSeconds();
+        if (cooldown <= 0) return;
         warCooldowns.put(attackerId + "|" + defenderId,
-                System.currentTimeMillis() + (long) afterWarCooldownSeconds * 1000L);
+                System.currentTimeMillis() + (long) cooldown * 1000L);
         setDirty();
     }
 
@@ -162,14 +101,7 @@ public class WarManager extends SavedData {
         return Math.max(0, (expires - System.currentTimeMillis()) / 1000L);
     }
 
-    // ── Online-percentage requirement ───────────────────────────────────────────
-
-    public int getMinOnlinePercentageForWar() { return minOnlinePercentageForWar; }
-    public void setMinOnlinePercentageForWar(int percent) {
-        this.minOnlinePercentageForWar = Math.max(0, Math.min(100, percent)); setDirty();
-    }
-
-    // ── Active-war check ────────────────────────────────────────────────────────
+    // Active-war check
 
     /** Returns true if the faction is currently committed to any active or grace-period war. */
     public boolean isFactionInActiveWar(UUID factionId) {
@@ -180,7 +112,7 @@ public class WarManager extends SavedData {
         return false;
     }
 
-    // ── Resource-War access ──────────────────────────────────────────
+    // Resource-War access
 
     public void addResourceWarAccess(ResourceWarAccess access) {
         resourceWarAccesses.put(access.loserFactionId, access);
@@ -206,7 +138,7 @@ public class WarManager extends SavedData {
         if (changed) setDirty();
     }
 
-    // ── Queries ───────────────────────────────────────────────────────────────
+    // Queries
 
     public Collection<ActiveWar> getActiveWars() { return Collections.unmodifiableCollection(activeWars.values()); }
 
@@ -233,7 +165,7 @@ public class WarManager extends SavedData {
         return null;
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    // Lifecycle
 
     /**
      * Creates and registers a new war.
@@ -269,19 +201,10 @@ public class WarManager extends SavedData {
         setDirty();
     }
 
-    // ── SavedData ─────────────────────────────────────────────────────────────
+    // SavedData
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt("gracePeriodOverride", gracePeriodOverride);
-        tag.putInt("tpDistanceChunksOverride", tpDistanceChunksOverride);
-        tag.putBoolean("warTpEnabled", warTpEnabled);
-        tag.putBoolean("warBoundaryEnabled", warBoundaryEnabled);
-        tag.putInt("blockBreakLimitOverride", blockBreakLimitOverride);
-        tag.putInt("afterWarCooldownSeconds", afterWarCooldownSeconds);
-        tag.putInt("minOnlinePercentageForWar", minOnlinePercentageForWar);
-        if (tableKothTimeOverride   > 0) tag.putInt("tableKothTime",   tableKothTimeOverride);
-        if (outpostKothTimeOverride > 0) tag.putInt("outpostKothTime", outpostKothTimeOverride);
         ListTag warList = new ListTag();
         activeWars.values().forEach(w -> warList.add(w.save()));
         tag.put("wars", warList);
@@ -289,27 +212,23 @@ public class WarManager extends SavedData {
         resourceWarAccesses.values().forEach(a -> rwList.add(a.save()));
         tag.put("resourceWarAccesses", rwList);
         ListTag cdList = new ListTag();
-        warCooldowns.forEach((k, v) -> { var e = new net.minecraft.nbt.CompoundTag(); e.putString("k", k); e.putLong("v", v); cdList.add(e); });
+        warCooldowns.forEach((k, v) -> { var e = new CompoundTag(); e.putString("k", k); e.putLong("v", v); cdList.add(e); });
         tag.put("warCooldowns", cdList);
         return tag;
     }
 
     public static WarManager load(CompoundTag tag, HolderLookup.Provider registries) {
         WarManager mgr = new WarManager();
-        mgr.gracePeriodOverride = tag.getInt("gracePeriodOverride");
-        if (mgr.gracePeriodOverride == 0) mgr.gracePeriodOverride = -1;
-        mgr.tpDistanceChunksOverride = tag.getInt("tpDistanceChunksOverride");
-        if (mgr.tpDistanceChunksOverride == 0) mgr.tpDistanceChunksOverride = -1;
-        mgr.warTpEnabled       = tag.contains("warTpEnabled")       && tag.getBoolean("warTpEnabled");
-        mgr.warBoundaryEnabled = tag.contains("warBoundaryEnabled") && tag.getBoolean("warBoundaryEnabled");
-        if (tag.contains("blockBreakLimitOverride")) {
-            int bbl = tag.getInt("blockBreakLimitOverride");
-            mgr.blockBreakLimitOverride = bbl == 0 ? -1 : bbl;
-        }
-        if (tag.contains("afterWarCooldownSeconds"))   mgr.afterWarCooldownSeconds   = tag.getInt("afterWarCooldownSeconds");
-        if (tag.contains("minOnlinePercentageForWar")) mgr.minOnlinePercentageForWar = tag.getInt("minOnlinePercentageForWar");
-        if (tag.contains("tableKothTime"))   mgr.tableKothTimeOverride   = tag.getInt("tableKothTime");
-        if (tag.contains("outpostKothTime")) mgr.outpostKothTimeOverride = tag.getInt("outpostKothTime");
+        // Settings used to be saved here; move them to the config.
+        if (tag.getInt("gracePeriodOverride") > 0) Config.migrate(Config.WAR_GRACE_PERIOD_SECONDS, clamp(tag.getInt("gracePeriodOverride"), 0, 86400));
+        if (tag.getInt("tpDistanceChunksOverride") > 0) Config.migrate(Config.WAR_TELEPORT_DISTANCE_CHUNKS, clamp(tag.getInt("tpDistanceChunksOverride"), 1, 50));
+        if (tag.contains("warTpEnabled")) Config.migrate(Config.WAR_TELEPORT_ATTACKERS, tag.getBoolean("warTpEnabled"));
+        if (tag.contains("warBoundaryEnabled")) Config.migrate(Config.WAR_BOUNDARY_ENABLED, tag.getBoolean("warBoundaryEnabled"));
+        if (tag.getInt("blockBreakLimitOverride") > 0) Config.migrate(Config.WAR_RESOURCE_BLOCK_LIMIT, clamp(tag.getInt("blockBreakLimitOverride"), 1, 1000));
+        if (tag.contains("afterWarCooldownSeconds")) Config.migrate(Config.WAR_COOLDOWN_SECONDS, clamp(tag.getInt("afterWarCooldownSeconds"), 0, 604800));
+        if (tag.contains("minOnlinePercentageForWar")) Config.migrate(Config.WAR_MIN_DEFENDERS_ONLINE_PERCENT, clamp(tag.getInt("minOnlinePercentageForWar"), 0, 100));
+        if (tag.getInt("tableKothTime") > 0) Config.migrate(Config.WAR_CAPTURE_TIME_SECONDS, clamp(tag.getInt("tableKothTime"), 1, 86400));
+        if (tag.getInt("outpostKothTime") > 0) Config.migrate(Config.WAR_OUTPOST_CAPTURE_TIME_SECONDS, clamp(tag.getInt("outpostKothTime"), 1, 86400));
         ListTag warList = tag.getList("wars", Tag.TAG_COMPOUND);
         for (int i = 0; i < warList.size(); i++) {
             ActiveWar w = ActiveWar.load(warList.getCompound(i));
@@ -325,6 +244,8 @@ public class WarManager extends SavedData {
             var e = cdList.getCompound(i);
             mgr.warCooldowns.put(e.getString("k"), e.getLong("v"));
         }
+        // Old settings were copied to the config above; save once more so they leave the world file.
+        if (Stream.of("gracePeriodOverride", "tpDistanceChunksOverride", "warTpEnabled", "warBoundaryEnabled", "blockBreakLimitOverride", "afterWarCooldownSeconds", "minOnlinePercentageForWar", "tableKothTime", "outpostKothTime").anyMatch(tag::contains)) mgr.setDirty();
         return mgr;
     }
 }

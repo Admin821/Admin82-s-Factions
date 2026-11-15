@@ -1,7 +1,10 @@
 package com.admin82.factions.menu;
 
+import com.admin82.factions.Config;
+import com.admin82.factions.economy.Currency;
 import com.admin82.factions.network.packet.OpenOutpostManagerPacket;
 import com.admin82.factions.network.packet.OutpostActionPacket;
+import com.admin82.factions.network.packet.SyncServerConfigPacket;
 import com.admin82.factions.outpost.OutpostEntry;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
@@ -9,18 +12,28 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
+import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -28,9 +41,9 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
 import org.appliedenergistics.yoga.YogaFlexDirection;
+import org.lwjgl.glfw.GLFW;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 
 /**
  * LDLib2 menu for the Outpost Manager.
@@ -56,7 +69,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
     @Nullable private UIElement       inspPanel;
     @Nullable private String          inspKey; // "cx,cz"
 
-    // ── Constructor ───────────────────────────────────────────────────────────
+    // Constructor
 
     public OutpostManagerMenu(int id, Inventory inv, OpenOutpostManagerPacket data) {
         super(null, id);
@@ -73,15 +86,15 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
     @Override public ModularUI ldlib2$getModularUI()       { return modularUI; }
     @Override public void ldlib2$setModularUI(ModularUI ui){ this.modularUI = ui; }
     @Override @Nullable
-    public com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot ldlib2$getItemSlot(
-            net.minecraft.world.inventory.Slot slot) { return null; }
+    public ItemSlot ldlib2$getItemSlot(
+            Slot slot) { return null; }
     @Override
-    public void ldlib2$addSlot(com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot slot) { /* no slots */ }
+    public void ldlib2$addSlot(ItemSlot slot) { /* no slots */ }
 
     @Override public boolean stillValid(Player p)          { return true; }
     @Override public ItemStack quickMoveStack(Player p, int i) { return ItemStack.EMPTY; }
 
-    // ── Root UI ───────────────────────────────────────────────────────────────
+    // Root UI
 
     @OnlyIn(Dist.CLIENT)
     private ModularUI createModularUI(Player player) {
@@ -90,27 +103,27 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         frame.addClass("preview_bg");
 
         var root = new UIElement();
-        root.layout(l -> l.width(420).height(340).flexDirection(YogaFlexDirection.COLUMN));
+        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
         root.addClass("panel_bg");
 
         // Title row
         var titleRow = new UIElement();
         titleRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).paddingHorizontal(8).paddingTop(4));
         titleRow.addChildren(
-                new Label().setText("§d§lOutpost Manager").layout(l -> l.flex(1)),
-                new Label().setText("§5§o" + data.ownerName())
+                new Label().setText("§d§l" + data.outpostName()).layout(l -> l.flex(1)),
+                UiKit.rightLabel("§5§o" + data.ownerName())
         );
 
         // Tab bar + content area
         var contentArea = new UIElement();
-        contentArea.layout(l -> l.flex(1).width(420));
+        contentArea.layout(l -> l.flex(1));
 
         var overviewPanel = buildOverviewPanel();
         var mapPanel      = buildMapPanel();
         contentArea.addChildren(overviewPanel);
 
         var tabBar = new UIElement();
-        tabBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).width(420).gapAll(2).paddingHorizontal(4));
+        tabBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).gapAll(2).paddingHorizontal(6));
 
         UIElement[] panels = {overviewPanel, mapPanel};
         String[]    labels = {"Overview", "Territory Map"};
@@ -143,50 +156,92 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         }
     }
 
-    // ── Overview tab ──────────────────────────────────────────────────────────
+    /** The server's outpost capture time (the config is synced from the server). */
+    private static float captureTime() {
+        return SyncServerConfigPacket.get(Config.WAR_OUTPOST_CAPTURE_TIME_SECONDS);
+    }
+
+    // Overview tab
 
     @OnlyIn(Dist.CLIENT)
     private UIElement buildOverviewPanel() {
         var panel = new UIElement();
         panel.layout(l -> l.flex(1).paddingAll(8).gapAll(5).flexDirection(YogaFlexDirection.COLUMN));
 
-        // Status heading
+        // Status
         if (data.disintegrating()) {
-            panel.addChildren(
-                    new Label().setText("§c§lDISINTEGRATING").lss("horizontal-align", "center"),
-                    new Label().setText("§cUpkeep unpaid — outpost is breaking down!").lss("horizontal-align", "center"));
-        } else if (!data.capturingFactionName().isEmpty()) {
-            int sec = (int)(OutpostEntry.CAPTURE_TIME_SECONDS - data.captureProgress());
-            panel.addChildren(
-                    new Label().setText("§c§lUNDER ATTACK by §e" + data.capturingFactionName()).lss("horizontal-align", "center"),
-                    new Label().setText("§7Capturing — §e" + sec + "s §7remaining").lss("horizontal-align", "center"));
+            panel.addChildren(center("§c§lFALLING APART"), center("§cIts upkeep was never paid."));
+        } else if (data.hp() < data.maxHp()) {
+            panel.addChildren(center("§c§lUNDER ATTACK" + (data.capturingFactionName().isEmpty() ? "" : " by §e" + data.capturingFactionName())),
+                    center("§7Each break of the flag takes 1 HP. At 0 the attackers capture the outpost and everything in it."));
+        } else if (data.unsuppliedUntil() > 0) {
+            long left = Math.max(0, data.unsuppliedUntil() - System.currentTimeMillis());
+            panel.addChildren(center("§6§lUNSUPPLIED"),
+                    center("§eOut of coins: it falls apart in §f"
+                            + (left / 3_600_000L) + "h " + (left / 60_000L % 60) + "m§e unless upkeep is paid."),
+                    center("§7Put at least §e" + Currency.format(data.upkeepCost()) + " §7of coins in below."));
+        } else if (data.capturable()) {
+            panel.addChildren(center("§c§lAT WAR"), center("§7The owner is at war: expect attacks on the flag."));
         } else {
-            panel.addChildren(
-                    new Label().setText("§a§lSECURE").lss("horizontal-align", "center"),
-                    new Label().setText("§7No enemy presence detected.").lss("horizontal-align", "center"));
+            panel.addChildren(center("§a§lHOLDING"),
+                    center("§7Any faction except allies can capture it by breaking the flag " + data.maxHp()
+                            + " times. Left alone, the flag repairs."));
         }
 
-        // Capture progress bar (static snapshot)
-        float pct = Math.min(1f, data.captureProgress() / OutpostEntry.CAPTURE_TIME_SECONDS);
+        // Flag health
+        float pct = data.maxHp() <= 0 ? 0 : Math.max(0f, Math.min(1f, data.hp() / (float) data.maxHp()));
         var barBg = new UIElement();
-        barBg.layout(l -> l.width(380).height(10).flexDirection(YogaFlexDirection.ROW).alignSelf(YogaAlign.CENTER));
-        barBg.lss("base-background", "built-in(ui-mc:RECT_BORDER) color(#111122ff)");
+        barBg.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(YogaFlexDirection.ROW).alignSelf(YogaAlign.CENTER));
+        UiKit.background(barBg, UiKit.BAR_TRACK);
         if (pct > 0) {
-            int fw = (int)(380 * pct);
-            var fill = new UIElement();
-            fill.layout(l -> l.width(fw).height(10));
-            fill.lss("base-background", "built-in(ui-mc:RECT_BORDER) color("
-                    + (data.capturingFactionName().isEmpty() ? "#22aa44ff" : "#cc3333ff") + ")");
+            int fw = Math.max(1, (int) (BAR_WIDTH * pct));
+            var fill = UiKit.background(new UIElement(), pct >= 1f ? 0xFF22AA44 : 0xFFCC3333);
+            fill.layout(l -> l.width(fw).height(8));
             barBg.addChildren(fill);
         }
-        panel.addChildren(barBg);
-        panel.addChildren(new Label().setText("§8Capture: §7" + (int)(pct * 100) + "%").lss("horizontal-align", "center"));
+        panel.addChildren(barBg, center("§8Flag: §f" + data.hp() + "§7/" + data.maxHp() + " HP §8· level §f" + data.level()));
+
+        // Coins and upgrades (owning faction only)
+        if (data.isOwner() && data.coins() >= 0 && !data.disintegrating()) {
+            long days = data.upkeepCost() > 0 ? data.coins() / data.upkeepCost() : 0;
+            panel.addChildren(center("§8Coins: §e" + Currency.format(data.coins()) + " §8· upkeep §e" + Currency.format(data.upkeepCost())
+                    + "§8/day · §7lasts " + days + " day" + (days == 1 ? "" : "s")));
+            var open = new Button().setText("§6Coin storage")
+                    .setOnClick(e -> PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.OPEN_COINS, data.outpostId())));
+            open.layout(l -> l.width(120).height(16).alignSelf(YogaAlign.CENTER));
+            open.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
+                    Component.literal("§7Put coins in to pay the daily upkeep."),
+                    Component.literal(data.canManage() ? "§7Officers can take coins out too." : "§8Only officers can take coins out."),
+                    Component.literal("§7Hoppers can fill it from the flag as well.")));
+            panel.addChildren(open);
+            if (data.upgradeCost() > 0 && data.canManage())
+                panel.addChildren(center("§8Upgrade this outpost from the Faction Upgrades tab."));
+        }
+
+        // Rename (officers)
+        if (data.canManage() && !data.disintegrating()) {
+            var nameRow = new UIElement();
+            nameRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).alignSelf(YogaAlign.CENTER).height(16));
+            var nameField = UiKit.textField("");
+            nameField.setValue(nameText.isEmpty() ? data.outpostName() : nameText);
+            nameField.bindObserver(v -> nameText = v);
+            nameField.layout(l -> l.width(160).height(16));
+            var rename = new Button().setText("§eRename").setOnClick(e -> {
+                String n = (nameText.isEmpty() ? data.outpostName() : nameText).trim();
+                if (n.isEmpty()) return;
+                PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.RENAME, data.outpostId(), 0, n));
+                nameText = "";
+            });
+            rename.layout(l -> l.width(70).height(16));
+            nameRow.addChildren(new Label().setText("§7Name").layout(l -> l.width(30)), nameField, rename);
+            panel.addChildren(nameRow);
+        }
 
         // Info rows
         panel.addChildren(
-                new Label().setText("§8Position: §7" + data.managerPos().getX() + "  " + data.managerPos().getY() + "  " + data.managerPos().getZ()),
-                new Label().setText("§8Upkeep: §e5 silver§8/day"),
-                new Label().setText("§8Capture radius: §7" + OutpostEntry.CAPTURE_RADIUS_BLOCKS + " blocks  §8|  §8Capture time: §7" + (int)OutpostEntry.CAPTURE_TIME_SECONDS + "s"),
+                center("§8Position: §7" + data.managerPos().getX() + ", " + data.managerPos().getY() + ", " + data.managerPos().getZ()
+                        + "  §8· Land: §7" + OutpostEntry.chunkOffsets(data.level()).size() + " chunk"
+                        + (data.level() == 1 ? "" : "s")),
                 new Label().setText("§8── Actions ──").lss("horizontal-align", "center")
         );
 
@@ -206,10 +261,11 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
             var row = new UIElement();
             row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).alignSelf(YogaAlign.CENTER));
             row.addChildren(
-                    new Button().setText("§e Move Outpost").setOnClick(e -> {
+                    tipped(new Button().setText("§e Move Outpost").setOnClick(e -> {
                         PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.MOVE, data.outpostId()));
                         Minecraft.getInstance().setScreen(null);
-                    }).layout(l -> l.width(140)),
+                    }).layout(l -> l.width(140)), "§7Packs the outpost into an Outpost item to place somewhere else.",
+                            "§7Its name, level and coins go with it.", "§eEmpty the storage box of items first."),
                     new Button().setText("§c Delete Outpost").setOnClick(e -> {
                         PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.DELETE, data.outpostId()));
                         Minecraft.getInstance().setScreen(null);
@@ -221,12 +277,21 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         if (!data.isOwner() && !data.canSetSpawn())
             panel.addChildren(new Label().setText("§8You do not own this outpost.").lss("horizontal-align", "center"));
         if (data.isOwner() && data.disintegrating())
-            panel.addChildren(new Label().setText("§cPay upkeep before moving.").lss("horizontal-align", "center"));
+            panel.addChildren(new Label().setText("§cThis outpost is falling apart.").lss("horizontal-align", "center"));
 
         return panel;
     }
 
-    // ── Territory Map tab ─────────────────────────────────────────────────────
+    /** Text typed in the rename field. */
+    private static String nameText = "";
+
+    private static final int BAR_WIDTH = 360;
+
+    private static Label center(String text) {
+        return (Label) new Label().setText(text).lss("horizontal-align", "center");
+    }
+
+    // Territory Map tab
 
     @OnlyIn(Dist.CLIENT)
     private UIElement buildMapPanel() {
@@ -264,7 +329,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
             while (mapAccumX <= -ppc) { mapOffsetX--; mapAccumX += ppc; moved = true; }
             while (mapAccumY >=  ppc) { mapOffsetZ++; mapAccumY -= ppc; moved = true; }
             while (mapAccumY <= -ppc) { mapOffsetZ--; mapAccumY += ppc; moved = true; }
-            if (moved) fillMapCells();
+            if (moved) mapRedraw.request(this::fillMapCells);
         });
         mapGrid.addEventListener(UIEvents.MOUSE_WHEEL, ev -> {
             if      (ev.deltaY > 0) mapViewSize = Math.max(5,  mapViewSize - 2);
@@ -274,8 +339,8 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         mapGrid.addEventListener(UIEvents.TICK, ev -> {
             if (mapDragging) {
                 long win = Minecraft.getInstance().getWindow().getWindow();
-                if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(win, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)
-                        != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
+                if (GLFW.glfwGetMouseButton(win, GLFW.GLFW_MOUSE_BUTTON_LEFT)
+                        != GLFW.GLFW_PRESS) {
                     mapDragging = false; mapDragDist = 0f;
                 }
             }
@@ -294,7 +359,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         return panel;
     }
 
-    // ── Map rendering ─────────────────────────────────────────────────────────
+    // Map rendering
 
     @OnlyIn(Dist.CLIENT)
     private void fillMapCells() {
@@ -320,7 +385,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
                         int imgX = col * cellPx + px, imgY = row * cellPx + py;
                         if (imgX >= GRID_PX || imgY >= GRID_PX) continue;
                         int rgb = loaded
-                                ? computeBlockColor(level, cx * 16 + px * 16 / cellPx, cz * 16 + py * 16 / cellPx)
+                                ? COLORS.color(level, cx * 16 + px * 16 / cellPx, cz * 16 + py * 16 / cellPx)
                                 : 0x404040;
                         mapTex.setPixel(imgX, imgY, rgb);
                     }
@@ -371,7 +436,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
                 int fcx = ccx - halfView + col, fcz = ccz - halfView + row;
                 var cell = new UIElement();
                 cell.layout(l -> l.width(fcs).height(fcs));
-                cell.addEventListener(UIEvents.MOUSE_UP, ev -> {
+                UiKit.onClick(cell, ev -> {
                     if (mapDragDist > 5f) return;
                     String key = fcx + "," + fcz;
                     inspKey = key.equals(inspKey) ? null : key;
@@ -419,9 +484,12 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         return i < tiles.length ? tiles[i] : 0;
     }
 
-    // ── Block colour helpers (mirrors FactionTableMenu) ───────────────────────
+    // Block colour helpers (mirrors FactionTableMenu)
 
     @OnlyIn(Dist.CLIENT)
+    private static final MapColorCache COLORS = new MapColorCache(OutpostManagerMenu::computeBlockColor);
+    private final MapColorCache.Throttle mapRedraw = new MapColorCache.Throttle();
+
     private static int computeBlockColor(Level level, int wx, int wz) {
         try {
             int wyF = level.getHeight(Heightmap.Types.OCEAN_FLOOR,   wx, wz) - 1;
@@ -431,7 +499,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
             if (wyS > wyF) {
                 var sp2 = new BlockPos(wx, wyS, wz);
                 if (!level.getFluidState(sp2).isEmpty()) {
-                    int base; try { base = net.minecraft.client.renderer.BiomeColors.getAverageWaterColor(level, sp2); } catch (Exception e) { base = 0x3F76E4; }
+                    int base; try { base = BiomeColors.getAverageWaterColor(level, sp2); } catch (Exception e) { base = 0x3F76E4; }
                     float f = Math.max(0.20f, 1.0f - (wyS - wyF) * 0.05f);
                     return ((int)(((base>>16)&0xFF)*f)<<16)|((int)(((base>>8)&0xFF)*f)<<8)|(int)((base&0xFF)*f);
                 }
@@ -458,11 +526,11 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
     }
 
     @OnlyIn(Dist.CLIENT)
-    private static int getBlockRenderColor(net.minecraft.world.level.block.state.BlockState state, Level level, BlockPos pos) {
+    private static int getBlockRenderColor(BlockState state, Level level, BlockPos pos) {
         try {
             var mc = Minecraft.getInstance();
             var model = mc.getBlockRenderer().getBlockModel(state);
-            var quads = model.getQuads(state, Direction.UP, net.minecraft.util.RandomSource.create(42L));
+            var quads = model.getQuads(state, Direction.UP, RandomSource.create(42L));
             if (!quads.isEmpty()) {
                 var c = quads.get(0).getSprite().contents();
                 int w = c.width(), h = c.height(); long rS=0,gS=0,bS=0; int n=0;
@@ -484,14 +552,14 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         return (c==0||c==-1) ? 0x707070 : c;
     }
 
-    // ── TerrainMap texture (NativeImage + DynamicTexture, mirrors FactionTableMenu) ──
+    // TerrainMap texture (NativeImage + DynamicTexture, mirrors FactionTableMenu)
 
     @OnlyIn(Dist.CLIENT)
     private static final class OutpostTerrainMap extends ColorRectTexture {
 
         private final NativeImage image;
         private final net.minecraft.client.renderer.texture.DynamicTexture dynTex;
-        private final net.minecraft.resources.ResourceLocation rl;
+        private final ResourceLocation rl;
         private final int size;
 
         OutpostTerrainMap(int size) {
@@ -544,9 +612,18 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         }
 
         @Override
-        protected void drawInternal(net.minecraft.client.gui.GuiGraphics gfx,
+        protected void drawInternal(GuiGraphics gfx,
                 float mx, float my, float sx, float sy, float ew, float eh, float pt) {
             gfx.blit(rl, (int)sx, (int)sy, 0f, 0f, (int)ew, (int)eh, size, size);
         }
+    }
+
+    private static UIElement tipped(UIElement element, String... lines) {
+        element.addEventListener(com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents.HOVER_TOOLTIPS, ev -> {
+            var tips = com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips.empty();
+            for (String line : lines) tips = tips.append(Component.literal(line));
+            ev.hoverTooltips = tips;
+        });
+        return element;
     }
 }

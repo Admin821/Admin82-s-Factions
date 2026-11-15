@@ -1,17 +1,20 @@
 package com.admin82.factions.faction;
 
+import com.admin82.factions.Config;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public class FactionManager extends SavedData {
 
@@ -28,18 +31,16 @@ public class FactionManager extends SavedData {
     private final Map<UUID, PendingMove> pendingMoves = new HashMap<>();
     // playerUUID → intended table location when opening Create Faction UI (transient)
     private final Map<UUID, TableLocation> pendingCreationTables = new HashMap<>();
-    // playerUUID → pending barracks location (transient — set when barracks placed pre-faction)
+    // playerUUID → pending barracks location (transient, set when barracks placed pre-faction)
     private final Map<UUID, TableLocation> pendingBarracksMap = new HashMap<>();
     // playerUUID → pending barracks move (transient, not saved to NBT)
     private final Map<UUID, PendingMove> pendingBarracksMoves = new HashMap<>();
     // playerUUID → factionUUIDs they have been invited to
     private final Map<UUID, Set<UUID>> pendingInvites = new HashMap<>();
-    private int factionReturnCooldownSeconds = 30;
-    private int factionReturnCombatSeconds = 15;
 
     public FactionManager() {}
 
-    // ── Inner data records ────────────────────────────────────────────────────
+    // Inner data records
 
     public record TableLocation(BlockPos pos, String dimension) {
         public CompoundTag save() {
@@ -56,7 +57,7 @@ public class FactionManager extends SavedData {
     /** Transient; not persisted. Cleared on logout, death, or dimension change. */
     public record PendingMove(UUID factionId, BlockPos originalPos, String dimension) {}
 
-    // ── Static access ─────────────────────────────────────────────────────────
+    // Static access
 
     public static FactionManager get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -69,7 +70,7 @@ public class FactionManager extends SavedData {
         return get(level.getServer());
     }
 
-    // ── Faction CRUD ──────────────────────────────────────────────────────────
+    // Faction CRUD
 
     public Faction createFaction(String name, ServerPlayer owner, String description) {
         Faction faction = new Faction(UUID.randomUUID(), name, owner.getUUID(), description);
@@ -118,7 +119,7 @@ public class FactionManager extends SavedData {
         }
     }
 
-    // ── Faction table tracking ────────────────────────────────────────────────
+    // Faction table tracking
 
     public void setFactionTable(UUID factionId, BlockPos pos, String dimension) {
         factionTables.put(factionId, new TableLocation(pos, dimension));
@@ -133,7 +134,7 @@ public class FactionManager extends SavedData {
         setDirty();
     }
 
-    // ── Faction barracks tracking ─────────────────────────────────────────────
+    // Faction barracks tracking
 
     public void setFactionBarracks(UUID factionId, BlockPos pos, String dimension) {
         factionBarracks.put(factionId, new TableLocation(pos, dimension));
@@ -148,7 +149,7 @@ public class FactionManager extends SavedData {
         setDirty();
     }
 
-    // ── Pending barracks (transient — set when barracks placed before faction created) ──
+    // Pending barracks (transient, set when barracks placed before faction created)
 
     public void setPendingBarracks(UUID playerUUID, BlockPos pos, String dimension) {
         pendingBarracksMap.put(playerUUID, new TableLocation(pos, dimension));
@@ -159,7 +160,7 @@ public class FactionManager extends SavedData {
 
     public void clearPendingBarracks(UUID playerUUID) { pendingBarracksMap.remove(playerUUID); }
 
-    // ── Barracks move mode (transient) ──────────────────────────────────────────
+    // Barracks move mode (transient)
 
     public void startPendingBarracksMove(UUID playerUUID, UUID factionId, BlockPos originalPos, String dimension) {
         pendingBarracksMoves.put(playerUUID, new PendingMove(factionId, originalPos, dimension));
@@ -179,7 +180,7 @@ public class FactionManager extends SavedData {
 
     public void clearPendingMove(UUID playerUUID) { pendingMoves.remove(playerUUID); }
 
-    // ── Pending faction-creation placement (transient) ────────────────────────────
+    // Pending faction-creation placement (transient)
 
     /** Records where a Faction Table will be placed once the player creates their faction. */
     public void setPendingCreation(UUID playerUUID, TableLocation loc) {
@@ -191,7 +192,7 @@ public class FactionManager extends SavedData {
 
     public void clearPendingCreation(UUID playerUUID) { pendingCreationTables.remove(playerUUID); }
 
-    // ── Membership ────────────────────────────────────────────────────────────
+    // Membership
 
     public boolean addPlayerToFaction(UUID factionId, UUID playerUUID, String playerName) {
         if (playerFactionMap.containsKey(playerUUID)) return false;
@@ -233,21 +234,21 @@ public class FactionManager extends SavedData {
         return true;
     }
 
-    public int getFactionReturnCooldownSeconds() { return factionReturnCooldownSeconds; }
+    // /factionreturn timings. These live in the config file; see Config.
+
+    public int getFactionReturnCooldownSeconds() { return Config.RETURN_COOLDOWN_SECONDS.get(); }
 
     public void setFactionReturnCooldownSeconds(int seconds) {
-        factionReturnCooldownSeconds = Math.max(0, seconds);
-        setDirty();
+        Config.set(Config.RETURN_COOLDOWN_SECONDS, Math.max(0, Math.min(86400, seconds)));
     }
 
-    public int getFactionReturnCombatSeconds() { return factionReturnCombatSeconds; }
+    public int getFactionReturnCombatSeconds() { return Config.RETURN_COMBAT_LOCK_SECONDS.get(); }
 
     public void setFactionReturnCombatSeconds(int seconds) {
-        factionReturnCombatSeconds = Math.max(0, seconds);
-        setDirty();
+        Config.set(Config.RETURN_COMBAT_LOCK_SECONDS, Math.max(0, Math.min(86400, seconds)));
     }
 
-    // ── Land claims ───────────────────────────────────────────────────────────
+    // Land claims
 
     public boolean claimChunk(UUID factionId, int chunkX, int chunkZ, String dimension) {
         return claimChunk(factionId, chunkX, chunkZ, dimension, 0L);
@@ -259,7 +260,15 @@ public class FactionManager extends SavedData {
         }
         Faction faction = factions.get(factionId);
         if (faction == null) return false;
-        faction.addClaim(new LandClaim(chunkX, chunkZ, net.minecraft.resources.ResourceLocation.parse(dimension), dailyCost));
+        faction.addClaim(new LandClaim(chunkX, chunkZ, ResourceLocation.parse(dimension), dailyCost));
+        setDirty();
+        return true;
+    }
+
+    /** Saves a changed claim (e.g. chunkloading state) for the given faction. */
+    public boolean updateClaim(UUID factionId, LandClaim updated) {
+        Faction faction = factions.get(factionId);
+        if (faction == null || !faction.replaceClaim(updated)) return false;
         setDirty();
         return true;
     }
@@ -279,7 +288,7 @@ public class FactionManager extends SavedData {
                 .findFirst().orElse(null);
     }
 
-    // ── Wars ──────────────────────────────────────────────────────────────────
+    // Wars
 
     public boolean declareWar(UUID attackerId, UUID defenderId) {
         Faction attacker = factions.get(attackerId);
@@ -302,7 +311,7 @@ public class FactionManager extends SavedData {
         return true;
     }
 
-    // ── Save / Load ───────────────────────────────────────────────────────────
+    // Save / Load
 
     public static FactionManager load(CompoundTag tag, HolderLookup.Provider registries) {
         FactionManager manager = new FactionManager();
@@ -343,12 +352,17 @@ public class FactionManager extends SavedData {
                 if (!invites.isEmpty()) manager.pendingInvites.put(playerId, invites);
             } catch (IllegalArgumentException ignored) {}
         }
+        // Settings used to be saved here; move them to the config.
         if (tag.contains("factionReturnCooldownSeconds")) {
-            manager.factionReturnCooldownSeconds = Math.max(0, tag.getInt("factionReturnCooldownSeconds"));
+            Config.migrate(Config.RETURN_COOLDOWN_SECONDS,
+                    Math.max(0, Math.min(86400, tag.getInt("factionReturnCooldownSeconds"))));
         }
         if (tag.contains("factionReturnCombatSeconds")) {
-            manager.factionReturnCombatSeconds = Math.max(0, tag.getInt("factionReturnCombatSeconds"));
+            Config.migrate(Config.RETURN_COMBAT_LOCK_SECONDS,
+                    Math.max(0, Math.min(86400, tag.getInt("factionReturnCombatSeconds"))));
         }
+        // Old settings were copied to the config above; save once more so they leave the world file.
+        if (Stream.of("factionReturnCooldownSeconds", "factionReturnCombatSeconds").anyMatch(tag::contains)) manager.setDirty();
         return manager;
     }
 
@@ -372,8 +386,6 @@ public class FactionManager extends SavedData {
             if (!playerInvitesTag.isEmpty()) invitesTag.put(playerId.toString(), playerInvitesTag);
         });
         tag.put("invites", invitesTag);
-        tag.putInt("factionReturnCooldownSeconds", factionReturnCooldownSeconds);
-        tag.putInt("factionReturnCombatSeconds", factionReturnCombatSeconds);
         return tag;
     }
 }

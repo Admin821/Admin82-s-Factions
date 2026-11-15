@@ -3,10 +3,11 @@ package com.admin82.factions.barracks;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.*;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import javax.annotation.Nullable;
 
 /**
  * Server-side persistent data for the Barracks system.
@@ -19,7 +20,7 @@ public class BarracksData extends SavedData {
     /** playerId → ordered list of kits */
     private final Map<UUID, List<KitData>> playerKits = new HashMap<>();
 
-    // ── Static access ─────────────────────────────────────────────────────────
+    // Static access
 
     public static BarracksData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -28,7 +29,7 @@ public class BarracksData extends SavedData {
         );
     }
 
-    // ── Kit management ────────────────────────────────────────────────────────
+    // Kit management
 
     public List<KitData> getKits(UUID playerId) {
         return Collections.unmodifiableList(playerKits.getOrDefault(playerId, Collections.emptyList()));
@@ -62,7 +63,7 @@ public class BarracksData extends SavedData {
     }
 
     /** Updates a single slot within a kit. */
-    public void saveKitSlot(UUID playerId, String kitName, int slotIndex, net.minecraft.world.item.ItemStack stack) {
+    public void saveKitSlot(UUID playerId, String kitName, int slotIndex, ItemStack stack) {
         KitData kit = getKitMutable(playerId, kitName);
         if (kit == null) return;
         kit.setSlot(slotIndex, stack);
@@ -70,7 +71,7 @@ public class BarracksData extends SavedData {
     }
 
     /** Replaces ALL slots of a kit at once. */
-    public void saveKitAllSlots(UUID playerId, String kitName, net.minecraft.world.item.ItemStack[] items) {
+    public void saveKitAllSlots(UUID playerId, String kitName, ItemStack[] items) {
         KitData kit = getKitMutable(playerId, kitName);
         if (kit == null) return;
         for (int i = 0; i < Math.min(items.length, KitData.SLOT_COUNT); i++)
@@ -85,14 +86,14 @@ public class BarracksData extends SavedData {
         return kits.stream().filter(k -> k.getName().equalsIgnoreCase(kitName)).findFirst().orElse(null);
     }
 
-    // ── Player cleanup ───────────────────────────────────────────────────────
+    // Player cleanup
 
     public void removePlayer(UUID playerId) {
         playerKits.remove(playerId);
         setDirty();
     }
 
-    // ── SavedData NBT ─────────────────────────────────────────────────────────
+    // SavedData NBT
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {

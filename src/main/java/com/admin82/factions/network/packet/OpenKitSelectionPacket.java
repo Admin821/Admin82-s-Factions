@@ -3,7 +3,7 @@ package com.admin82.factions.network.packet;
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.barracks.KitData;
 import com.admin82.factions.screen.KitSelectionScreen;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -15,6 +15,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -78,12 +79,12 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
 
     /**
      * Builds the packet from a list of KitData objects.
-     * Kits with the same name are deduplicated — one card is shown per unique name
+     * Kits with the same name are deduplicated, one card is shown per unique name
      * with a count badge showing how many copies remain to take.
      */
     public static OpenKitSelectionPacket fromKits(List<KitData> kits) {
         // Preserve insertion order; track first-seen items and running counts
-        java.util.LinkedHashMap<String, KitEntry> seen = new java.util.LinkedHashMap<>();
+        LinkedHashMap<String, KitEntry> seen = new LinkedHashMap<>();
         for (KitData kit : kits) {
             String name = kit.getName();
             KitEntry existing = seen.get(name);
@@ -104,7 +105,7 @@ public record OpenKitSelectionPacket(List<KitEntry> kits) implements CustomPacke
 
     @OnlyIn(Dist.CLIENT)
     private static void handleClient(OpenKitSelectionPacket pkt) {
-        net.minecraft.client.Minecraft.getInstance()
+        Minecraft.getInstance()
                 .setScreen(new KitSelectionScreen(pkt.kits()));
     }
 }

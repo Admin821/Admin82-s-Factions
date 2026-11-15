@@ -3,15 +3,14 @@ package com.admin82.factions.block;
 import com.admin82.factions.blockentity.CarePackageBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
-import com.admin82.factions.registry.ModBlockEntities;
 import com.admin82.factions.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -19,6 +18,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -35,7 +35,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
 
-public class CarePackageBlock extends BaseEntityBlock {
+public class CarePackageBlock extends BaseEntityBlock implements MultiblockPreview {
     public static final MapCodec<CarePackageBlock> CODEC = simpleCodec(CarePackageBlock::new);
     public static final BooleanProperty OPEN = BooleanProperty.create("open");
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -52,14 +52,18 @@ public class CarePackageBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(OPEN, FACING);
     }
 
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite()).setValue(OPEN, false);
+        BlockState state = defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite()).setValue(OPEN, false);
+        // Refuse up front when there's no room for the second half, instead of placing and handing the item back
+        // (which could give the item twice if the placement is also cancelled by land protection).
+        BlockState besideState = context.getLevel().getBlockState(context.getClickedPos().relative(getFillerDirection(state)));
+        return besideState.canBeReplaced() || besideState.is(ModBlocks.CARE_PACKAGE_FILLER.get()) ? state : null;
     }
 
     @Override
@@ -150,5 +154,17 @@ public class CarePackageBlock extends BaseEntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
         return null;
+    }
+
+    // Placement preview
+
+    @Override
+    public BlockState previewState(BlockPlaceContext ctx) {
+        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite()).setValue(OPEN, false);
+    }
+
+    @Override
+    public java.util.List<BlockPos> previewCells(BlockPos pos, BlockState state) {
+        return java.util.List.of(pos, pos.relative(getFillerDirection(state)));
     }
 }

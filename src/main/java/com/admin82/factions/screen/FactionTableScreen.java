@@ -1,15 +1,19 @@
 package com.admin82.factions.screen;
 
 import com.admin82.factions.faction.Faction;
-import com.admin82.factions.menu.FactionTableMenu;
+import com.admin82.factions.menu.factiontable.FactionTableMenu;
+import com.admin82.factions.war.WarDemand;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
+import java.util.List;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
@@ -49,7 +53,7 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
 
         if (viewChange) {
             if (faction == null) {
-                // Faction was disbanded — close the screen entirely
+                // Faction was disbanded, close the screen entirely
                 Minecraft.getInstance().setScreen(null);
                 return;
             }
@@ -67,6 +71,13 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
             }
         } else {
             Minecraft mc = Minecraft.getInstance();
+            if (isTyping()) {
+                // Don't wipe a text box the player is typing in; apply once they stop.
+                menu.updateFaction(faction);
+                pendingRebuild = true;
+                return;
+            }
+            pendingRebuild = false;
             if (mc.player != null) {
                 menu.rebuildForFaction(faction, mc.player);
                 if (menu instanceof IModularUIHolderMenu h) {
@@ -81,6 +92,33 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
                 menu.updateFaction(faction);
             }
         }
+    }
+
+    /** Set when live faction data arrived while the player was typing. */
+    private boolean pendingRebuild;
+
+    private boolean isTyping() {
+        if (menu instanceof IModularUIHolderMenu h) {
+            ModularUI mui = h.getModularUI();
+            if (mui == null) return false;
+            for (var el = mui.getFocusedElement(); el != null; el = el.getParent()) {
+                if (el instanceof TextField) return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (pendingRebuild && !isTyping()) updateFactionData(menu.getFaction());
+    }
+
+    /** Window or GUI scale changed: rebuild the panel at the new size before re-laying out. */
+    @Override
+    public void resize(Minecraft minecraft, int width, int height) {
+        if (minecraft.player != null) menu.rebuildForFaction(menu.getFaction(), minecraft.player);
+        super.resize(minecraft, width, height);
     }
 
     public void updateClaimRate(double claimRateMultiplier) {
@@ -100,14 +138,14 @@ public class FactionTableScreen extends AbstractContainerScreen<FactionTableMenu
     }
 
     /** Called by {@link com.admin82.factions.network.packet.SyncWarDemandsPacket}. */
-    public void updateWarDemands(java.util.UUID warId,
-                                 java.util.List<com.admin82.factions.war.WarDemand> demands) {
+    public void updateWarDemands(UUID warId,
+                                 List<WarDemand> demands) {
         menu.updateWarDemands(warId, demands);
     }
 
     /** Called by {@link com.admin82.factions.network.packet.SyncEnemyClaimsPacket}. */
-    public void updateEnemyClaims(java.util.UUID targetFactionId,
-                                  java.util.List<String> claimKeys,
+    public void updateEnemyClaims(UUID targetFactionId,
+                                  List<String> claimKeys,
                                   int coreCX, int coreCZ, String coreDim) {
         menu.updateEnemyClaims(targetFactionId, claimKeys, coreCX, coreCZ, coreDim);
     }

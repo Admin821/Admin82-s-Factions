@@ -3,7 +3,8 @@ package com.admin82.factions.block;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.economy.MarketManager;
 import com.admin82.factions.faction.FactionManager;
-import com.admin82.factions.menu.MarketMenu;
+import com.admin82.factions.menu.market.MarketMenu;
+import com.admin82.factions.network.packet.SyncBountiesPacket;
 import com.admin82.factions.network.packet.SyncMarketPacket;
 import com.admin82.factions.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
@@ -12,7 +13,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
@@ -29,11 +29,12 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The Faction Market block — opens the market auction-house UI.
+ * The Faction Market block, opens the market auction-house UI.
  */
-public class MarketBlock extends Block {
+public class MarketBlock extends Block implements MultiblockPreview {
 
     public static final MapCodec<MarketBlock> CODEC = simpleCodec(MarketBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -109,11 +110,12 @@ public class MarketBlock extends Block {
 
         // Immediately send current market data
         int myListings = market.countPlayerListings(sp.getUUID());
-        int maxSlots   = faction != null ? faction.getMembers().size() : 1;
+        int maxSlots   = MarketManager.listingLimit();
         PacketDistributor.sendToPlayer(sp, new SyncMarketPacket(
                 market.getListings().stream().toList(),
                 eco.getWallet(sp.getUUID()),
                 myListings, maxSlots));
+        PacketDistributor.sendToPlayer(sp, SyncBountiesPacket.forViewer(server, sp));
 
         return InteractionResult.CONSUME;
     }
@@ -128,5 +130,17 @@ public class MarketBlock extends Block {
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    // Placement preview
+
+    @Override
+    public BlockState previewState(BlockPlaceContext ctx) {
+        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
+    }
+
+    @Override
+    public java.util.List<BlockPos> previewCells(BlockPos pos, BlockState state) {
+        return java.util.List.of(pos, pos.relative(getFillerDirection(state)));
     }
 }

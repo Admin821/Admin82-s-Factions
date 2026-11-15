@@ -1,7 +1,8 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.economy.MarketListing;
-import net.minecraft.network.FriendlyByteBuf;
+import com.admin82.factions.screen.MarketScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -47,8 +48,8 @@ public record SyncMarketPacket(
 
     public static void handle(SyncMarketPacket pkt, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
-            var screen = net.minecraft.client.Minecraft.getInstance().screen;
-            if (screen instanceof com.admin82.factions.screen.MarketScreen ms) {
+            var screen = Minecraft.getInstance().screen;
+            if (screen instanceof MarketScreen ms) {
                 ms.updateListings(pkt.listings(), pkt.playerWallet(), pkt.myListingCount(), pkt.maxListingSlots());
             }
         });

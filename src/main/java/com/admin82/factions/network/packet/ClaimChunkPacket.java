@@ -2,7 +2,9 @@ package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.Config;
+import com.admin82.factions.economy.Currency;
 import com.admin82.factions.economy.EconomyManager;
+import com.admin82.factions.economy.Treasury;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.war.VassalManager;
 import net.minecraft.core.SectionPos;
@@ -41,9 +43,18 @@ public record ClaimChunkPacket(int chunkX, int chunkZ, String dimension) impleme
             if (faction == null) return;
 
             FactionMember member = faction.getMember(player.getUUID());
-            if (member == null || member.getRole().getLevel() < FactionRole.OFFICER.getLevel()) return;
+            if (member == null || !faction.getRolePermission(member.getRole(), FactionPermission.OFFICER_CLAIM)) return;
 
-            // ── Adjacency check: must connect to core or existing territory ──
+            if (ResourceLocation.tryParse(packet.dimension()) == null) return;
+            // Check before charging: a chunk someone already owns (or a double click) must not cost anything.
+            boolean taken = manager.getAllFactions().values().stream()
+                    .anyMatch(f -> f.hasClaim(packet.chunkX(), packet.chunkZ(), packet.dimension()));
+            if (taken) {
+                player.displayClientMessage(Component.literal("§cThat chunk is already claimed."), true);
+                return;
+            }
+
+            // Adjacency check: must connect to core or existing territory
             int tx = packet.chunkX(), tz = packet.chunkZ();
             boolean adjacent = false;
 
@@ -73,21 +84,43 @@ public record ClaimChunkPacket(int chunkX, int chunkZ, String dimension) impleme
                 return;
             }
 
-            // ── Economy gate: cost doubles for every chunk already owned ──────
+            // Land radius around the faction table (raised with land upgrades in Faction Upgrades)
+            int radius = FactionUpgrades.get(player.server).landRadius(faction.getId());
+            FactionManager.TableLocation core = manager.getFactionTable(faction.getId());
+            if (core == null || !core.dimension().equals(packet.dimension())) {
+                player.displayClientMessage(Component.literal("§cPlace your faction table first; land is claimed around it."), true);
+                return;
+            }
+            int distance = Math.max(Math.abs(packet.chunkX() - SectionPos.blockToSectionCoord(core.pos().getX())),
+                    Math.abs(packet.chunkZ() - SectionPos.blockToSectionCoord(core.pos().getZ())));
+            if (distance > radius) {
+                player.displayClientMessage(Component.literal("§cThat's " + distance + " chunks from your faction table; you can claim up to "
+                        + radius + " away. Buy land upgrades in Faction Upgrades to reach further."), true);
+                return;
+            }
+
+            // Economy gate: cost doubles for every chunk already owned
             EconomyManager eco = EconomyManager.get(player.server);
             int claimCount = faction.getLandClaims().size();
             long baseCost  = Config.CLAIM_COST_COPPER.get();
             long cost      = EconomyManager.computeClaimCost(baseCost, claimCount, eco.getClaimRateMultiplier());
-            if (!eco.deductVault(faction.getId(), cost)) {
+            if (!eco.deductVault(faction.getId(), cost, "Claimed chunk " + packet.chunkX() + ", " + packet.chunkZ()
+                    + " by " + player.getGameProfile().getName())) {
                 player.displayClientMessage(Component.literal(
                         "§cNot enough funds in the faction vault!"
-                        + " §7Need §e" + com.admin82.factions.economy.Currency.format(cost)
-                        + " §7(vault: §e" + com.admin82.factions.economy.Currency.format(eco.getVault(faction.getId())) + "§7)"),
+                        + " §7Need §e" + Currency.format(cost)
+                        + " §7(vault: §e" + Currency.format(eco.getVault(faction.getId())) + "§7)"),
                         true);
                 return;
             }
 
-            manager.claimChunk(faction.getId(), packet.chunkX(), packet.chunkZ(), packet.dimension(), cost);
+            if (!manager.claimChunk(faction.getId(), packet.chunkX(), packet.chunkZ(), packet.dimension(), cost)) {
+                eco.addVault(faction.getId(), cost, "Claim failed (refund)");
+                player.displayClientMessage(Component.literal("§cThat chunk couldn't be claimed. The vault was refunded."), true);
+                return;
+            }
+            Treasury.record(player.server, Treasury.Source.LAND_CLAIMS, cost, Treasury.factionPayer(faction.getName()),
+                    "Chunk " + packet.chunkX() + ", " + packet.chunkZ() + " by " + player.getGameProfile().getName());
 
             // Vassal tax on claim cost
             VassalManager vmgr = VassalManager.get(player.server);

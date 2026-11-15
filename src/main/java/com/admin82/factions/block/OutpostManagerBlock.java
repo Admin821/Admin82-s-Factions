@@ -1,18 +1,13 @@
 package com.admin82.factions.block;
 
 import com.admin82.factions.blockentity.OutpostManagerBlockEntity;
-import com.admin82.factions.faction.Faction;
-import com.admin82.factions.faction.FactionManager;
 import com.admin82.factions.outpost.OutpostData;
 import com.admin82.factions.outpost.OutpostEntry;
+import com.admin82.factions.outpost.OutpostService;
 import com.admin82.factions.registry.ModBlocks;
-import com.admin82.factions.war.ActiveWar;
-import com.admin82.factions.war.WarManager;
-import com.admin82.factions.war.WarPhase;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,6 +17,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,12 +27,8 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import javax.annotation.Nullable;
-import java.util.UUID;
-
-import com.admin82.factions.network.packet.OpenOutpostManagerPacket;
 
 public class OutpostManagerBlock extends BaseEntityBlock {
 
@@ -52,7 +44,7 @@ public class OutpostManagerBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
     }
 
@@ -98,48 +90,7 @@ public class OutpostManagerBlock extends BaseEntityBlock {
             return InteractionResult.FAIL;
         }
 
-        FactionManager fmgr     = FactionManager.get(sLevel.getServer());
-        Faction        myFaction = fmgr.getFactionForPlayer(sp.getUUID());
-        WarManager     warmgr   = WarManager.get(sLevel.getServer());
-        ActiveWar      war      = warmgr.getWarForPlayer(sp.getUUID());
-
-        boolean inWar = war != null && war.phase == WarPhase.ACTIVE;
-        Faction ownerFaction = fmgr.getAllFactions().get(entry.ownerFactionId);
-        String  ownerName    = ownerFaction != null ? ownerFaction.getName() : "Unknown";
-
-        // Only allow faction members to set war spawn on their own outpost
-        boolean isOwner     = myFaction != null && myFaction.getId().equals(entry.ownerFactionId);
-        boolean canSetSpawn = inWar && isOwner;
-
-        Faction capturingFaction = entry.capturingFactionId != null
-                ? fmgr.getAllFactions().get(entry.capturingFactionId) : null;
-        String capturingName = capturingFaction != null ? capturingFaction.getName() : "";
-
-        // ── Build 11×11 territory map centred on the outpost chunk ────────────
-        int MAP_RADIUS = 5; // gives 11×11 grid
-        int MAP_SIZE   = MAP_RADIUS * 2 + 1; // 11
-        int centerCX   = SectionPos.blockToSectionCoord(pos.getX());
-        int centerCZ   = SectionPos.blockToSectionCoord(pos.getZ());
-        UUID ownerFactionId = entry.ownerFactionId;
-        byte[] mapTiles = new byte[MAP_SIZE * MAP_SIZE];
-        for (int dz = -MAP_RADIUS; dz <= MAP_RADIUS; dz++) {
-            for (int dx = -MAP_RADIUS; dx <= MAP_RADIUS; dx++) {
-                int cx = centerCX + dx;
-                int cz = centerCZ + dz;
-                int idx = (dz + MAP_RADIUS) * MAP_SIZE + (dx + MAP_RADIUS);
-                mapTiles[idx] = 0; // unclaimed default
-                for (Faction f : fmgr.getAllFactions().values()) {
-                    if (f.hasClaim(cx, cz, dim)) {
-                        mapTiles[idx] = f.getId().equals(ownerFactionId) ? (byte) 1 : (byte) 2;
-                        break;
-                    }
-                }
-            }
-        }
-
-        PacketDistributor.sendToPlayer(sp, new OpenOutpostManagerPacket(
-                entry.id, ownerName, entry.disintegrating, canSetSpawn, isOwner,
-                pos, dim, entry.captureProgress, capturingName, mapTiles, centerCX, centerCZ));
+        OutpostService.openManager(sp, entry);
         return InteractionResult.CONSUME;
     }
 

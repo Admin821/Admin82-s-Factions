@@ -8,8 +8,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import javax.annotation.Nullable;
 import java.util.*;
+import javax.annotation.Nullable;
 
 /**
  * Persistent world data for all placed Outposts.
@@ -19,7 +19,7 @@ public class OutpostData extends SavedData {
 
     private static final String DATA_NAME = "adminsfactions_outposts";
 
-    // ── Data ──────────────────────────────────────────────────────────────────
+    // Data
     private final Map<UUID, OutpostEntry>   outposts         = new HashMap<>();
     /** Pending placement positions waiting for player confirmation: playerId → position. */
     private final Map<UUID, BlockPos>       pendingPosMap    = new HashMap<>();
@@ -30,7 +30,7 @@ public class OutpostData extends SavedData {
     /** Per-faction outpost placement cooldown: factionId → epoch-ms when cooldown expires (1h after losing outpost in war). */
     private final Map<UUID, Long>           outpostCooldowns = new HashMap<>();
 
-    // ── Static access ─────────────────────────────────────────────────────────
+    // Static access
 
     public static OutpostData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -38,7 +38,7 @@ public class OutpostData extends SavedData {
                 DATA_NAME);
     }
 
-    // ── Outpost CRUD ──────────────────────────────────────────────────────────
+    // Outpost CRUD
 
     public void addOutpost(OutpostEntry entry) {
         outposts.put(entry.id, entry);
@@ -65,6 +65,15 @@ public class OutpostData extends SavedData {
         return null;
     }
 
+    /** The outpost whose storage box is at this position, or null. */
+    @Nullable
+    public OutpostEntry getOutpostByStorage(BlockPos pos, String dim) {
+        for (OutpostEntry e : outposts.values()) {
+            if (pos.equals(e.storageBoxPos) && e.dimension.equals(dim)) return e;
+        }
+        return null;
+    }
+
     public List<OutpostEntry> getOutpostsForFaction(UUID factionId) {
         List<OutpostEntry> list = new ArrayList<>();
         for (OutpostEntry e : outposts.values()) {
@@ -73,7 +82,7 @@ public class OutpostData extends SavedData {
         return list;
     }
 
-    // ── Pending placement ─────────────────────────────────────────────────────
+    // Pending placement
 
     public void setPending(UUID playerId, BlockPos pos, String dim) {
         pendingPosMap.put(playerId, pos);
@@ -88,7 +97,7 @@ public class OutpostData extends SavedData {
         pendingDimMap.remove(playerId);
     }
 
-    // ── War spawn ─────────────────────────────────────────────────────────────
+    // War spawn
 
     public void setWarSpawn(UUID playerId, BlockPos pos, String dim) {
         warSpawnPos.put(playerId, pos);
@@ -115,12 +124,12 @@ public class OutpostData extends SavedData {
         setDirty();
     }
 
-    // ── SavedData ─────────────────────────────────────────────────────────────
+    // SavedData
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag list = new ListTag();
-        outposts.values().forEach(e -> list.add(e.save()));
+        outposts.values().forEach(e -> list.add(e.save(registries)));
         tag.put("outposts", list);
 
         // War spawns
@@ -148,7 +157,7 @@ public class OutpostData extends SavedData {
         OutpostData data = new OutpostData();
         ListTag list = tag.getList("outposts", Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) {
-            OutpostEntry e = OutpostEntry.load(list.getCompound(i));
+            OutpostEntry e = OutpostEntry.load(list.getCompound(i), registries);
             data.outposts.put(e.id, e);
         }
         ListTag spawnList = tag.getList("warSpawns", Tag.TAG_COMPOUND);

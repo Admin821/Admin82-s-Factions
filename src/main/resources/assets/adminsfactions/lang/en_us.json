@@ -6,14 +6,29 @@
   "block.adminsfactions.barracks":             "Barracks",
   "block.adminsfactions.market_block":         "Market",
   "block.adminsfactions.currency_exchange_block": "Currency Exchange",
-  "block.adminsfactions.outpost_manager":      "Outpost Manager",
+  "block.adminsfactions.outpost_manager":      "Outpost Flag",
+  "block.adminsfactions.outpost_storage":      "Outpost Storage Box",
+  "block.adminsfactions.outpost_storage_top":  "Outpost Storage Box",
   "block.adminsfactions.monument_controller":  "Monument Controller",
   "block.adminsfactions.monument_crate":       "Monument Loot Crate",
+  "block.adminsfactions.carepackage":          "Supply Crate",
+  "block.adminsfactions.carepackage_filler":   "Supply Crate",
+  "block.adminsfactions.carepackage_parachute": "Supply Crate Parachute",
   "block.adminsfactions.ore_generator":        "Ore Generator",
+  "block.adminsfactions.power_meter":          "Power Meter",
+  "block.adminsfactions.power_meter_top":      "Power Meter",
+  "block.adminsfactions.fluid_meter":          "Fluid Meter",
+  "block.adminsfactions.fluid_meter_top":      "Fluid Meter",
+  "block.adminsfactions.seam_extractor":       "Seam Extractor",
+  "block.adminsfactions.seam_extractor_part":  "Seam Extractor",
+  "subtitles.adminsfactions.seam_extractor_beam": "Mining laser hums",
 
   "item.adminsfactions.faction_table":            "Faction Table",
+  "item.adminsfactions.seam_extractor":           "Seam Extractor",
+  "item.adminsfactions.seam_viewer":              "Seam Viewer",
   "item.adminsfactions.barracks":                 "Barracks",
   "item.adminsfactions.outpost":                  "Outpost",
+  "item.adminsfactions.warbond":                  "Warbond",
   "item.adminsfactions.market_block":             "Market",
   "item.adminsfactions.currency_exchange_block":  "Currency Exchange",
   "item.adminsfactions.copper_coin":              "Copper Coin",
@@ -22,19 +37,23 @@
   "item.adminsfactions.platinum_coin":            "Platinum Coin",
   "item.adminsfactions.monument_controller":      "Monument Controller",
   "item.adminsfactions.monument_crate":           "Monument Loot Crate",
+  "item.adminsfactions.carepackage":              "Supply Crate",
   "item.adminsfactions.ore_generator":            "Ore Generator",
+  "item.adminsfactions.power_meter":              "Power Meter",
+  "item.adminsfactions.fluid_meter":              "Fluid Meter",
 
   "entity.adminsfactions.rogue_sniper":       "Rogue Sniper PMC",
   "entity.adminsfactions.rogue_assault":      "Rogue Assault PMC",
   "entity.adminsfactions.rogue_heavy_gunner": "Rogue Heavy Gunner PMC",
   "entity.adminsfactions.rogue_light_gunner": "Rogue Light Gunner PMC",
+  "entity.adminsfactions.supply_drop_visual": "Supply Crate",
 
   "gui.adminsfactions.faction_table": "Faction Table",
   "gui.adminsfactions.barracks":      "Barracks",
   "gui.adminsfactions.supply_drop":   "Supply Drop",
 
   "tooltip.adminsfactions.faction_table.line1": "§7Places a 2×2 table used to create and manage your faction.",
-  
+
   "tooltip.adminsfactions.faction_table.line2": "§8» Cannot be broken — use the menu to move or disband.",
   "tooltip.adminsfactions.faction_table.line3": "§8» Only faction members can open a linked table.",
 
@@ -44,11 +63,17 @@
   "tooltip.adminsfactions.barracks.line4": "§8» Right-click to manage kits.",
 
   "tooltip.adminsfactions.outpost.line1": "§7Right-click to place an Outpost.",
-  "tooltip.adminsfactions.outpost.line2": "§8Must be in a faction. Costs money to upkeep.",
+  "tooltip.adminsfactions.outpost.line2": "§8Places a flag and a storage box and claims one chunk. Keep coins in it for upkeep.",
 
   "tooltip.adminsfactions.currency_exchange_block.line1": "§7Exchange items for Coins.",
   "tooltip.adminsfactions.market_block.line1": "§7List your items on a global auction house.",
-
+  "tooltip.adminsfactions.power_meter.line1":  "§7Two blocks tall. The bottom is a battery any FE cable can fill or drain.",
+  "tooltip.adminsfactions.power_meter.line2":  "§8Right-click the top to sell power on a network, or buy it with coins.",
+  "tooltip.adminsfactions.fluid_meter.line1":  "§7Two blocks tall. The bottom is a tank for one fluid at a time.",
+  "tooltip.adminsfactions.fluid_meter.line2":  "§8Right-click the top to sell fluid on a network, or buy it with coins.",
+  "tooltip.adminsfactions.seam_extractor.line1": "§7Mines the hidden ore seam of the chunk it stands in.",
+  "tooltip.adminsfactions.seam_extractor.line2": "§7Needs power (FE). Hoppers and pipes can take the ore out.",
+  "tooltip.adminsfactions.seam_extractor.line3": "§8Only on your faction's land. Use a Seam Viewer to find seams.",
 
   "adminsfactions.configuration.title": "Admin's Factions Config",
   "adminsfactions.configuration.section.adminsfactions.common.toml": "Admin's Factions Config",
@@ -58,5 +83,3 @@
   "adminsfactions.configuration.magicNumberIntroduction": "Magic Number Text",
   "adminsfactions.configuration.magicNumber": "Magic Number"
 }
-
-

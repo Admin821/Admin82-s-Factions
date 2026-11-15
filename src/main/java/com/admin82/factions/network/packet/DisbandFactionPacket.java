@@ -1,8 +1,9 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
-import com.admin82.factions.FactionCommands;
+import com.admin82.factions.command.FactionCommands;
 import com.admin82.factions.faction.*;
+import com.admin82.factions.war.WarManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
@@ -34,6 +35,11 @@ public record DisbandFactionPacket() implements CustomPacketPayload {
 
             UUID factionId = faction.getId();
             String factionName = faction.getName();
+            // No disbanding to dodge a war (or its outcome): finish the war first.
+            if (WarManager.get(player.server).isFactionInActiveWar(factionId)) {
+                player.displayClientMessage(Component.literal("§cYou can't disband while your faction is at war."), false);
+                return;
+            }
 
             FactionCommands.performDisband(player.server, factionId,
                     Component.literal("§cFaction '§e" + factionName + "§c' has been disbanded by its owner."), player);

@@ -3,13 +3,14 @@ package com.admin82.factions.screen;
 import com.admin82.factions.menu.CurrencyExchangeMenu;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 /**
- * Thin wrapper screen for the Currency Exchange block — all rendering is handled by LDLib2.
+ * Thin wrapper screen for the Currency Exchange block, all rendering is handled by LDLib2.
  */
 public class CurrencyExchangeScreen extends AbstractContainerScreen<CurrencyExchangeMenu> {
 
@@ -27,6 +28,19 @@ public class CurrencyExchangeScreen extends AbstractContainerScreen<CurrencyExch
             }
         }
         super.init();
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        menu.clientTick();
+    }
+
+    /** Window or GUI scale changed: rebuild the panel at the new size. */
+    @Override
+    public void resize(Minecraft minecraft, int width, int height) {
+        if (minecraft.player != null) menu.rebuildClientUi(minecraft.player);
+        super.resize(minecraft, width, height);
     }
 
     @Override protected void renderLabels(GuiGraphics g, int mx, int my) {}

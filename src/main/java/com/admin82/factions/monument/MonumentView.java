@@ -1,11 +1,12 @@
 package com.admin82.factions.monument;
 
-import net.minecraft.network.FriendlyByteBuf;
-
-import java.util.UUID;
-import java.util.List;
 import com.admin82.factions.faction.FactionManager;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.ChunkPos;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public record MonumentView(UUID id, String name, int tier, int radius, long baseRespawnTicks,
                            double remainingRespawnTicks, int crateCount, int x, int y, int z,
@@ -57,13 +58,13 @@ public record MonumentView(UUID id, String name, int tier, int radius, long base
         int z = buf.readInt();
         String dimension = buf.readUtf(256);
         int count = buf.readVarInt();
-        List<Long> chunks = new java.util.ArrayList<>();
+        List<Long> chunks = new ArrayList<>();
         for (int i = 0; i < count; i++) chunks.add(buf.readLong());
         int claimCount = buf.readVarInt();
-        List<Long> claims = new java.util.ArrayList<>();
+        List<Long> claims = new ArrayList<>();
         for (int i = 0; i < claimCount; i++) claims.add(buf.readLong());
         int poolCount = buf.readVarInt();
-        List<String> poolNames = new java.util.ArrayList<>();
+        List<String> poolNames = new ArrayList<>();
         for (int i = 0; i < poolCount; i++) poolNames.add(buf.readUtf(32));
         return new MonumentView(id, name, tier, radius,
             baseRespawnTicks, remainingRespawnTicks, crateCount, x, y, z, dimension, chunks, claims, poolNames);

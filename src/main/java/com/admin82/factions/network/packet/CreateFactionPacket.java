@@ -6,13 +6,14 @@ import com.admin82.factions.blockentity.BarracksBlockEntity;
 import com.admin82.factions.blockentity.FactionTableBlockEntity;
 import com.admin82.factions.faction.Faction;
 import com.admin82.factions.faction.FactionManager;
-import com.admin82.factions.menu.FactionTableMenu;
+import com.admin82.factions.menu.factiontable.FactionTableMenu;
 import com.admin82.factions.registry.ModBlocks;
 import com.admin82.factions.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceKey;
@@ -48,17 +49,60 @@ public record CreateFactionPacket(String name, String description) implements Cu
 
             if (manager.getFactionForPlayer(player.getUUID()) != null) return;
 
-            String name = packet.name().trim();
-            if (name.isEmpty() || name.length() > 32) return;
-            if (manager.isNameTaken(name)) return;
+            // Plain names only: colour codes would make look-alike names and names nobody can type.
+            String name = packet.name().replace("§", "").trim().replaceAll("\\s+", " ");
+            if (!name.matches("[A-Za-z0-9 _-]{3,24}")) {
+                fail(player, "Faction names are 3 to 24 letters, numbers, spaces, _ or -.");
+                return;
+            }
+            if (manager.isNameTaken(name)) {
+                fail(player, "A faction called " + name + " already exists.");
+                return;
+            }
 
-            // ── Require a placed Barracks before faction can be created ───────
+            // Require a placed Barracks before faction can be created
             FactionManager.TableLocation pendingBarracks = manager.getPendingBarracks(player.getUUID());
             if (pendingBarracks == null) {
                 player.displayClientMessage(
-                        net.minecraft.network.chat.Component.literal(
+                        Component.literal(
                                 "§cYou must place a §eBarracks§c block first!"), true);
                 return;
+            }
+
+            // The barracks has to still be there.
+            ServerLevel barrLevel = player.server.getLevel(ResourceKey.create(Registries.DIMENSION,
+                    ResourceLocation.parse(pendingBarracks.dimension())));
+            if (barrLevel == null || !(barrLevel.getBlockEntity(pendingBarracks.pos()) instanceof BarracksBlockEntity)) {
+                manager.clearPendingBarracks(player.getUUID());
+                fail(player, "Your Barracks is gone. Place it again, then create the faction.");
+                return;
+            }
+
+            // If the table is placed now (from the item), check the spot again: things may have changed since.
+            FactionManager.TableLocation pendingSpot = manager.getPendingCreation(player.getUUID());
+            if (pendingSpot != null) {
+                ServerLevel spotLevel = player.server.getLevel(ResourceKey.create(Registries.DIMENSION,
+                        ResourceLocation.parse(pendingSpot.dimension())));
+                String problem = null;
+                if (spotLevel == null || !spotLevel.dimension().equals(Level.OVERWORLD)) problem = "Faction Tables can only be placed in the Overworld.";
+                else if (!spotLevel.getBlockState(pendingSpot.pos()).canBeReplaced()
+                        || !FactionTableBlock.has2x2Space(spotLevel, pendingSpot.pos())) problem = "The spot for the Faction Table isn't clear anymore (it needs 2×2).";
+                else {
+                    int cx = SectionPos.blockToSectionCoord(pendingSpot.pos().getX());
+                    int cz = SectionPos.blockToSectionCoord(pendingSpot.pos().getZ());
+                    for (Faction other : manager.getAllFactions().values()) {
+                        if (other.hasClaim(cx, cz, pendingSpot.dimension())) { problem = "That land belongs to " + other.getName() + "."; break; }
+                    }
+                }
+                boolean holdsTable = player.getAbilities().instabuild
+                        || player.getMainHandItem().is(ModItems.FACTION_TABLE.get())
+                        || player.getOffhandItem().is(ModItems.FACTION_TABLE.get());
+                if (problem == null && !holdsTable) problem = "Hold the Faction Table to place it.";
+                if (problem != null) {
+                    manager.clearPendingCreation(player.getUUID());
+                    fail(player, problem);
+                    return;
+                }
             }
 
             Faction faction = manager.createFaction(name, player, packet.description().trim());
@@ -67,7 +111,7 @@ public record CreateFactionPacket(String name, String description) implements Cu
             ServerLevel tableLevel = null;
             String tableDim = null;
 
-            // ── Path A: player used FactionTableItem (no block placed yet) ──────
+            // Path A: player used FactionTableItem (no block placed yet)
             FactionManager.TableLocation pendingCreation = manager.getPendingCreation(player.getUUID());
             if (pendingCreation != null) {
                 ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
@@ -99,7 +143,7 @@ public record CreateFactionPacket(String name, String description) implements Cu
                 }
                 manager.clearPendingCreation(player.getUUID());
             }
-            // ── Path B: player right-clicked an existing unlinked table ──────────
+            // Path B: player right-clicked an existing unlinked table
             else if (player.containerMenu instanceof FactionTableMenu tableMenu) {
                 tablePos   = tableMenu.getTablePos();
                 tableLevel = player.serverLevel();
@@ -117,12 +161,9 @@ public record CreateFactionPacket(String name, String description) implements Cu
                 manager.claimChunk(faction.getId(), chunkX, chunkZ, tableDim, 100L); // core chunk = 1 silver/day
             }
 
-            // ── Link the pending barracks to the new faction ──────────────────
+            // Link the pending barracks to the new faction
             manager.clearPendingBarracks(player.getUUID());
-            ResourceKey<Level> barrDimKey = ResourceKey.create(Registries.DIMENSION,
-                    ResourceLocation.parse(pendingBarracks.dimension()));
-            ServerLevel barrLevel = player.server.getLevel(barrDimKey);
-            if (barrLevel != null) {
+            {
                 BlockPos barrPos = pendingBarracks.pos();
                 if (barrLevel.getBlockEntity(barrPos) instanceof BarracksBlockEntity barrBe) {
                     barrBe.setLinkedFactionId(faction.getId());
@@ -132,5 +173,9 @@ public record CreateFactionPacket(String name, String description) implements Cu
 
             PacketDistributor.sendToPlayer(player, new SyncFactionDataPacket(faction));
         });
+    }
+
+    private static void fail(ServerPlayer player, String message) {
+        player.displayClientMessage(Component.literal("§c" + message), true);
     }
 }

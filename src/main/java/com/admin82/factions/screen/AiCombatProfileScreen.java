@@ -3,6 +3,7 @@ package com.admin82.factions.screen;
 import com.admin82.factions.menu.AiCombatProfileMenu;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -22,6 +23,13 @@ public class AiCombatProfileScreen extends AbstractContainerScreen<AiCombatProfi
             }
         }
         super.init();
+    }
+
+    /** Window or GUI scale changed: rebuild the panel at the new size before re-laying out. */
+    @Override
+    public void resize(Minecraft minecraft, int width, int height) {
+        menu.rebuildClientUi(minecraft.player);
+        super.resize(minecraft, width, height);
     }
 
     public void refreshContent() {

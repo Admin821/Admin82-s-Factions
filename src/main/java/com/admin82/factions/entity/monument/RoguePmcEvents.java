@@ -2,6 +2,7 @@ package com.admin82.factions.entity.monument;
 
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.registry.ModEntities;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -21,7 +22,7 @@ public final class RoguePmcEvents {
     }
 
     private static void register(EntityAttributeCreationEvent event,
-                                 net.minecraft.world.entity.EntityType<RoguePmcEntity> type,
+                                 EntityType<RoguePmcEntity> type,
                                  RoguePmcRole role) {
         event.put(type, Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, role.health())

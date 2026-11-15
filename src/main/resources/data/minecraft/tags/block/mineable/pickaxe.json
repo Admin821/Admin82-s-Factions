@@ -1,6 +1,12 @@
 {
   "replace": false,
   "values": [
-    "adminsfactions:barracks"
+    "adminsfactions:barracks",
+    "adminsfactions:power_meter",
+    "adminsfactions:power_meter_top",
+    "adminsfactions:fluid_meter",
+    "adminsfactions:fluid_meter_top",
+    "adminsfactions:seam_extractor",
+    "adminsfactions:seam_extractor_part"
   ]
 }

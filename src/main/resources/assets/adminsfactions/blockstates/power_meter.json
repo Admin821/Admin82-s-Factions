@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "adminsfactions:block/meter"
+    },
+    "facing=east": {
+      "model": "adminsfactions:block/meter",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "adminsfactions:block/meter",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "adminsfactions:block/meter",
+      "y": 270
+    }
+  }
+}

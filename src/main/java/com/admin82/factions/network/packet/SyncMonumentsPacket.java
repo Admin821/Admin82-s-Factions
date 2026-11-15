@@ -1,8 +1,9 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
-import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.monument.MonumentView;
+import com.admin82.factions.screen.MonumentScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -10,10 +11,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 public record SyncMonumentsPacket(List<MonumentView> monuments, @Nullable UUID selectedId)
         implements CustomPacketPayload {
@@ -42,7 +43,7 @@ public record SyncMonumentsPacket(List<MonumentView> monuments, @Nullable UUID s
             if (Minecraft.getInstance().player != null
                     && Minecraft.getInstance().player.containerMenu instanceof MonumentMenu menu) {
                 menu.updateViews(packet.monuments, packet.selectedId);
-                if (Minecraft.getInstance().screen instanceof com.admin82.factions.screen.MonumentScreen screen) {
+                if (Minecraft.getInstance().screen instanceof MonumentScreen screen) {
                     screen.refreshContent();
                 }
             }

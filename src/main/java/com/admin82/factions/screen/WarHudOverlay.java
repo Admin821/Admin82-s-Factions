@@ -1,5 +1,6 @@
 package com.admin82.factions.screen;
 
+import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.network.packet.SyncWarStatePacket;
 import com.admin82.factions.war.WarPhase;
 import net.minecraft.client.Minecraft;
@@ -24,13 +25,13 @@ import javax.annotation.Nullable;
  *   Mini compass rose pointing toward the defending faction table
  */
 @OnlyIn(Dist.CLIENT)
-@EventBusSubscriber(modid = com.admin82.factions.AdminsFactions.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = AdminsFactions.MODID, value = Dist.CLIENT)
 public class WarHudOverlay {
 
     @Nullable private static SyncWarStatePacket currentState  = null;
     private static long                         endedReceivedAt = -1L;
 
-    // ── State management ──────────────────────────────────────────────────────
+    // State management
 
     public static void updateState(SyncWarStatePacket pkt) {
         currentState = pkt;
@@ -42,7 +43,7 @@ public class WarHudOverlay {
         endedReceivedAt = -1L;
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // Render
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
@@ -70,7 +71,7 @@ public class WarHudOverlay {
 
         WarPhase phase = WarPhase.values()[Math.min(state.phase(), WarPhase.values().length - 1)];
 
-        // ── Phase / faction banner ─────────────────────────────────────────────
+        // Phase / faction banner
         String title;
         if (phase == WarPhase.GRACE) {
             title = "⚔ " + state.attackerFactionName() + " vs " + state.defenderFactionName()
@@ -92,7 +93,7 @@ public class WarHudOverlay {
         gfx.drawString(mc.font, title, (screenW - tw) / 2, y, titleColor, true);
         y += 12;
 
-        // ── Capture progress bar ──────────────────────────────────────────────
+        // Capture progress bar
         if (phase == WarPhase.ACTIVE || phase == WarPhase.ENDED) {
             float pct    = state.captureTimeSeconds() > 0
                     ? Math.min(1f, state.captureProgress() / state.captureTimeSeconds()) : 0f;
@@ -112,7 +113,7 @@ public class WarHudOverlay {
                     state.outpostPhase() ? 0xFFFF8800 : 0xFFFFFFFF, true);
             y += barH + 4;
 
-            // ── Defender counter-attack bar (only in main phase, not outpost) ──
+            // Defender counter-attack bar (only in main phase, not outpost)
             if (!state.outpostPhase() && state.defenderCaptureProgress() > 0) {
                 float defPct = state.captureTimeSeconds() > 0
                         ? Math.min(1f, state.defenderCaptureProgress() / state.captureTimeSeconds()) : 0f;
@@ -128,7 +129,7 @@ public class WarHudOverlay {
             }
         }
 
-        // ── Lives row ─────────────────────────────────────────────────────────
+        // Lives row
         if (phase == WarPhase.ACTIVE) {
             String livesStr = (state.isAttacker() ? "Attacking" : "Defending")
                     + "  My lives: " + state.myLives()
@@ -138,11 +139,11 @@ public class WarHudOverlay {
             gfx.drawString(mc.font, livesStr, (screenW - lw) / 2, y, 0xFFFFFFFF, true);
         }
 
-        // ── Directional compass (top-right) ───────────────────────────────────
+        // Directional compass (top-right)
         drawCompass(gfx, mc, screenW, state);
     }
 
-    // ── Compass drawing ───────────────────────────────────────────────────────
+    // Compass drawing
 
     private static void drawCompass(GuiGraphics gfx, Minecraft mc, int screenW, SyncWarStatePacket state) {
         var player = mc.player;
@@ -174,7 +175,7 @@ public class WarHudOverlay {
         }
 
         if (!playerDim.equals(targetDim)) {
-            // Different dimension — show a '?' in the compass
+            // Different dimension, show a '?' in the compass
             String q = "?";
             gfx.drawString(mc.font, q, cx - mc.font.width(q) / 2, cy - 4, 0xFFFF8800, true);
             String dimText = "Wrong";
@@ -210,7 +211,7 @@ public class WarHudOverlay {
             gfx.fill(tx - 1, ty - 1, tx + 1, ty + 1, 0xFF888888);
         }
 
-        // Arrow pointing at target — draw as a line from centre + arrowhead dot
+        // Arrow pointing at target, draw as a line from centre + arrowhead dot
         if (distance > 1) {
             double sinA = Math.sin(relAngle);
             double cosA = Math.cos(relAngle);
@@ -241,7 +242,7 @@ public class WarHudOverlay {
         }
     }
 
-    // ── Utilities ─────────────────────────────────────────────────────────────
+    // Utilities
 
     private static int lerp(int colorA, int colorB, float t) {
         int ar = (colorA >> 16) & 0xFF, ag = (colorA >> 8) & 0xFF, ab = colorA & 0xFF;

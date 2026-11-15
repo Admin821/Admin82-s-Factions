@@ -14,7 +14,6 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.annotation.Nullable;
 
 public record SyncSupplyDropPacket(List<String> poolNames, @Nullable String scheduledPoolName,

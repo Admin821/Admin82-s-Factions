@@ -40,7 +40,7 @@ public enum WarType {
         this.description = description;
     }
 
-    /** Safe deserializer — falls back to FIGHT for unknown ordinals. */
+    /** Safe deserializer, falls back to FIGHT for unknown ordinals. */
     public static WarType fromOrdinal(int ord) {
         WarType[] vals = values();
         return (ord >= 0 && ord < vals.length) ? vals[ord] : FIGHT;

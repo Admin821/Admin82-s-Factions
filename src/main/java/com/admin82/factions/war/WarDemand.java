@@ -13,9 +13,9 @@ import java.util.UUID;
  */
 public class WarDemand {
 
-    public enum Status { PENDING, ACCEPTED, REJECTED, EXPIRED }
+    public enum Status { PENDING, ACCEPTED, REJECTED, EXPIRED, WITHDRAWN }
 
-    // ── Identity ──────────────────────────────────────────────────────────────
+    // Identity
 
     public UUID   demandId;
     public UUID   warId;
@@ -29,7 +29,7 @@ public class WarDemand {
     public long   expiresAt;   // epoch ms; -1 = never
     public Status status;
 
-    // ── Terms (any combination; all zeroed = nothing) ─────────────────────────
+    // Terms (any combination; all zeroed = nothing)
 
     /** Copper the receiver must transfer from their faction vault to the sender's vault. */
     public long moneyAmount;
@@ -48,7 +48,7 @@ public class WarDemand {
     /** If {@code true} the receiver must become a vassal of the sender upon acceptance. */
     public boolean vassalTerm;
 
-    // ── Constructor (used when creating a new demand) ─────────────────────────
+    // Constructor (used when creating a new demand)
 
     public WarDemand(UUID warId,
                      UUID senderFactionId, String senderFactionName,
@@ -80,6 +80,11 @@ public class WarDemand {
         return status == Status.PENDING && System.currentTimeMillis() > expiresAt;
     }
 
+    /** True when the demand asks for nothing: a plain offer to end the war. */
+    public boolean isWhitePeace() {
+        return moneyAmount <= 0 && (itemId.isEmpty() || itemCount <= 0) && landChunks <= 0 && !vassalTerm;
+    }
+
     /** §-formatted one-line summary of all non-zero terms. */
     public String termsSummary() {
         var sb = new StringBuilder();
@@ -91,7 +96,7 @@ public class WarDemand {
             sb.append("§c-").append(landChunks).append(" chunks §8| ");
         if (vassalTerm)
             sb.append("§5Become vassal §8| ");
-        if (sb.length() == 0) return "§8(nothing)";
+        if (sb.length() == 0) return "§fWhite peace §7(no terms)";
         return sb.substring(0, sb.length() - 5); // trim trailing " §8| "
     }
 
@@ -100,7 +105,7 @@ public class WarDemand {
         return colon >= 0 ? id.substring(colon + 1) : id;
     }
 
-    // ── NBT ───────────────────────────────────────────────────────────────────
+    // NBT
 
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
@@ -140,7 +145,7 @@ public class WarDemand {
         return d;
     }
 
-    // ── Network ───────────────────────────────────────────────────────────────
+    // Network
 
     public void toNetwork(FriendlyByteBuf buf) {
         buf.writeUUID(demandId);

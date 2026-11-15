@@ -1,6 +1,8 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.screen.ConquestDecisionScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -42,7 +44,7 @@ public record OpenConquestGuiPacket(
             )
     );
 
-    /** Client-side handler — only called on the client. */
+    /** Client-side handler, only called on the client. */
     public static void handle(OpenConquestGuiPacket pkt, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
             if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -53,8 +55,8 @@ public record OpenConquestGuiPacket(
 
     @OnlyIn(Dist.CLIENT)
     private static void handleClient(OpenConquestGuiPacket pkt) {
-        net.minecraft.client.Minecraft.getInstance().setScreen(
-                new com.admin82.factions.screen.ConquestDecisionScreen(
+        Minecraft.getInstance().setScreen(
+                new ConquestDecisionScreen(
                         pkt.defeatedFactionId(),
                         pkt.defeatedFactionName(),
                         pkt.defenderClaims(),

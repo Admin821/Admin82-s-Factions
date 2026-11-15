@@ -2,6 +2,7 @@ package com.admin82.factions.menu;
 
 import com.admin82.factions.network.packet.SupplyDropActionPacket;
 import com.admin82.factions.registry.ModMenuTypes;
+import com.admin82.factions.screen.SupplyDropScreen;
 import com.admin82.factions.supplydrop.SupplyDropData;
 import com.admin82.factions.supplydrop.SupplyDropPool;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
@@ -17,6 +18,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -34,11 +37,12 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaFlexDirection;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 public class SupplyDropMenu extends AbstractContainerMenu {
     private static final int PLAYER_INV_OFFSET = SupplyDropPool.SLOT_COUNT;
@@ -206,7 +210,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
         listArea.layout(l -> l.flex(1).width(150).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
 
         String[] newPoolName = {""};
-        var nameField = new TextField().setValue("").bindObserver(value -> newPoolName[0] = value);
+        var nameField = UiKit.textField("").setValue("").bindObserver(value -> newPoolName[0] = value);
         nameField.layout(l -> l.width(150).height(18));
         var createButton = new Button().setText("§aCreate Loot Pool")
                 .setOnClick(e -> {
@@ -287,7 +291,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
                         Component.literal("§ePool: §f" + name),
                         Component.literal("§7Click to edit."),
                         Component.literal("§8Right-click to delete.")));
-                button.addEventListener(UIEvents.MOUSE_UP, ev -> {
+                UiKit.onClick(button, ev -> {
                     if (ev.button == 1) {
                         PacketDistributor.sendToServer(new SupplyDropActionPacket(SupplyDropActionPacket.Action.DELETE_POOL, name, 0, 0));
                         if (name.equals(selectedPoolName[0])) {
@@ -336,15 +340,15 @@ public class SupplyDropMenu extends AbstractContainerMenu {
         int[] radius = {10000};
         int[] seconds = {60};
         int[] intervalHours = {24};
-        var radiusField = new TextField().setValue("10000").bindObserver(value -> {
+        var radiusField = UiKit.textField("").setValue("10000").bindObserver(value -> {
             try { radius[0] = Math.max(0, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
         });
         radiusField.layout(l -> l.width(150).height(18));
-        var secondsField = new TextField().setValue("60").bindObserver(value -> {
+        var secondsField = UiKit.textField("").setValue("60").bindObserver(value -> {
             try { seconds[0] = Math.max(0, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
         });
         secondsField.layout(l -> l.width(150).height(18));
-        var intervalField = new TextField().setValue("24").bindObserver(value -> {
+        var intervalField = UiKit.textField("").setValue("24").bindObserver(value -> {
             try { intervalHours[0] = Math.max(1, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
         });
         intervalField.layout(l -> l.width(150).height(18));
@@ -427,13 +431,13 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     private ItemSlot makeContainerDisplaySlot(int containerSlotIdx) {
         var display = new ItemSlot();
         display.addEventListener(UIEvents.TICK, ev -> display.setItem(slots.get(containerSlotIdx).getItem().copy()));
-        display.addEventListener(UIEvents.MOUSE_UP, ev -> {
-            if (!(net.minecraft.client.Minecraft.getInstance().screen instanceof com.admin82.factions.screen.SupplyDropScreen screen)) return;
+        UiKit.onClick(display, ev -> {
+            if (!(Minecraft.getInstance().screen instanceof SupplyDropScreen screen)) return;
             if (containerSlotIdx < SupplyDropPool.SLOT_COUNT && ev.button == 1 && !slots.get(containerSlotIdx).getItem().isEmpty()) {
                 selectedSettingsSlot[0] = containerSlotIdx;
                 return;
             }
-            ClickType type = net.minecraft.client.gui.screens.Screen.hasShiftDown() ? ClickType.QUICK_MOVE : ClickType.PICKUP;
+            ClickType type = Screen.hasShiftDown() ? ClickType.QUICK_MOVE : ClickType.PICKUP;
             screen.interactWithSlot(containerSlotIdx, ev.button, type);
         });
         return display;
@@ -469,15 +473,15 @@ public class SupplyDropMenu extends AbstractContainerMenu {
             var title = new Label().setText("§6Slot " + (slot + 1) + ": §f" + stack.getHoverName().getString());
             title.layout(l -> l.height(12));
 
-            var minField = new TextField().setValue(String.valueOf(minValue[0])).bindObserver(value -> {
+            var minField = UiKit.textField("").setValue(String.valueOf(minValue[0])).bindObserver(value -> {
                 try { minValue[0] = Math.max(1, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
             });
             minField.layout(l -> l.width(58).height(18));
-            var maxField = new TextField().setValue(String.valueOf(maxValue[0])).bindObserver(value -> {
+            var maxField = UiKit.textField("").setValue(String.valueOf(maxValue[0])).bindObserver(value -> {
                 try { maxValue[0] = Math.max(1, Integer.parseInt(value.trim())); } catch (NumberFormatException ignored) {}
             });
             maxField.layout(l -> l.width(58).height(18));
-            var rarityField = new TextField().setValue(String.valueOf(rarityValue[0])).bindObserver(value -> {
+            var rarityField = UiKit.textField("").setValue(String.valueOf(rarityValue[0])).bindObserver(value -> {
                 try { rarityValue[0] = Math.max(0, Math.min(10, Integer.parseInt(value.trim()))); } catch (NumberFormatException ignored) {}
             });
             rarityField.layout(l -> l.width(58).height(18));
@@ -557,13 +561,13 @@ public class SupplyDropMenu extends AbstractContainerMenu {
 
     private static int[] defaultCounts() {
         int[] counts = new int[SupplyDropPool.SLOT_COUNT];
-        java.util.Arrays.fill(counts, 1);
+        Arrays.fill(counts, 1);
         return counts;
     }
 
     private static int[] copyOrDefault(int[] values, int defaultValue) {
         int[] copy = new int[SupplyDropPool.SLOT_COUNT];
-        java.util.Arrays.fill(copy, defaultValue);
+        Arrays.fill(copy, defaultValue);
         if (values != null) {
             System.arraycopy(values, 0, copy, 0, Math.min(values.length, copy.length));
         }

@@ -1,11 +1,12 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
-import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.faction.FactionManager;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
 import com.admin82.factions.monument.MonumentView;
-import com.admin82.factions.faction.FactionManager;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -90,8 +91,8 @@ public record MonumentActionPacket(Action action, UUID monumentId, String name,
                 case TOGGLE_CHUNK -> {
                     int chunkX = packet.tier;
                     int chunkZ = packet.radius;
-                    int controllerChunkX = net.minecraft.core.SectionPos.blockToSectionCoord(monument.controllerPos.getX());
-                    int controllerChunkZ = net.minecraft.core.SectionPos.blockToSectionCoord(monument.controllerPos.getZ());
+                    int controllerChunkX = SectionPos.blockToSectionCoord(monument.controllerPos.getX());
+                    int controllerChunkZ = SectionPos.blockToSectionCoord(monument.controllerPos.getZ());
                     if (Math.abs(chunkX - controllerChunkX) > 64 || Math.abs(chunkZ - controllerChunkZ) > 64) {
                         player.displayClientMessage(Component.literal("§cMonument chunks must be within 64 chunks of the controller."), true);
                         return;
@@ -103,11 +104,11 @@ public record MonumentActionPacket(Action action, UUID monumentId, String name,
                     }
                     if (monument.hasChunk(chunkX, chunkZ)) {
                         boolean containsCrate = monument.getCrates().keySet().stream().anyMatch(pos ->
-                                net.minecraft.core.SectionPos.blockToSectionCoord(pos.getX()) == chunkX
-                                        && net.minecraft.core.SectionPos.blockToSectionCoord(pos.getZ()) == chunkZ);
+                                SectionPos.blockToSectionCoord(pos.getX()) == chunkX
+                                        && SectionPos.blockToSectionCoord(pos.getZ()) == chunkZ);
                         boolean containsGenerator = monument.getOreGenerators().keySet().stream().anyMatch(pos ->
-                                net.minecraft.core.SectionPos.blockToSectionCoord(pos.getX()) == chunkX
-                                        && net.minecraft.core.SectionPos.blockToSectionCoord(pos.getZ()) == chunkZ);
+                                SectionPos.blockToSectionCoord(pos.getX()) == chunkX
+                                        && SectionPos.blockToSectionCoord(pos.getZ()) == chunkZ);
                         if (containsCrate || containsGenerator) {
                             player.displayClientMessage(Component.literal(
                                     "§cRemove linked crates and ore generators before removing this chunk."), true);

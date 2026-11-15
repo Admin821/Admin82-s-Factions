@@ -3,7 +3,7 @@ package com.admin82.factions.network.packet;
 import com.admin82.factions.AdminsFactions;
 import com.admin82.factions.entity.monument.RoguePmcEntity;
 import com.admin82.factions.entity.monument.RoguePmcRole;
-import com.admin82.factions.menu.MonumentMenu;
+import com.admin82.factions.menu.monument.MonumentMenu;
 import com.admin82.factions.monument.MonumentData;
 import com.admin82.factions.monument.MonumentEntry;
 import net.minecraft.core.registries.BuiltInRegistries;

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.function.IntPredicate;
 
 public class SupplyDropPool {
     public static final int SLOT_COUNT = 54;
@@ -115,10 +116,15 @@ public class SupplyDropPool {
     }
 
     public List<ItemStack> generateItems(Random random) {
+        return generateItems(random, slot -> true);
+    }
+
+    /** Rolls every slot accepted by {@code slotFilter}, using each slot's rarity and count range. */
+    public List<ItemStack> generateItems(Random random, IntPredicate slotFilter) {
         List<ItemStack> generated = new ArrayList<>();
         for (int i = 0; i < SLOT_COUNT; i++) {
             ItemStack base = getSlot(i);
-            if (base.isEmpty()) continue;
+            if (base.isEmpty() || !slotFilter.test(i)) continue;
             if (random.nextDouble() * 100.0 >= getAppearanceChance(getRarityLevel(i))) continue;
             int min = getMinCount(i);
             int max = Math.max(min, getMaxCount(i));

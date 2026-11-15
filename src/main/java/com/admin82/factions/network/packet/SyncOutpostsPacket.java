@@ -1,6 +1,8 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.menu.factiontable.FactionTableMenu;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -27,7 +29,9 @@ public record SyncOutpostsPacket(List<OutpostItem> outposts, long tpCostCopper) 
             boolean  disintegrating,
             float    captureProgress,
             float    captureTimeSeconds,
-            String   capturingFactionName) {}
+            String   capturingFactionName,
+            boolean  unsupplied,
+            String   name) {}
 
     public static final Type<SyncOutpostsPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(AdminsFactions.MODID, "sync_outposts"));
@@ -45,6 +49,8 @@ public record SyncOutpostsPacket(List<OutpostItem> outposts, long tpCostCopper) 
                             buf.writeFloat(item.captureProgress());
                             buf.writeFloat(item.captureTimeSeconds());
                             buf.writeUtf(item.capturingFactionName(), 64);
+                            buf.writeBoolean(item.unsupplied());
+                            buf.writeUtf(item.name(), 64);
                         }
                     },
                     buf -> {
@@ -59,6 +65,8 @@ public record SyncOutpostsPacket(List<OutpostItem> outposts, long tpCostCopper) 
                                     buf.readBoolean(),
                                     buf.readFloat(),
                                     buf.readFloat(),
+                                    buf.readUtf(64),
+                                    buf.readBoolean(),
                                     buf.readUtf(64)));
                         }
                         return new SyncOutpostsPacket(items, tpCost);
@@ -69,9 +77,9 @@ public record SyncOutpostsPacket(List<OutpostItem> outposts, long tpCostCopper) 
     public static void handle(SyncOutpostsPacket pkt, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
             if (FMLEnvironment.dist != Dist.CLIENT) return;
-            var mc = net.minecraft.client.Minecraft.getInstance();
+            var mc = Minecraft.getInstance();
             if (mc.player != null
-                    && mc.player.containerMenu instanceof com.admin82.factions.menu.FactionTableMenu ftm) {
+                    && mc.player.containerMenu instanceof FactionTableMenu ftm) {
                 ftm.updateOutpostList(pkt.outposts(), pkt.tpCostCopper());
             }
         });

@@ -5,6 +5,7 @@ import com.admin82.factions.economy.Currency;
 import com.admin82.factions.economy.EconomyManager;
 import com.admin82.factions.faction.*;
 import com.admin82.factions.war.*;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -19,7 +20,9 @@ import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Client → Server: accept or reject a wartime demand.
@@ -38,15 +41,16 @@ public record RespondWarDemandPacket(UUID demandId, boolean accepted) implements
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    // ── Server handler ────────────────────────────────────────────────────────
+    // Server handler
 
     public static void handle(RespondWarDemandPacket pkt, IPayloadContext context) {
         context.enqueueWork(() -> {
             ServerPlayer           player = (ServerPlayer) context.player();
-            FactionManager         fmgr   = FactionManager.get(player.server);
-            WarManager             wmgr   = WarManager.get(player.server);
-            EconomyManager         eco    = EconomyManager.get(player.server);
-            WarNegotiationsManager negMgr = WarNegotiationsManager.get(player.server);
+            MinecraftServer        server = player.server;
+            FactionManager         fmgr   = FactionManager.get(server);
+            WarManager             wmgr   = WarManager.get(server);
+            EconomyManager         eco    = EconomyManager.get(server);
+            WarNegotiationsManager negMgr = WarNegotiationsManager.get(server);
 
             WarDemand demand = negMgr.getDemand(pkt.demandId());
             if (demand == null || demand.status != WarDemand.Status.PENDING) {
@@ -56,168 +60,212 @@ public record RespondWarDemandPacket(UUID demandId, boolean accepted) implements
             if (demand.isExpired()) {
                 negMgr.resolveDemand(pkt.demandId(), WarDemand.Status.EXPIRED);
                 player.displayClientMessage(Component.literal("§cThis demand has expired."), false);
+                broadcastDemands(server, demand, negMgr, fmgr);
                 return;
             }
 
-            Faction receiver = fmgr.getFactionForPlayer(player.getUUID());
-            if (receiver == null || !receiver.getId().equals(demand.receiverFactionId)) {
-                player.displayClientMessage(Component.literal("§cYou cannot respond to this demand."), false);
-                return;
-            }
-
-            FactionMember member = receiver.getMember(player.getUUID());
+            Faction mine = fmgr.getFactionForPlayer(player.getUUID());
+            FactionMember member = mine != null ? mine.getMember(player.getUUID()) : null;
             if (member == null || member.getRole().getLevel() < FactionRole.OFFICER.getLevel()) {
                 player.displayClientMessage(Component.literal("§cOfficer rank or higher required."), false);
                 return;
             }
 
-            // ── Rejection ────────────────────────────────────────────────────────
+            // Withdraw (the sending faction takes its own demand back)
+            if (mine.getId().equals(demand.senderFactionId)) {
+                if (pkt.accepted()) {
+                    player.displayClientMessage(Component.literal("§cYou cannot accept your own demand."), false);
+                    return;
+                }
+                negMgr.resolveDemand(pkt.demandId(), WarDemand.Status.WITHDRAWN);
+                SendWarDemandPacket.notifyFaction(server, mine, Component.literal(
+                        "§e[Negotiations] §7" + player.getName().getString() + " withdrew your demand to §c"
+                                + demand.receiverFactionName + "§7."));
+                Faction receiver = fmgr.getFaction(demand.receiverFactionId);
+                if (receiver != null) SendWarDemandPacket.notifyFaction(server, receiver, Component.literal(
+                        "§e[Negotiations] §c" + mine.getName() + " §7withdrew their demand."));
+                broadcastDemands(server, demand, negMgr, fmgr);
+                return;
+            }
+
+            if (!mine.getId().equals(demand.receiverFactionId)) {
+                player.displayClientMessage(Component.literal("§cYou cannot respond to this demand."), false);
+                return;
+            }
+            Faction receiver = mine;
+
+            // Rejection
             if (!pkt.accepted()) {
                 negMgr.resolveDemand(pkt.demandId(), WarDemand.Status.REJECTED);
                 Faction sender = fmgr.getFaction(demand.senderFactionId);
                 if (sender != null)
-                    SendWarDemandPacket.notifyFaction(player.server, sender,
+                    SendWarDemandPacket.notifyFaction(server, sender,
                             Component.literal("§e[Negotiations] §c" + receiver.getName()
-                                    + " §7rejected your demand."));
-                SendWarDemandPacket.notifyFaction(player.server, receiver,
-                        Component.literal("§e[Negotiations] §7You rejected §c"
-                                + demand.senderFactionName + "§7's demand."));
-                broadcastDemands(player.server, demand, negMgr, fmgr);
+                                    + " §7rejected your " + (demand.isWhitePeace() ? "peace offer." : "demand.")));
+                SendWarDemandPacket.notifyFaction(server, receiver,
+                        Component.literal("§e[Negotiations] §7" + player.getName().getString() + " rejected §c"
+                                + demand.senderFactionName + "§7's " + (demand.isWhitePeace() ? "peace offer." : "demand.")));
+                broadcastDemands(server, demand, negMgr, fmgr);
                 return;
             }
 
-            // ── Acceptance — resolve each term ────────────────────────────────────
+            // Acceptance, check every term first, then apply them all
             Faction sender = fmgr.getFaction(demand.senderFactionId);
             if (sender == null) {
                 player.displayClientMessage(Component.literal("§cSender faction no longer exists."), false);
                 negMgr.resolveDemand(pkt.demandId(), WarDemand.Status.EXPIRED);
+                broadcastDemands(server, demand, negMgr, fmgr);
+                return;
+            }
+            ActiveWar war = wmgr.getWarBetween(sender.getId(), receiver.getId());
+            boolean staleWar = war != null && demand.warId != null && !war.warId.equals(demand.warId);
+            if (staleWar || war == null && !receiver.isAtWarWith(sender.getId())) {
+                player.displayClientMessage(Component.literal("§cYou are no longer at war with " + sender.getName() + "."), false);
+                negMgr.clearWarDemands(demand.warId);
+                broadcastDemands(server, demand, negMgr, fmgr);
                 return;
             }
 
-            // Money
-            if (demand.moneyAmount > 0) {
-                if (!eco.deductVault(receiver.getId(), demand.moneyAmount)) {
-                    player.displayClientMessage(Component.literal(
-                            "§cCannot accept: your vault lacks §e"
-                            + Currency.format(demand.moneyAmount) + "§c."), false);
-                    return;
-                }
-                eco.addVault(sender.getId(), demand.moneyAmount);
+            if (demand.moneyAmount > 0 && eco.getVault(receiver.getId()) < demand.moneyAmount) {
+                player.displayClientMessage(Component.literal("§cCannot accept: your vault needs §e"
+                        + Currency.format(demand.moneyAmount) + "§c but holds §e"
+                        + Currency.format(eco.getVault(receiver.getId())) + "§c."), false);
+                return;
             }
 
-            // Items
+            Item reqItem = null;
             if (!demand.itemId.isEmpty() && demand.itemCount > 0) {
-                Item reqItem = BuiltInRegistries.ITEM
-                        .get(ResourceLocation.tryParse(demand.itemId));
+                ResourceLocation id = ResourceLocation.tryParse(demand.itemId);
+                reqItem = id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
                 if (reqItem == null || reqItem == Items.AIR) {
                     player.displayClientMessage(Component.literal(
-                            "§cUnknown item §e" + demand.itemId + "§c — demand cancelled."), false);
+                            "§cUnknown item §e" + demand.itemId + "§c. The demand has been cancelled."), false);
                     negMgr.resolveDemand(pkt.demandId(), WarDemand.Status.REJECTED);
+                    broadcastDemands(server, demand, negMgr, fmgr);
                     return;
                 }
-                // Attempt to collect from any online receiver-faction member
-                boolean collected = collectItems(player.server, receiver, reqItem, demand.itemCount);
-                if (!collected) {
-                    // Undo money if already taken
-                    if (demand.moneyAmount > 0) {
-                        eco.addVault(receiver.getId(), demand.moneyAmount);
-                        eco.deductVault(sender.getId(), demand.moneyAmount);
-                    }
-                    player.displayClientMessage(Component.literal(
-                            "§cNo online faction member has §e" + demand.itemCount
-                            + "x " + demand.itemId + "§c."), false);
+                int available = countOnline(server, receiver, reqItem);
+                if (available < demand.itemCount) {
+                    player.displayClientMessage(Component.literal("§cCannot accept: online members of your faction have §e"
+                            + available + "/" + demand.itemCount + " §f" + reqItem.getDescription().getString()
+                            + "§c in their inventories."), false);
                     return;
                 }
-                // Deliver items to first online sender member
-                giveItems(player.server, sender, reqItem, demand.itemCount);
+                if (firstOnline(server, sender) == null) {
+                    player.displayClientMessage(Component.literal("§cCannot accept yet: nobody from §e"
+                            + sender.getName() + " §cis online to receive the items."), false);
+                    return;
+                }
             }
 
-            // Land — release the most-recently-added chunks
+            List<LandClaim> releasable = new ArrayList<>();
             if (demand.landChunks > 0) {
-                var claims = new ArrayList<>(receiver.getLandClaims());
-                int released = 0;
-                for (int i = claims.size() - 1; i >= 0 && released < demand.landChunks; i--) {
-                    var c = claims.get(i);
-                    fmgr.unclaimChunk(receiver.getId(), c.chunkX(), c.chunkZ(), c.dimension().toString());
-                    released++;
+                FactionManager.TableLocation table = fmgr.getFactionTable(receiver.getId());
+                for (LandClaim c : receiver.getLandClaims()) {
+                    boolean core = table != null
+                            && c.dimension().toString().equals(table.dimension())
+                            && c.chunkX() == SectionPos.blockToSectionCoord(table.pos().getX())
+                            && c.chunkZ() == SectionPos.blockToSectionCoord(table.pos().getZ());
+                    if (!core) releasable.add(c);
+                }
+                if (releasable.size() < demand.landChunks) {
+                    player.displayClientMessage(Component.literal("§cCannot accept: you only have §e" + releasable.size()
+                            + "§c chunks besides your core chunk, but §e" + demand.landChunks + "§c are demanded."), false);
+                    return;
                 }
             }
 
-            // Vassal — make receiver a vassal of sender
+            // Everything checks out: apply.
+            if (demand.moneyAmount > 0) {
+                eco.deductVault(receiver.getId(), demand.moneyAmount, "War demand paid to " + sender.getName());
+                eco.addVault(sender.getId(), demand.moneyAmount, "War demand paid by " + receiver.getName());
+            }
+            if (reqItem != null) {
+                giveItems(server, sender, takeItems(server, receiver, reqItem, demand.itemCount));
+            }
+            if (demand.landChunks > 0) {
+                // Release the most recently claimed chunks first.
+                for (int i = releasable.size() - 1, released = 0; i >= 0 && released < demand.landChunks; i--, released++) {
+                    LandClaim c = releasable.get(i);
+                    fmgr.unclaimChunk(receiver.getId(), c.chunkX(), c.chunkZ(), c.dimension().toString());
+                }
+                ChunkLoadManager.sync(server);
+            }
             if (demand.vassalTerm) {
-                VassalManager vassalMgr = VassalManager.get(player.server);
-                vassalMgr.makeVassal(receiver.getId(), sender.getId());
-                // End the war since terms have been agreed
-                ActiveWar war = wmgr.getWarBetween(sender.getId(), receiver.getId());
-                if (war != null) wmgr.endWar(war.warId);
-                fmgr.endWar(sender.getId(), receiver.getId());
-                SendWarDemandPacket.notifyFaction(player.server, sender,
-                        Component.literal("§e[Negotiations] §5" + receiver.getName()
-                                + " §eis now your vassal state!"));
-                SendWarDemandPacket.notifyFaction(player.server, receiver,
-                        Component.literal("§e[Negotiations] §5Your faction is now a vassal of §f"
-                                + sender.getName() + "§5. The war has ended."));
+                VassalManager.get(server).makeVassal(receiver.getId(), sender.getId());
+                SendWarDemandPacket.notifyFaction(server, sender, Component.literal(
+                        "§e[Negotiations] §5" + receiver.getName() + " §eis now your vassal state!"));
+                SendWarDemandPacket.notifyFaction(server, receiver, Component.literal(
+                        "§e[Negotiations] §5Your faction is now a vassal of §f" + sender.getName() + "§5."));
             }
 
-            negMgr.resolveDemand(pkt.demandId(), WarDemand.Status.ACCEPTED);
+            // Accepting any demand ends the war.
             negMgr.clearWarDemands(demand.warId);
+            FactionWarEvents.endWarByAgreement(server, war, sender.getId(), receiver.getId());
 
-            Component resultMsg = buildResultMessage(demand, sender.getName(), receiver.getName());
-            SendWarDemandPacket.notifyFaction(player.server, sender, resultMsg);
-            SendWarDemandPacket.notifyFaction(player.server, receiver, resultMsg);
-            broadcastDemands(player.server, demand, negMgr, fmgr);
+            Component resultMsg = Component.literal("§a[Negotiations] §7Peace agreed between §e" + sender.getName()
+                    + "§7 and §e" + receiver.getName() + "§7. The war is over. Terms: " + demand.termsSummary());
+            SendWarDemandPacket.notifyFaction(server, sender, resultMsg);
+            SendWarDemandPacket.notifyFaction(server, receiver, resultMsg);
+            broadcastDemands(server, demand, negMgr, fmgr);
         });
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers
 
-    private static boolean collectItems(MinecraftServer server, Faction faction,
-                                        Item item, int required) {
+    @Nullable
+    private static ServerPlayer firstOnline(MinecraftServer server, Faction faction) {
+        for (FactionMember m : faction.getMembers()) {
+            ServerPlayer sp = server.getPlayerList().getPlayer(m.getUuid());
+            if (sp != null) return sp;
+        }
+        return null;
+    }
+
+    /** Total of {@code item} in the main inventories of every online member (worn armour doesn't count). */
+    private static int countOnline(MinecraftServer server, Faction faction, Item item) {
+        int found = 0;
         for (FactionMember m : faction.getMembers()) {
             ServerPlayer sp = server.getPlayerList().getPlayer(m.getUuid());
             if (sp == null) continue;
-            int found = 0;
-            for (int i = 0; i < sp.getInventory().getContainerSize(); i++) {
-                ItemStack s = sp.getInventory().getItem(i);
+            for (ItemStack s : sp.getInventory().items) {
                 if (s.getItem() == item) found += s.getCount();
             }
-            if (found >= required) {
-                int rem = required;
-                for (int i = 0; i < sp.getInventory().getContainerSize() && rem > 0; i++) {
-                    ItemStack s = sp.getInventory().getItem(i);
-                    if (s.getItem() == item) {
-                        int take = Math.min(rem, s.getCount());
-                        s.shrink(take);
-                        rem -= take;
-                    }
-                }
-                return true;
-            }
         }
-        return false;
+        return found;
     }
 
-    private static void giveItems(MinecraftServer server, Faction faction,
-                                  Item item, int count) {
+    /**
+     * Takes {@code required} items from the main inventories of online members and returns the
+     * actual stacks taken, so damage, enchantments and contents go along with them.
+     */
+    private static List<ItemStack> takeItems(MinecraftServer server, Faction faction, Item item, int required) {
+        List<ItemStack> taken = new ArrayList<>();
+        int rem = required;
         for (FactionMember m : faction.getMembers()) {
             ServerPlayer sp = server.getPlayerList().getPlayer(m.getUuid());
-            if (sp != null) {
-                int remaining = count;
-                while (remaining > 0) {
-                    int stack = Math.min(remaining, item.getDefaultMaxStackSize());
-                    sp.getInventory().add(new ItemStack(item, stack));
-                    remaining -= stack;
+            if (sp == null) continue;
+            for (ItemStack s : sp.getInventory().items) {
+                if (rem <= 0) break;
+                if (s.getItem() == item) {
+                    int take = Math.min(rem, s.getCount());
+                    taken.add(s.split(take));
+                    rem -= take;
                 }
-                return; // give to first online member only
             }
+            sp.getInventory().setChanged();
+            if (rem <= 0) break;
         }
+        return taken;
     }
 
-    private static Component buildResultMessage(WarDemand d, String senderName, String receiverName) {
-        var sb = new StringBuilder("§a[Negotiations] §7Peace accepted between §e")
-                .append(senderName).append("§7 and §e").append(receiverName)
-                .append("§7. Terms: ").append(d.termsSummary());
-        return Component.literal(sb.toString());
+    /** Gives the stacks to the first online member; anything that doesn't fit drops at their feet. */
+    private static void giveItems(MinecraftServer server, Faction faction, List<ItemStack> stacks) {
+        ServerPlayer sp = firstOnline(server, faction);
+        if (sp == null) return;
+        for (ItemStack stack : stacks) {
+            if (!sp.getInventory().add(stack) && !stack.isEmpty()) sp.drop(stack, false);
+        }
     }
 
     private static void broadcastDemands(MinecraftServer server, WarDemand demand,

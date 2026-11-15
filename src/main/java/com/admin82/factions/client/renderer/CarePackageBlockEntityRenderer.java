@@ -38,12 +38,19 @@ public class CarePackageBlockEntityRenderer implements BlockEntityRenderer<CareP
 
         poseStack.pushPose();
         poseStack.translate(0.5F, 1.5F, 0.5F);
+        // The model is two blocks long and starts at this block, running towards the filler block
+        // (facing.getClockWise()), so it lines up with both halves' hitboxes.
         poseStack.mulPose(Axis.YP.rotationDegrees(270.0F - facing.toYRot()));
-        poseStack.translate(0.0F, 0.0F, -0.984375F);
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         VertexConsumer vertices = buffers.getBuffer(RenderType.entityCutoutNoCull(open ? OPEN_TEXTURE : TEXTURE));
         (open ? openModel : closedModel).render(
                 poseStack, vertices, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
+    }
+
+    /** The model covers both halves and the open lid, so it isn't culled when only the other half is on screen. */
+    @Override
+    public net.minecraft.world.phys.AABB getRenderBoundingBox(CarePackageBlockEntity blockEntity) {
+        return new net.minecraft.world.phys.AABB(blockEntity.getBlockPos()).inflate(1.0, 0.0, 1.0).expandTowards(0.0, 1.0, 0.0);
     }
 }

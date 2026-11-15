@@ -1,11 +1,12 @@
 package com.admin82.factions.screen;
 
-import com.admin82.factions.economy.MarketListing;
 import com.admin82.factions.economy.MarketDelivery;
+import com.admin82.factions.economy.MarketListing;
 import com.admin82.factions.economy.SoldListing;
-import com.admin82.factions.menu.MarketMenu;
+import com.admin82.factions.menu.market.MarketMenu;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -14,7 +15,7 @@ import net.minecraft.world.entity.player.Inventory;
 import java.util.List;
 
 /**
- * Thin wrapper screen for the Market block — all rendering is handled by LDLib2.
+ * Thin wrapper screen for the Market block, all rendering is handled by LDLib2.
  */
 public class MarketScreen extends AbstractContainerScreen<MarketMenu> {
 
@@ -34,6 +35,19 @@ public class MarketScreen extends AbstractContainerScreen<MarketMenu> {
         super.init();
     }
 
+    /** Rebuilds the whole market panel (page switch, wizard start). */
+    public void refreshContent() {
+        menu.rebuildClientUi(minecraft.player);
+        rebuildWidgets();
+    }
+
+    /** Window or GUI scale changed: rebuild the panel at the new size before re-laying out. */
+    @Override
+    public void resize(Minecraft minecraft, int width, int height) {
+        menu.rebuildClientUi(minecraft.player);
+        super.resize(minecraft, width, height);
+    }
+
     /** Called by {@link com.admin82.factions.network.packet.SyncMarketPacket} when data arrives. */
     public void updateListings(List<MarketListing> listings, long wallet, int myCount, int maxSlots) {
         menu.updateListings(listings, wallet, myCount, maxSlots);
@@ -46,6 +60,12 @@ public class MarketScreen extends AbstractContainerScreen<MarketMenu> {
 
     public void updateDeliveries(List<MarketDelivery> deliveries) {
         menu.updateDeliveries(deliveries);
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        menu.clientTick();
     }
 
     @Override

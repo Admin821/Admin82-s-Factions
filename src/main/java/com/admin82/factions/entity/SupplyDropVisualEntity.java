@@ -21,4 +21,10 @@ public class SupplyDropVisualEntity extends Entity {
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {}
+
+    /** Only a visual for a drop in progress: never saved, so a restart can't leave a crate floating forever. */
+    @Override
+    public boolean shouldBeSaved() {
+        return false;
+    }
 }

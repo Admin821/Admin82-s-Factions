@@ -1,11 +1,14 @@
 package com.admin82.factions.network.packet;
 
 import com.admin82.factions.AdminsFactions;
+import com.admin82.factions.screen.FactionTableScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -58,10 +61,10 @@ public record SyncEnemyClaimsPacket(
         });
     }
 
-    @net.neoforged.api.distmarker.OnlyIn(Dist.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     private static void handleClient(SyncEnemyClaimsPacket pkt) {
-        var screen = net.minecraft.client.Minecraft.getInstance().screen;
-        if (screen instanceof com.admin82.factions.screen.FactionTableScreen fts) {
+        var screen = Minecraft.getInstance().screen;
+        if (screen instanceof FactionTableScreen fts) {
             fts.updateEnemyClaims(pkt.targetFactionId(), pkt.claimKeys(),
                     pkt.coreCX(), pkt.coreCZ(), pkt.coreDim());
         }

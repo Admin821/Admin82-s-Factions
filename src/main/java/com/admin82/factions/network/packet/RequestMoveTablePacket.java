@@ -5,6 +5,7 @@ import com.admin82.factions.faction.*;
 import com.admin82.factions.item.TemporaryMoveItem;
 import com.admin82.factions.registry.ModItems;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -40,7 +41,7 @@ public record RequestMoveTablePacket() implements CustomPacketPayload {
 
             if (manager.getPendingMove(player.getUUID()) != null) {
                 player.displayClientMessage(
-                        net.minecraft.network.chat.Component.literal("§eYou are already in move mode! Place a new Faction Table to complete it."), false);
+                        Component.literal("§eYou are already in move mode! Place a new Faction Table to complete it."), false);
                 return;
             }
 
@@ -53,7 +54,7 @@ public record RequestMoveTablePacket() implements CustomPacketPayload {
             player.getInventory().add(TemporaryMoveItem.create(ModItems.FACTION_TABLE.get(), "Faction Table"));
 
             player.displayClientMessage(
-                    net.minecraft.network.chat.Component.literal(
+                    Component.literal(
                             "§eMOVE MODE ACTIVE — Place a new Faction Table at the desired location.\n" +
                             "§7Move mode will cancel on logout, death, or dimension change."), false);
         });

@@ -44,7 +44,7 @@ public class ResourceWarAccess {
         return Math.max(0, blockLimit - blocksBroken);
     }
 
-    // ── NBT ───────────────────────────────────────────────────────────────────
+    // NBT
 
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();

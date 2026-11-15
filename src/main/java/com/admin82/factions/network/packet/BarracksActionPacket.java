@@ -15,18 +15,19 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Client → Server: all barracks-related actions.
  *
  * {@code data} usage by action:
- *   CREATE_KIT   — data = kitName
- *   DELETE_KIT   — data = kitName
- *   LOAD_KIT     — data = kitName     (server loads kit items into staging handler)
- *   QUICK_TAKE   — (no data)          (server sends OpenKitSelectionPacket back)
+ *   CREATE_KIT  , data = kitName
+ *   DELETE_KIT  , data = kitName
+ *   LOAD_KIT    , data = kitName     (server loads kit items into staging handler)
+ *   QUICK_TAKE  , (no data)          (server sends OpenKitSelectionPacket back)
  */
 public record BarracksActionPacket(Action action, @Nullable String data, int lifeSlot,
                                    @Nullable UUID unused) implements CustomPacketPayload {
@@ -89,17 +90,22 @@ public record BarracksActionPacket(Action action, @Nullable String data, int lif
                 case DELETE_KIT -> {
                     String name = pkt.data();
                     if (name == null) return;
-                    bData.deleteKit(ownerId, name);
-                    if (name.equals(bMenu.getCurrentEditingKitName())) {
+                    // Deleting a kit gives its items back rather than destroying them.
+                    var kit = bData.getKit(ownerId, name);
+                    if (kit == null) return;
+                    if (name.equalsIgnoreCase(String.valueOf(bMenu.getCurrentEditingKitName()))) {
                         bMenu.serverClearStaging();
                     }
+                    bData.deleteKit(ownerId, name);
+                    SelectKitPacket.giveKitToPlayer(sp, kit);
+                    bMenu.broadcastChanges();
                     syncToPlayer(sp, ownerId, bData);
                 }
                 case LOAD_KIT -> {
                     String name = pkt.data();
                     if (name == null) return;
                     bMenu.serverLoadKit(name);
-                    // No SyncBarracksPacket needed — staging items sync via vanilla slot sync
+                    // No SyncBarracksPacket needed, staging items sync via vanilla slot sync
                 }
                 case QUICK_TAKE -> handleQuickTake(sp, ownerId, bData);
             }
@@ -107,7 +113,7 @@ public record BarracksActionPacket(Action action, @Nullable String data, int lif
     }
 
     private static void handleQuickTake(ServerPlayer sp, UUID ownerId, BarracksData bData) {
-        List<KitData> kits = new java.util.ArrayList<>(bData.getKits(ownerId));
+        List<KitData> kits = new ArrayList<>(bData.getKits(ownerId));
         if (kits.isEmpty()) {
             sp.displayClientMessage(
                     Component.literal("§cNo kits available in the Barracks."), true);

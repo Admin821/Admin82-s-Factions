@@ -28,7 +28,7 @@ public class SoldListing {
 
     public SoldListing() {}
 
-    // ── NBT ───────────────────────────────────────────────────────────────────
+    // NBT
 
     public CompoundTag save(HolderLookup.Provider reg) {
         var tag = new CompoundTag();
@@ -54,7 +54,7 @@ public class SoldListing {
         return s;
     }
 
-    // ── Network ───────────────────────────────────────────────────────────────
+    // Network
 
     public void toNetwork(RegistryFriendlyByteBuf buf) {
         buf.writeUUID(saleId);
