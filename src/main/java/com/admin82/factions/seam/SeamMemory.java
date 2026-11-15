@@ -16,9 +16,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * What each player has seen with their Seam Viewer, like a map mod's explored area: player → dimension → chunk →
- * the seam as it was when they last scanned it. Only their own scans update it, so a seam someone else mined out
- * far away still shows as it was until they go back and scan it.
+ * What has been seen with Seam Viewers, like a map mod's explored area: owner → dimension → chunk → the seam as it was
+ * when last scanned. The owner is the player's faction, so every member's scans add to one shared map (also shown on
+ * the faction table's territory map); players without a faction keep their own. Only scans update it, so a seam mined
+ * out far away still shows as it was until someone scans it again.
  */
 public class SeamMemory extends SavedData {
 
@@ -31,9 +32,29 @@ public class SeamMemory extends SavedData {
                 new SavedData.Factory<>(SeamMemory::new, SeamMemory::load, null), DATA_NAME);
     }
 
-    private Map<Long, SeamCell> of(ServerPlayer player) {
-        return seen.computeIfAbsent(player.getUUID(), u -> new HashMap<>())
+    /** Whose map a player's scans go on: their faction's, or their own without one. */
+    private static UUID owner(ServerPlayer player) {
+        var faction = com.admin82.factions.faction.FactionManager.get(player.server).getFactionForPlayer(player.getUUID());
+        return faction != null ? faction.getId() : player.getUUID();
+    }
+
+    private Map<Long, SeamCell> of(UUID owner, ServerPlayer player) {
+        return seen.computeIfAbsent(owner, u -> new HashMap<>())
                 .computeIfAbsent(player.level().dimension().location().toString(), d -> new HashMap<>());
+    }
+
+    /** The player's map; scans they made before joining a faction are moved onto the faction's the first time. */
+    private Map<Long, SeamCell> of(ServerPlayer player) {
+        UUID owner = owner(player);
+        Map<Long, SeamCell> map = of(owner, player);
+        if (!owner.equals(player.getUUID()) && seen.containsKey(player.getUUID())) {
+            for (var dims : seen.remove(player.getUUID()).entrySet()) {
+                Map<Long, SeamCell> into = seen.get(owner).computeIfAbsent(dims.getKey(), d -> new HashMap<>());
+                dims.getValue().forEach((k, c) -> into.merge(k, c, (a, b) -> a.scannedAt() >= b.scannedAt() ? a : b));
+            }
+            setDirty();
+        }
+        return map;
     }
 
     /** Remembers a scan (stamped with the time). */
@@ -44,7 +65,7 @@ public class SeamMemory extends SavedData {
         setDirty();
     }
 
-    /** The chunks this player has scanned in a square of {@code size} around a chunk, in their dimension. */
+    /** The chunks this player (or their faction) has scanned in a square of {@code size} around a chunk, in their dimension. */
     public List<SeamCell> around(ServerPlayer player, ChunkPos center, int size) {
         Map<Long, SeamCell> mine = of(player);
         List<SeamCell> out = new ArrayList<>();

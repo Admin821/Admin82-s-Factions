@@ -403,8 +403,8 @@ public class Config {
         }
 
         SEAM_POWER = BUILDER
-                .comment("FE per tick a Seam Extractor uses while mining, before the faction's seam upgrade doubles it.")
-                .defineInRange("extractorPowerPerTick", 1000, 0, Integer.MAX_VALUE);
+                .comment("FE per tick a Seam Extractor uses while mining, before the faction's seam upgrade doubles it (50 = 1,000 FE a second).")
+                .defineInRange("extractorPowerPerTick", 50, 0, Integer.MAX_VALUE);
 
         SEAM_MINERS_WARBONDS = BUILDER
                 .comment("Warbonds for Seam Extractor Quantity: going from n to n+1 extractors per seam costs this × n.")

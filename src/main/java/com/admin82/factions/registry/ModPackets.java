@@ -17,6 +17,8 @@ public class ModPackets {
         registrar.playToClient(SyncServerConfigPacket.TYPE, SyncServerConfigPacket.STREAM_CODEC, SyncServerConfigPacket::handle);
         registrar.playToClient(SyncBarracksPacket.TYPE, SyncBarracksPacket.STREAM_CODEC, SyncBarracksPacket::handle);
         registrar.playToClient(OpenKitSelectionPacket.TYPE, OpenKitSelectionPacket.STREAM_CODEC, OpenKitSelectionPacket::handle);
+        registrar.playToClient(com.admin82.factions.network.packet.SkinPacket.TYPE, com.admin82.factions.network.packet.SkinPacket.STREAM_CODEC,
+                com.admin82.factions.network.packet.SkinPacket::handle);
 
         // Client → Server
         registrar.playToServer(CreateFactionPacket.TYPE, CreateFactionPacket.STREAM_CODEC, CreateFactionPacket::handle);

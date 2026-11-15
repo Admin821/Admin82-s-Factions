@@ -593,11 +593,24 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         oreField.setValue(seamOre);
         oreField.bindObserver(x -> seamOre = x.trim());
         oreField.layout(l -> l.flex(1).height(16));
-        tip(oreField, "§7Item id of the ore. Any item works.", "§8This dimension can roll " + data.seamOres().size() + " ores.");
+        var allOres = com.admin82.factions.seam.SeamOres.all();
+        tip(oreField, "§7Item id of the ore. Any item works.", "§8This dimension can roll " + data.seamOres().size() + " of the "
+                + allOres.size() + " ores in the game.");
         oreRow.addChildren(oreField);
-        var orePicker = SearchPicker.create(data.seamOres(), id -> oreStack(id).isEmpty() ? id : oreStack(id).getHoverName().getString(),
+        // Blacklist (or allow again) whichever ore is picked
+        if (data.seamBlacklist().contains(seamOre)) {
+            oreRow.addChildren(smallButton("§a✔ Allow", 52, () -> send(AdminPanelPacket.of(Action.SEAM_BLACKLIST_REMOVE, seamOre)),
+                    "§7Take " + seamOre + " off the ore blacklist."));
+        } else {
+            oreRow.addChildren(smallButton("§c⊘ Blacklist", 64, () -> { if (!seamOre.isEmpty()) send(AdminPanelPacket.of(Action.SEAM_BLACKLIST_ADD, seamOre)); },
+                    "§7Add the picked ore to the ore blacklist: it won't be rolled in new seams."));
+        }
+        // Every ore in the game; ones this dimension never rolls by itself are marked
+        var orePicker = SearchPicker.create(allOres, id -> (oreStack(id).isEmpty() ? id : oreStack(id).getHoverName().getString())
+                        + (data.seamBlacklist().stream().anyMatch(b -> b.equals(id) || b.equals(id.substring(0, Math.max(0, id.indexOf(':'))) + ":*"))
+                                ? " §c(blacklisted)" : data.seamOres().contains(id) ? "" : " §8(not rolled here)"),
                 seamOre, seamOreSearch, q -> seamOreSearch = q, x -> { seamOre = x; renderPage(); }, 62);
-        tip(orePicker, "§7The ores this dimension can roll. Type to search by name or id.");
+        tip(orePicker, "§7Every ore in the game. Type to search by name or id.", "§8Marked ones never appear here by themselves, but you can still spawn them.");
         var tierRow = row(3, 16);
         var tier = new Selector<String>();
         tier.setCandidates(List.of("Overflowing", "Rich", "Middling", "Poor"));

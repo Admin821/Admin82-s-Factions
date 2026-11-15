@@ -416,4 +416,10 @@ public class FactionTableBlock extends BaseEntityBlock implements MultiblockPrev
     public List<BlockPos> previewCells(BlockPos pos, BlockState state) {
         return List.of(pos, pos.east(), pos.south(), pos.east().south());
     }
+
+    /** Pick block gives the Faction Table item (it isn't a plain block item, so the default gives nothing). */
+    @Override
+    public net.minecraft.world.item.ItemStack getCloneItemStack(net.minecraft.world.level.LevelReader level, BlockPos pos, BlockState state) {
+        return new net.minecraft.world.item.ItemStack(com.admin82.factions.registry.ModItems.FACTION_TABLE.get());
+    }
 }

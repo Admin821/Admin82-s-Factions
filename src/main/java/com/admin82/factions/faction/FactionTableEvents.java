@@ -154,6 +154,11 @@ public class FactionTableEvents {
                 return;
             }
         }
+        if (event.getState().is(ModBlocks.BARRACKS_TOP.get())) {
+            event.setCanceled(true);
+            event.getPlayer().displayClientMessage(net.minecraft.network.chat.Component.literal("§7Break the bottom of the Barracks locker instead."), true);
+            return;
+        }
         BlockPos managerPos = event.getPos();
         BlockState brokenState = event.getState();
         if (brokenState.is(ModBlocks.OUTPOST_MANAGER_FILLER.get())) {

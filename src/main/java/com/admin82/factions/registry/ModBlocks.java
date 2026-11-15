@@ -73,8 +73,15 @@ public class ModBlocks {
                             .strength(1.5f, 6.0f)
                             .sound(SoundType.STONE)
                             .requiresCorrectToolForDrops()
+                            .noOcclusion() // lets light in, so the locker's inset sides aren't drawn black
             )
     );
+
+    /** Top half of the Barracks locker (invisible; the barracks draws the locker). */
+    public static final DeferredBlock<com.admin82.factions.block.BarracksTopBlock> BARRACKS_TOP = BLOCKS.register(
+            "barracks_top", () -> new com.admin82.factions.block.BarracksTopBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE).strength(-1.0f, 3600000.0f).sound(SoundType.METAL).noOcclusion().noLootTable().dynamicShape()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)));
 
     public static final DeferredBlock<FactionTableBlock> FACTION_TABLE = BLOCKS.register(
             "faction_table",
@@ -141,6 +148,7 @@ public class ModBlocks {
                             .strength(2.0f, 3.0f)
                             .sound(SoundType.WOOD)
                             .noLootTable()
+                            .dynamicShape() // its hitbox follows the skin shown
             )
     );
 

@@ -4,6 +4,7 @@
   "block.adminsfactions.faction_table":        "Faction Table",
   "block.adminsfactions.faction_table_filler": "Faction Table",
   "block.adminsfactions.barracks":             "Barracks",
+  "block.adminsfactions.barracks_top":         "Barracks",
   "block.adminsfactions.market_block":         "Market",
   "block.adminsfactions.currency_exchange_block": "Currency Exchange",
   "block.adminsfactions.outpost_manager":      "Outpost Flag",

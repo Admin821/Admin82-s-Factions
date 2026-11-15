@@ -23,7 +23,6 @@ public class SeamViewerItem extends Item {
 
     /** Chunks across the scanned square (centred on the player). */
     public static final int SIZE = 9;
-    private static final int COOLDOWN_TICKS = 40;
 
     public SeamViewerItem(Properties properties) {
         super(properties);
@@ -40,7 +39,6 @@ public class SeamViewerItem extends Item {
             PacketDistributor.sendToPlayer(sp, new OpenSeamViewerPacket(center.x, center.z, SIZE,
                     memory.around(sp, center, com.admin82.factions.network.packet.SeamMemoryPacket.WINDOW)));
             level.playSound(null, sp.blockPosition(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 0.6f, 1.4f);
-            sp.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }
@@ -49,6 +47,7 @@ public class SeamViewerItem extends Item {
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.literal("§7Right-click to scan the ore seams of the 9×9 chunks around you."));
         tooltip.add(Component.literal("§7Everything you scan is kept on its map: drag it to look around."));
+        tooltip.add(Component.literal("§7Your faction shares one map: it also shows on the faction table's territory map."));
         tooltip.add(Component.literal("§8Seams can only be mined with a Seam Extractor."));
     }
 }

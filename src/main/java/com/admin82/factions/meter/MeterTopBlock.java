@@ -42,4 +42,11 @@ public class MeterTopBlock extends Block {
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
+
+    /** Pick block gives the meter below it. */
+    @Override
+    public net.minecraft.world.item.ItemStack getCloneItemStack(net.minecraft.world.level.LevelReader level,
+                                                                net.minecraft.core.BlockPos pos, BlockState state) {
+        return new net.minecraft.world.item.ItemStack(level.getBlockState(pos.below()).getBlock().asItem());
+    }
 }

@@ -6,9 +6,12 @@ package com.admin82.factions.seam;
  */
 public enum SeamPath {
     NONE("None"),
-    /** +1x extraction speed and +0.25x depletion per level (5x faster, 2x faster wear at level 4). */
+    /**
+     * +1x extraction speed and +0.25x seam depletion per ore, per level: at level 4 it mines 5x faster and every ore costs
+     * the seam 2x as much, so the seam runs out after half the ore (and 10x sooner in time).
+     */
     SPEED("Speed"),
-    /** +0.25 bonus ore per extraction per level (2 ore at level 4); the seam wears at the normal rate. */
+    /** +0.25 bonus ore per extraction per level (2 ore at level 4); the seam depletes at the normal rate. */
     QUANTITY("Quantity"),
     /** +1x slower depletion and +0.25x slower extraction per level (5x slower wear, 2x slower mining at level 4). */
     EFFICIENCY("Efficiency");
@@ -37,7 +40,8 @@ public enum SeamPath {
     /** Seam worn down per extraction. */
     public double wearPerExtraction(int level) {
         return switch (this) {
-            case SPEED, EFFICIENCY -> (1 + 0.25 * level) / (1 + level);
+            case SPEED -> 1 + 0.25 * level;                              // burns through the seam
+            case EFFICIENCY -> (1 + 0.25 * level) / (1 + level);         // (1 + L)x slower wear over time
             default -> 1;
         };
     }
@@ -56,7 +60,7 @@ public enum SeamPath {
     public String stats(int level) {
         String power = "Power ×" + powerFactor(level);
         return switch (this) {
-            case SPEED -> "Mining ×" + trim(1 + level) + " faster · Depletion ×" + trim(1 + 0.25 * level) + " faster · " + power;
+            case SPEED -> "Mining ×" + trim(1 + level) + " faster · Seam depletion ×" + trim(1 + 0.25 * level) + " faster · " + power;
             case QUANTITY -> "Ore per extraction: " + trim(1 + 0.25 * level) + " · Depletion: normal · " + power;
             case EFFICIENCY -> "Depletion ×" + trim(1 + level) + " slower · Mining ×" + trim(1 + 0.25 * level) + " slower · " + power;
             default -> power;

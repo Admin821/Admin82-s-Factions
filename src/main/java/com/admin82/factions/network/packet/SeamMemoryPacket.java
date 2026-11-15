@@ -48,6 +48,7 @@ public record SeamMemoryPacket(int centerX, int centerZ, List<SeamCell> cells) i
         ctx.enqueueWork(() -> {
             var player = Minecraft.getInstance().player;
             if (player != null && player.containerMenu instanceof SeamViewerMenu menu) menu.addCells(p.cells);
+            if (player != null && player.containerMenu instanceof com.admin82.factions.menu.factiontable.FactionTableMenu table) table.addSeams(p.cells);
         });
     }
 }

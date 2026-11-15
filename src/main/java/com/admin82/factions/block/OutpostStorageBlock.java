@@ -101,4 +101,11 @@ public class OutpostStorageBlock extends Block implements EntityBlock {
         ItemVaultService.open(sp, ItemVaultService.Kind.OUTPOST, entry.id);
         return InteractionResult.CONSUME;
     }
+
+    /** Pick block gives an Outpost. */
+    @Override
+    public net.minecraft.world.item.ItemStack getCloneItemStack(net.minecraft.world.level.LevelReader level,
+                                                                net.minecraft.core.BlockPos pos, BlockState state) {
+        return new net.minecraft.world.item.ItemStack(com.admin82.factions.registry.ModItems.OUTPOST.get());
+    }
 }

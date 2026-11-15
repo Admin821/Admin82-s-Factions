@@ -296,6 +296,14 @@ public class FactionCommands {
                     .requires(src -> src.hasPermission(2))
                     .executes(ctx -> AdminCommands.cmdAdminPanel(ctx.getSource())))
 
+                // /faction skin [modern|medieval], the mod's look for you (no argument switches between them)
+                .then(Commands.literal("skin")
+                    .executes(ctx -> skin(ctx.getSource(), com.admin82.factions.network.packet.SkinPacket.TOGGLE))
+                    .then(Commands.literal("modern")
+                        .executes(ctx -> skin(ctx.getSource(), com.admin82.factions.network.packet.SkinPacket.MODERN)))
+                    .then(Commands.literal("medieval")
+                        .executes(ctx -> skin(ctx.getSource(), com.admin82.factions.network.packet.SkinPacket.MEDIEVAL))))
+
                 // /faction bypass
                 .then(Commands.literal("bypass")
                     .requires(src -> src.hasPermission(2))
@@ -306,6 +314,13 @@ public class FactionCommands {
         event.getDispatcher().register(
                 Commands.literal("factionreturn")
                         .executes(ctx -> ReturnCommand.cmdReturnToBase(ctx.getSource())));
+    }
+
+    /** Tells the player's game to switch skins (only their own view changes). */
+    private static int skin(net.minecraft.commands.CommandSourceStack source, int mode) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(source.getPlayerOrException(),
+                new com.admin82.factions.network.packet.SkinPacket(mode));
+        return 1;
     }
 
     // Shared utilities

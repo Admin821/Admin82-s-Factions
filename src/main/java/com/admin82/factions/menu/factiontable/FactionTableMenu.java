@@ -48,6 +48,11 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     final MembersTab members = new MembersTab(this);
     private final TerritoryTab territory = new TerritoryTab(this);
+
+    /** Seams the faction has scanned, for the territory map (from the server, as the map is moved). */
+    public void addSeams(java.util.List<com.admin82.factions.seam.SeamCell> cells) {
+        territory.addSeams(cells);
+    }
     final AlliancesTab alliances = new AlliancesTab(this);
     private final UpgradesTab upgrades = new UpgradesTab(this);
     final WarsTab wars = new WarsTab(this);

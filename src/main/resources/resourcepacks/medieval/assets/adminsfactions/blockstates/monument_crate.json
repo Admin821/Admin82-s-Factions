@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "facing=north,open=false": {
+      "model": "minecraft:block/barrel"
+    },
+    "facing=north,open=true": {
+      "model": "minecraft:block/barrel_open"
+    },
+    "facing=east,open=false": {
+      "model": "minecraft:block/barrel"
+    },
+    "facing=east,open=true": {
+      "model": "minecraft:block/barrel_open"
+    },
+    "facing=south,open=false": {
+      "model": "minecraft:block/barrel"
+    },
+    "facing=south,open=true": {
+      "model": "minecraft:block/barrel_open"
+    },
+    "facing=west,open=false": {
+      "model": "minecraft:block/barrel"
+    },
+    "facing=west,open=true": {
+      "model": "minecraft:block/barrel_open"
+    }
+  }
+}

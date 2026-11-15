@@ -44,8 +44,11 @@ public class CurrencyExchangeFillerBlock extends Block {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
-        return CurrencyExchangeBlock.SHAPE;
+        // The Medieval market stall only reaches 3 pixels into this block
+        return com.admin82.factions.SkinState.medieval ? MEDIEVAL_SHAPE : CurrencyExchangeBlock.SHAPE;
     }
+
+    private static final VoxelShape MEDIEVAL_SHAPE = Block.box(0, 0, 0, 16, 3, 16);
 
     @Override
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
@@ -108,5 +111,12 @@ public class CurrencyExchangeFillerBlock extends Block {
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    /** Pick block gives the Currency Exchange. */
+    @Override
+    public net.minecraft.world.item.ItemStack getCloneItemStack(net.minecraft.world.level.LevelReader level,
+                                                                net.minecraft.core.BlockPos pos, BlockState state) {
+        return new net.minecraft.world.item.ItemStack(com.admin82.factions.registry.ModItems.CURRENCY_EXCHANGE_BLOCK.get());
     }
 }

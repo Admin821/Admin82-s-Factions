@@ -41,15 +41,51 @@ public final class SeamOres {
         List<String> ids = new ArrayList<>();
         for (Block block : BuiltInRegistries.BLOCK) {
             var holder = block.builtInRegistryHolder();
-            if (!holder.is(ORES)) continue;
-            Item item = block.asItem();
-            if (!(item instanceof BlockItem)) continue;
+            if (!isOre(block)) continue;
+            Item item = oreItem(block);
+            if (item == null) continue;
             if (!belongs(holder, BuiltInRegistries.BLOCK.getKey(block), dim)) continue;
             String id = BuiltInRegistries.ITEM.getKey(item).toString();
             if (!blacklisted(id)) ids.add(id);
         }
         ids.sort(null);
         return ids;
+    }
+
+    /**
+     * Every ore in the game, from any dimension and blacklisted or not, sorted: blocks tagged {@code c:ores}, plus ore
+     * blocks a mod forgot to tag (named like {@code *_ore}). For admins spawning seams by hand; works on the client too.
+     */
+    public static List<String> all() {
+        java.util.TreeSet<String> ids = new java.util.TreeSet<>();
+        for (Block block : BuiltInRegistries.BLOCK) {
+            Item item = isOre(block) ? oreItem(block) : null;
+            if (item != null) ids.add(BuiltInRegistries.ITEM.getKey(item).toString());
+        }
+        return new ArrayList<>(ids);
+    }
+
+    /**
+     * Whether a block is an ore: tagged {@code c:ores}, or named like one, since plenty of mods don't tag theirs
+     * ({@code *_ore}, {@code *_ore_*}, or NTM-style {@code ore_*}). This mod's own blocks never count.
+     */
+    public static boolean isOre(Block block) {
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+        if (id.getNamespace().equals(com.admin82.factions.AdminsFactions.MODID)) return false;
+        if (block.builtInRegistryHolder().is(ORES)) return true;
+        Item item = oreItem(block);
+        if (item != null && item.builtInRegistryHolder().is(net.neoforged.neoforge.common.Tags.Items.ORES)) return true;
+        String path = id.getPath();
+        return path.endsWith("_ore") || path.contains("_ore_") || path.startsWith("ore_") || path.equals("ancient_debris");
+    }
+
+    /** The item for an ore block: its block item, or failing that an item registered under the same id. */
+    @javax.annotation.Nullable
+    public static Item oreItem(Block block) {
+        Item item = block.asItem();
+        if (item != net.minecraft.world.item.Items.AIR) return item;
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+        return BuiltInRegistries.ITEM.containsKey(id) ? BuiltInRegistries.ITEM.get(id) : null;
     }
 
     /** Uses the "ores in ground" tags when a mod sets them, otherwise guesses from the block's name. */

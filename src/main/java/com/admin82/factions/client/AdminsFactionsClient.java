@@ -86,6 +86,23 @@ public class AdminsFactionsClient {
         event.registerBlockEntityRenderer(ModBlockEntities.SEAM_EXTRACTOR.get(), com.admin82.factions.client.renderer.SeamExtractorRenderer::new);
     }
 
+    /** Notes after every resource load whether the Medieval skin is on (see SkinState). */
+    @SubscribeEvent
+    static void onRegisterReloadListeners(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener((net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager ->
+                com.admin82.factions.SkinState.medieval = net.minecraft.client.Minecraft.getInstance().getResourcePackRepository()
+                        .getSelectedIds().stream().anyMatch(id -> id.contains(AdminsFactions.MODID) && id.contains("medieval")));
+    }
+
+    /** The built-in Medieval skin: a resource pack with the mod's older models, switched with /faction skin. */
+    @SubscribeEvent
+    static void onAddPackFinders(net.neoforged.neoforge.event.AddPackFindersEvent event) {
+        if (event.getPackType() != net.minecraft.server.packs.PackType.CLIENT_RESOURCES) return;
+        event.addPackFinders(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(AdminsFactions.MODID, "resourcepacks/medieval"),
+                net.minecraft.server.packs.PackType.CLIENT_RESOURCES, net.minecraft.network.chat.Component.literal("Admin's Factions: Medieval"),
+                net.minecraft.server.packs.repository.PackSource.BUILT_IN, false, net.minecraft.server.packs.repository.Pack.Position.TOP);
+    }
+
     /** Models drawn by block entity renderers rather than by a block. */
     @SubscribeEvent
     static void onRegisterAdditionalModels(net.neoforged.neoforge.client.event.ModelEvent.RegisterAdditional event) {

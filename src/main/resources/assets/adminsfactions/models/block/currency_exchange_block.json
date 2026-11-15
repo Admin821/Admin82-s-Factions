@@ -5,7 +5,7 @@
   "textures": {
     "metal": "adminsfactions:block/monument_crate_metal",
     "atm": "adminsfactions:block/atm",
-    "particle": "adminsfactions:block/monument_crate_metal"
+    "particle": "adminsfactions:block/atm"
   },
   "elements": [
     {

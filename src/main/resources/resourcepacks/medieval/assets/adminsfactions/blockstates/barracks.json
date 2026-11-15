@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,open=false": {
+      "model": "adminsfactions:block/barracks"
+    },
+    "facing=north,open=true": {
+      "model": "adminsfactions:block/barracks"
+    },
+    "facing=east,open=false": {
+      "model": "adminsfactions:block/barracks",
+      "y": 90
+    },
+    "facing=east,open=true": {
+      "model": "adminsfactions:block/barracks",
+      "y": 90
+    },
+    "facing=south,open=false": {
+      "model": "adminsfactions:block/barracks",
+      "y": 180
+    },
+    "facing=south,open=true": {
+      "model": "adminsfactions:block/barracks",
+      "y": 180
+    },
+    "facing=west,open=false": {
+      "model": "adminsfactions:block/barracks",
+      "y": 270
+    },
+    "facing=west,open=true": {
+      "model": "adminsfactions:block/barracks",
+      "y": 270
+    }
+  }
+}

@@ -22,6 +22,7 @@ public class SeamBeamSound extends AbstractTickableSoundInstance {
 
     private final SeamExtractorBlockEntity be;
     private float power;
+    private final long startedAt = System.currentTimeMillis();
 
     private SeamBeamSound(SeamExtractorBlockEntity be) {
         super(BEAM, SoundSource.BLOCKS, net.minecraft.util.RandomSource.create());
@@ -39,10 +40,15 @@ public class SeamBeamSound extends AbstractTickableSoundInstance {
 
     /** Starts the hum for {@code be} unless it's already playing. */
     public static void ensurePlaying(SeamExtractorBlockEntity be) {
-        if (be.beamSound instanceof SeamBeamSound s && !s.isStopped()) return;
+        var sounds = Minecraft.getInstance().getSoundManager();
+        if (be.beamSound instanceof SeamBeamSound s && !s.isStopped()) {
+            // Still ours, unless the engine dropped it (switching skins or resource packs stops every sound)
+            if (sounds.isActive(s) || System.currentTimeMillis() - s.startedAt < 1000) return;
+            s.stop();
+        }
         SeamBeamSound sound = new SeamBeamSound(be);
         be.beamSound = sound;
-        Minecraft.getInstance().getSoundManager().play(sound);
+        sounds.play(sound);
     }
 
     @Override

@@ -119,6 +119,20 @@ final class TerritoryTab {
 
     private final com.admin82.factions.menu.MapColorCache.Throttle mapRedraw = new com.admin82.factions.menu.MapColorCache.Throttle();
 
+    /** Seams the faction has scanned, by chunk key; asked for around the view as it moves. */
+    private final java.util.Map<Long, com.admin82.factions.seam.SeamCell> seams = new java.util.HashMap<>();
+    private int seamAskX = Integer.MIN_VALUE, seamAskZ = Integer.MIN_VALUE;
+
+    /** More scanned seams from the server: redraw so they show. */
+    void addSeams(java.util.List<com.admin82.factions.seam.SeamCell> cells) {
+        if (cells.isEmpty()) return;
+        for (var c : cells) seams.put(c.key(), c);
+        mapRedraw.request(() -> { if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, lastCoreX, lastCoreZ, lastCanClaim); } });
+    }
+
+    private int lastCoreX, lastCoreZ;
+    private boolean lastCanClaim;
+
     @OnlyIn(Dist.CLIENT)
     private void rebuildMap(int coreX, int coreZ, boolean canClaim) {
         if (mapGrid != null) { mapGrid.clearAllChildren(); fillMapCells(mapGrid, coreX, coreZ, canClaim); }
@@ -524,6 +538,12 @@ final class TerritoryTab {
         Level level = mc.level;
         int   viewCX = coreX + mapOffsetX;
         int   viewCZ = coreZ + mapOffsetZ;
+        lastCoreX = coreX; lastCoreZ = coreZ; lastCanClaim = canClaim;
+        // Ask for the faction's scanned seams round here when the view has moved a few chunks
+        if (Math.abs(viewCX - seamAskX) > 3 || Math.abs(viewCZ - seamAskZ) > 3) {
+            seamAskX = viewCX; seamAskZ = viewCZ;
+            PacketDistributor.sendToServer(new com.admin82.factions.network.packet.SeamMemoryPacket(viewCX, viewCZ, java.util.List.of()));
+        }
 
         Faction     myFaction = menu.factionRef.get();
         Set<String> others    = menu.otherClaimedChunks.get();
@@ -656,7 +676,20 @@ final class TerritoryTab {
 
                 // Plain UIElement, no background; terrain + borders show through
                 var cell = new UIElement();
-                cell.layout(l -> l.width(fcs).height(fcs));
+                cell.layout(l -> l.width(fcs).height(fcs).alignItems(YogaAlign.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
+                // A seam the faction has scanned: its ore on the chunk, and the seam's details on hover
+                var seam = seams.get(net.minecraft.world.level.ChunkPos.asLong(cx, cz));
+                if (seam != null && seam.hasSeam()) {
+                    if (seam.minable() && fcs >= 10) {
+                        var icon = new com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot().setItem(com.admin82.factions.menu.SeamMap.ore(seam.ore()));
+                        icon.style(st -> st.background(com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture.EMPTY));
+                        int icon16 = Math.min(16, fcs - 4);
+                        icon.layout(l -> l.width(icon16).height(icon16));
+                        cell.addChildren(icon);
+                    }
+                    var seamTip = com.admin82.factions.menu.SeamMap.tooltip(seam, false).toArray(Component[]::new);
+                    cell.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(seamTip));
+                }
 
                 // Claim / unclaim via MOUSE_UP + drag-distance guard
                 final boolean fIsMine = isMine, fIsOther = isOther, fIsClaimable = isClaimable;

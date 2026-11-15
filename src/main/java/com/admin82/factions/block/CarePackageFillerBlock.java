@@ -103,4 +103,11 @@ public class CarePackageFillerBlock extends Block {
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
+
+    /** Pick block gives the care package. */
+    @Override
+    public net.minecraft.world.item.ItemStack getCloneItemStack(net.minecraft.world.level.LevelReader level,
+                                                                net.minecraft.core.BlockPos pos, BlockState state) {
+        return new net.minecraft.world.item.ItemStack(com.admin82.factions.registry.ModItems.CARE_PACKAGE.get());
+    }
 }

@@ -40,27 +40,41 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
-public class BarracksBlock extends BaseEntityBlock {
+public class BarracksBlock extends BaseEntityBlock implements MultiblockPreview {
+
+    /** The locker's footprint; the same for both halves. */
+    static final VoxelShape SHAPE = Block.box(0.5, 0, 0.5, 15.5, 16, 15.5);
+
 
     public static final MapCodec<BarracksBlock> CODEC = simpleCodec(BarracksBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    /** The locker's doors stand open while someone has the barracks screen open. */
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty OPEN = BlockStateProperties.OPEN;
 
     @Override
     protected MapCodec<? extends BaseEntityBlock> codec() { return CODEC; }
 
     public BarracksBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(OPEN, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, OPEN);
     }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         BlockPos pos = context.getClickedPos();
+        BlockPos above = pos.above();
+        if (context.getLevel().isOutsideBuildHeight(above) || !context.getLevel().getBlockState(above).canBeReplaced()) {
+            Player player = context.getPlayer();
+            if (player != null && !context.getLevel().isClientSide) {
+                player.displayClientMessage(Component.literal("§cNot enough space! The Barracks locker is 2 blocks tall."), true);
+            }
+            return null;
+        }
         if (!context.getLevel().canSeeSky(pos.above())) {
             Player player = context.getPlayer();
             if (player != null && !context.getLevel().isClientSide) {
@@ -73,6 +87,41 @@ public class BarracksBlock extends BaseEntityBlock {
 
     @Override
     public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext ctx) {
+        return SHAPE;
+    }
+
+    // The locker's top half
+
+    /** Puts the top half on (also for barracks placed before the locker was 2 tall, if there's room). */
+    static void ensureTop(Level level, BlockPos pos) {
+        BlockPos above = pos.above();
+        if (level.isClientSide || level.isOutsideBuildHeight(above)) return;
+        BlockState there = level.getBlockState(above);
+        if (!there.is(com.admin82.factions.registry.ModBlocks.BARRACKS_TOP.get()) && there.canBeReplaced()) {
+            level.setBlock(above, com.admin82.factions.registry.ModBlocks.BARRACKS_TOP.get().defaultBlockState(), 3);
+        }
+    }
+
+    @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean moving) {
+        super.onPlace(state, level, pos, oldState, moving);
+        ensureTop(level, pos);
+    }
+
+    // Placement preview
+
+    @Override
+    public BlockState previewState(BlockPlaceContext ctx) {
+        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
+    }
+
+    @Override
+    public List<BlockPos> previewCells(BlockPos pos, BlockState state) {
+        return List.of(pos, pos.above());
+    }
 
     @Override
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
@@ -220,6 +269,7 @@ public class BarracksBlock extends BaseEntityBlock {
                                                Player player, BlockHitResult hitResult) {
         if (level.isClientSide) return InteractionResult.SUCCESS;
         if (!(level.getBlockEntity(pos) instanceof BarracksBlockEntity be)) return InteractionResult.PASS;
+        ensureTop(level, pos);
 
         ServerLevel serverLevel = (ServerLevel) level;
         FactionManager mgr = FactionManager.get(serverLevel);
@@ -288,7 +338,31 @@ public class BarracksBlock extends BaseEntityBlock {
 
             buf.writeVarInt(0); // LDLib2 UISyncManager initial pack
         });
+        setOpen(serverLevel, pos, level.getBlockState(pos), true);
         return InteractionResult.SUCCESS;
+    }
+
+    // Doors
+
+    private void setOpen(ServerLevel level, BlockPos pos, BlockState state, boolean open) {
+        if (!state.is(this) || state.getValue(OPEN) == open) {
+            if (open) level.scheduleTick(pos, this, 10);
+            return;
+        }
+        level.setBlock(pos, state.setValue(OPEN, open), 3);
+        level.playSound(null, pos, open ? net.minecraft.sounds.SoundEvents.IRON_DOOR_OPEN : net.minecraft.sounds.SoundEvents.IRON_DOOR_CLOSE,
+                net.minecraft.sounds.SoundSource.BLOCKS, 0.6f, open ? 1.25f : 1.1f);
+        if (open) level.scheduleTick(pos, this, 10);
+    }
+
+    /** Closes the doors once nobody has this barracks' screen open any more (checked twice a second). */
+    @Override
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+        if (!state.getValue(OPEN)) return;
+        boolean inUse = level.players().stream().anyMatch(p -> p.containerMenu instanceof com.admin82.factions.menu.BarracksMenu m
+                && pos.equals(m.getBarrPos()));
+        if (inUse) level.scheduleTick(pos, this, 10);
+        else setOpen(level, pos, state, false);
     }
 
     // Prevent vanilla breaking of linked barracks (see BarracksEvents)
@@ -322,6 +396,9 @@ public class BarracksBlock extends BaseEntityBlock {
             if (loc != null && loc.pos().equals(pos)) {
                 mgr.removeFactionBarracks(fId);
             }
+        }
+        if (state.getBlock() != newState.getBlock() && level.getBlockState(pos.above()).is(com.admin82.factions.registry.ModBlocks.BARRACKS_TOP.get())) {
+            level.removeBlock(pos.above(), false);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

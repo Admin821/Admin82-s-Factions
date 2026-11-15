@@ -26,7 +26,7 @@ import java.util.UUID;
 
 /**
  * Mines the seam of the chunk it stands in, using power. Ore goes into its 9 output slots, which hoppers and pipes
- * can empty. The faction's seam upgrade decides how fast it mines, how much it gives and how fast the seam wears.
+ * can empty. The faction's seam upgrade decides how fast it mines, how much it gives and how fast the seam depletes.
  */
 public class SeamExtractorBlockEntity extends BlockEntity {
 
