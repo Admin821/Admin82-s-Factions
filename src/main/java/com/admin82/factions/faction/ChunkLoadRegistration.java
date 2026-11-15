@@ -6,7 +6,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
 
 /** Mod-bus registration of the faction chunkloading ticket controller. */
-@EventBusSubscriber(modid = AdminsFactions.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = AdminsFactions.MODID)
 public final class ChunkLoadRegistration {
     private ChunkLoadRegistration() {}
 

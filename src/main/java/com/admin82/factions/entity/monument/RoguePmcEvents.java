@@ -9,7 +9,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 
-@EventBusSubscriber(modid = AdminsFactions.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = AdminsFactions.MODID)
 public final class RoguePmcEvents {
     private RoguePmcEvents() {}
 
