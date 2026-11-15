@@ -1,4 +1,4 @@
-package com.admin82.factions.menu;
+package com.admin82.factions.map;
 
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;

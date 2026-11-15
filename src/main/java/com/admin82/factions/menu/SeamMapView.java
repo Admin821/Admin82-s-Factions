@@ -1,6 +1,7 @@
 package com.admin82.factions.menu;
 
-import com.admin82.factions.menu.factiontable.TerrainColors;
+import com.admin82.factions.map.MapColorCache;
+import com.admin82.factions.map.TerrainColors;
 import com.admin82.factions.seam.SeamCell;
 import com.admin82.factions.seam.SeamTier;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;

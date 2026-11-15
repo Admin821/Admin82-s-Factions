@@ -1,7 +1,5 @@
-package com.admin82.factions.menu.factiontable;
+package com.admin82.factions.map;
 
-import com.admin82.factions.faction.*;
-import com.admin82.factions.network.packet.*;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -9,8 +7,6 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-
-import java.util.*;
 
 // Terrain map texture backing NativeImage
 
@@ -21,7 +17,7 @@ import java.util.*;
  * Callers write pixels with {@link #setPixel} then call {@link #upload} once per frame.
  */
 @OnlyIn(Dist.CLIENT)
-final class TerrainMapTexture
+public final class TerrainMapTexture
         extends ColorRectTexture {
 
     private final com.mojang.blaze3d.platform.NativeImage image;
@@ -29,7 +25,7 @@ final class TerrainMapTexture
     private final ResourceLocation rl;
     private final int size;
 
-    TerrainMapTexture(int size) {
+    public TerrainMapTexture(int size) {
         super(0x00000000); // transparent fill, parent's drawInternal is overridden below
         this.size  = size;
         this.image = new com.mojang.blaze3d.platform.NativeImage(
@@ -43,12 +39,12 @@ final class TerrainMapTexture
     }
 
     /** Write one pixel; {@code rgb} is 24-bit 0x00RRGGBB. */
-    void setPixel(int x, int y, int rgb) {
+    public void setPixel(int x, int y, int rgb) {
         image.setPixelRGBA(x, y, abgr(rgb));
     }
 
     /** Reset every pixel to the unloaded-chunk grey. */
-    void clear() {
+    public void clear() {
         int grey = abgr(0x404040);
         for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
@@ -66,14 +62,14 @@ final class TerrainMapTexture
     }
 
     /** Draw a horizontal grid line at row {@code y}, columns [{@code x1}, {@code x2}]. */
-    void drawHLine(int y, int x1, int x2) {
+    public void drawHLine(int y, int x1, int x2) {
         if (y < 0 || y >= size) return;
         for (int x = Math.max(0, x1); x <= Math.min(size - 1, x2); x++)
             darkenPixel(x, y);
     }
 
     /** Draw a vertical grid line at column {@code x}, rows [{@code y1}, {@code y2}]. */
-    void drawVLine(int x, int y1, int y2) {
+    public void drawVLine(int x, int y1, int y2) {
         if (x < 0 || x >= size) return;
         for (int y = Math.max(0, y1); y <= Math.min(size - 1, y2); y++)
             darkenPixel(x, y);
@@ -97,7 +93,7 @@ final class TerrainMapTexture
 
     /** Paint a solid-colour inset border around the chunk tile at pixel (ix, iy),
      *  spanning fcs pixels square, with border thickness bpx pixels. */
-    void drawChunkBorder(int ix, int iy, int fcs, int rgb, int bpx) {
+    public void drawChunkBorder(int ix, int iy, int fcs, int rgb, int bpx) {
         for (int b = 0; b < bpx; b++) {
             fillHLine(iy + b,           ix, ix + fcs - 1, rgb); // top
             fillHLine(iy + fcs - 1 - b, ix, ix + fcs - 1, rgb); // bottom
@@ -107,7 +103,7 @@ final class TerrainMapTexture
     }
 
     /** Push all buffered pixels to the GPU.  Call once after all {@link #setPixel} calls. */
-    void upload() { dynTex.upload(); }
+    public void upload() { dynTex.upload(); }
 
     /** Converts 0x00RRGGBB → the ABGR int expected by {@link com.mojang.blaze3d.platform.NativeImage#setPixelRGBA}. */
     private static int abgr(int rgb) {

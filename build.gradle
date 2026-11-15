@@ -211,11 +211,12 @@ dependencies {
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
     // NTM: Continuum
-    runtimeOnly "curse.maven:ntm-continuum-1719328:9524060"
+    //runtimeOnly "curse.maven:ntm-continuum-1719328:9524060"
     // Gem Renderer
-    runtimeOnly "curse.maven:gemrender-1735539:9516548"
+    //runtimeOnly "curse.maven:gemrender-1735539:9516548"
     // Golum Core
-    implementation "curse.maven:golem-core-1719361:9523847"
+    compileOnly "curse.maven:golem-core-1719361:9523847"
+    runtimeOnly "curse.maven:golem-core-1719361:9523847"
 
     // Xaeros Worldmap
     implementation "xaero.map:xaeroworldmap-neoforge-${minecraft_version}:1.47.0"
@@ -224,7 +225,7 @@ dependencies {
 
     compileOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt
 
-    runtimeOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt for runtime (depends on cloth config)
+    //runtimeOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt for runtime (depends on cloth config)
     runtimeOnly "maven.modrinth:9s6osm5g:izKINKFg" //cloth config
 
     // For more info:

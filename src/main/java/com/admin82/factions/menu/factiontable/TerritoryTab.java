@@ -1,5 +1,8 @@
 package com.admin82.factions.menu.factiontable;
 
+import com.admin82.factions.map.MapColorCache;
+import com.admin82.factions.map.TerrainColors;
+import com.admin82.factions.map.TerrainMapTexture;
 import com.admin82.factions.menu.UiKit;
 import com.admin82.factions.Config;
 import com.admin82.factions.economy.Currency;
@@ -10,7 +13,6 @@ import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -19,7 +21,6 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -117,7 +118,7 @@ final class TerritoryTab {
         return panel;
     }
 
-    private final com.admin82.factions.menu.MapColorCache.Throttle mapRedraw = new com.admin82.factions.menu.MapColorCache.Throttle();
+    private final MapColorCache.Throttle mapRedraw = new MapColorCache.Throttle();
 
     /** Seams the faction has scanned, by chunk key; asked for around the view as it moves. */
     private final java.util.Map<Long, com.admin82.factions.seam.SeamCell> seams = new java.util.HashMap<>();

@@ -2,6 +2,9 @@ package com.admin82.factions.menu.factiontable;
 
 import com.admin82.factions.Config;
 import com.admin82.factions.faction.*;
+import com.admin82.factions.map.MapColorCache;
+import com.admin82.factions.map.TerrainColors;
+import com.admin82.factions.map.TerrainMapTexture;
 import com.admin82.factions.menu.UiKit;
 import com.admin82.factions.network.packet.*;
 import com.admin82.factions.war.WarDemand;
@@ -652,7 +655,7 @@ final class WarsTab {
         );
     }
 
-    private final com.admin82.factions.menu.MapColorCache.Throttle warMapRedraw = new com.admin82.factions.menu.MapColorCache.Throttle();
+    private final MapColorCache.Throttle warMapRedraw = new MapColorCache.Throttle();
 
     /** Renders the war territory-selection map grid (separate from the territory tab map). */
     @OnlyIn(Dist.CLIENT)

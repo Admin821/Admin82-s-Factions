@@ -1,5 +1,6 @@
 package com.admin82.factions.menu.monument;
 
+import com.admin82.factions.map.MapColorCache;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.BlockPos;
@@ -17,8 +18,8 @@ final class MonumentMapColors {
     private MonumentMapColors() {}
 
     @OnlyIn(Dist.CLIENT)
-    static final com.admin82.factions.menu.MapColorCache CACHE =
-            new com.admin82.factions.menu.MapColorCache(MonumentMapColors::computeBlockColor);
+    static final MapColorCache CACHE =
+            new MapColorCache(MonumentMapColors::computeBlockColor);
 
     static int computeBlockColor(Level level, int worldX, int worldZ) {
         try {

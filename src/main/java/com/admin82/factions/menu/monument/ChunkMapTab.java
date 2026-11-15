@@ -1,5 +1,6 @@
 package com.admin82.factions.menu.monument;
 
+import com.admin82.factions.map.MapColorCache;
 import com.admin82.factions.menu.UiKit;
 import com.admin82.factions.monument.MonumentView;
 import com.admin82.factions.network.packet.MonumentActionPacket;
@@ -57,7 +58,7 @@ final class ChunkMapTab {
         var viewLabel = new Label();
 
         Runnable[] refresh = new Runnable[1];
-        var redraw = new com.admin82.factions.menu.MapColorCache.Throttle();
+        var redraw = new MapColorCache.Throttle();
         refresh[0] = () -> {
             MonumentView current = menu.selectedView();
             if (current == null) current = selected;

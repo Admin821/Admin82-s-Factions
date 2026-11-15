@@ -2,6 +2,7 @@ package com.admin82.factions.menu;
 
 import com.admin82.factions.Config;
 import com.admin82.factions.economy.Currency;
+import com.admin82.factions.map.MapColorCache;
 import com.admin82.factions.network.packet.OpenOutpostManagerPacket;
 import com.admin82.factions.network.packet.OutpostActionPacket;
 import com.admin82.factions.network.packet.SyncServerConfigPacket;
@@ -14,7 +15,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;

@@ -1,7 +1,5 @@
-package com.admin82.factions.menu.factiontable;
+package com.admin82.factions.map;
 
-import com.admin82.factions.faction.*;
-import com.admin82.factions.network.packet.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.BlockPos;
@@ -10,11 +8,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-
-import java.util.*;
 
 /** Works out map colours from the blocks in the world. */
 public final class TerrainColors {
@@ -37,8 +32,8 @@ public final class TerrainColors {
      */
     @OnlyIn(Dist.CLIENT)
     /** Shared cache of {@link #computeBlockColor} for the territory and war maps. */
-    public static final com.admin82.factions.menu.MapColorCache CACHE =
-            new com.admin82.factions.menu.MapColorCache(TerrainColors::computeBlockColor);
+    public static final MapColorCache CACHE =
+            new MapColorCache(TerrainColors::computeBlockColor);
 
     static int computeBlockColor(Level level, int wx, int wz) {
         try {
