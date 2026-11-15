@@ -51,6 +51,17 @@ repositories {
         }
     }
 
+    exclusiveContent {
+        forRepository {
+            maven {
+                url "https://cursemaven.com"
+            }
+        }
+        filter {
+            includeGroup "curse.maven"
+        }
+    }
+
 
 
 
@@ -194,6 +205,13 @@ dependencies {
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
+
+    // NTM: Continuum
+    implementation "curse.maven:ntm-continuum-1719328:9524060"
+    // Gem Renderer
+    runtimeOnly "curse.maven:gemrender-1735539:9516548"
+    // Golum Core
+    runtimeOnly "curse.maven:golem-core-1719361:9523847"
 
     compileOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt
 
