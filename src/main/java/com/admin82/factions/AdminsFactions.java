@@ -1,8 +1,10 @@
 package com.admin82.factions;
 
+import com.admin82.factions.compat.NTMContinuumCompat;
 import com.admin82.factions.compat.tacz.Tacz;
 import com.admin82.factions.compat.BurntCompat;
 import com.admin82.factions.registry.*;
+import dev.golem.core.world.Protection;
 import net.neoforged.fml.ModList;
 import net.pixelbank.burnt.util.BurntProtection;
 import com.mojang.logging.LogUtils;
@@ -76,6 +78,9 @@ public class AdminsFactions {
 
         if (ModList.get().isLoaded("burnt")){
             BurntProtection.register(BurntCompat::isProtected);
+        }
+        if (ModList.get().isLoaded("golemcore")){
+            Protection.register(new NTMContinuumCompat());
         }
     }
 
