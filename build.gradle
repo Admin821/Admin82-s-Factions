@@ -61,6 +61,10 @@ repositories {
             includeGroup "curse.maven"
         }
     }
+    maven {
+        url "https://chocolateminecraft.com/maven"
+        name "Xaero's Maven"
+    }
 
 
 
@@ -212,6 +216,11 @@ dependencies {
     runtimeOnly "curse.maven:gemrender-1735539:9516548"
     // Golum Core
     implementation "curse.maven:golem-core-1719361:9523847"
+
+    // Xaeros Worldmap
+    implementation "xaero.map:xaeroworldmap-neoforge-${minecraft_version}:1.47.0"
+    // Xaeros Minimap
+    implementation "xaero.minimap:xaerominimap-neoforge-${minecraft_version}:26.6.0"
 
     compileOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt
 
