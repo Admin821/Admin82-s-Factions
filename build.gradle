@@ -207,11 +207,11 @@ dependencies {
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
     // NTM: Continuum
-    implementation "curse.maven:ntm-continuum-1719328:9524060"
+    runtimeOnly "curse.maven:ntm-continuum-1719328:9524060"
     // Gem Renderer
     runtimeOnly "curse.maven:gemrender-1735539:9516548"
     // Golum Core
-    runtimeOnly "curse.maven:golem-core-1719361:9523847"
+    implementation "curse.maven:golem-core-1719361:9523847"
 
     compileOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt
 
