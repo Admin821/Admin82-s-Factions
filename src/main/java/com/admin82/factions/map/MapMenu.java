@@ -11,6 +11,10 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 public class MapMenu extends AbstractContainerMenu implements IModularUIHolderMenu {
+
+    TerrainMapTexture mapTexture;
+
+
     protected MapMenu(@Nullable MenuType<?> menuType, int containerId) {
         super(menuType, containerId);
     }

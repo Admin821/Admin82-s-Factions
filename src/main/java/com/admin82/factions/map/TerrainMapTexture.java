@@ -120,6 +120,8 @@ public final class TerrainMapTexture
             float elemW, float elemH, float partialTick) {
         // LDLib2 passes: (gfx, localMouseX, localMouseY, screenX, screenY, elemW, elemH, partialTick)
         // blit(rl, destX, destY, uOffset, vOffset, blitW, blitH, texW, texH)
-        gfx.blit(rl, (int) screenX, (int) screenY, 0f, 0f, (int) elemW, (int) elemH, size, size);
+        //gfx.blit(rl, (int) screenX, (int) screenY, 0f, 0f, (int) elemW, (int) elemH, size, size);
+        gfx.blit(rl, (int) screenX, (int) screenY, (int) elemW, (int) elemH,
+                0f, 0f, size, size, size, size);
     }
 }

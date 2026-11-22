@@ -181,11 +181,7 @@ dependencies {
     implementation "com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all"
     // TaCZ is optional: compiled against, present in dev runs, not required by the built mod
     compileOnly "maven.modrinth:tacz-1.21.1:${tacz_version}"
-    localRuntime "maven.modrinth:tacz-1.21.1:${tacz_version}"
-    // NTM: Continuum, only in dev runs (for testing meters with NTM wires and ducts). Not on a maven,
-    // so put the jars from its GitHub releases in ./libs: hbm-neoforge-*.jar and golemcore-neoforge-*.jar.
-    def ntmJars = fileTree(dir: 'libs', include: ['hbm-neoforge-*.jar', 'golemcore-neoforge-*.jar'])
-    if (!ntmJars.isEmpty()) localRuntime ntmJars
+    //localRuntime "maven.modrinth:tacz-1.21.1:${tacz_version}"
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
@@ -204,11 +200,13 @@ dependencies {
 
     // Example project dependency using a sister or child project:
     // implementation project(":myproject")
-    implementation("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
-    implementation("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
+    compileOnly("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
+    //runtimeOnly("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
+    //runtimeOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
-    runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
-    implementation("com.tterrag.registrate:Registrate:${registrate_version}")
+    //runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
+    compileOnly("com.tterrag.registrate:Registrate:${registrate_version}")
+    //runtimeOnly("com.tterrag.registrate:Registrate:${registrate_version}")
 
     // NTM: Continuum
     //runtimeOnly "curse.maven:ntm-continuum-1719328:9524060"
@@ -216,17 +214,17 @@ dependencies {
     //runtimeOnly "curse.maven:gemrender-1735539:9516548"
     // Golum Core
     compileOnly "curse.maven:golem-core-1719361:9523847"
-    runtimeOnly "curse.maven:golem-core-1719361:9523847"
+    //runtimeOnly "curse.maven:golem-core-1719361:9523847"
 
     // Xaeros Worldmap
-    implementation "xaero.map:xaeroworldmap-neoforge-${minecraft_version}:1.47.0"
+    //implementation "xaero.map:xaeroworldmap-neoforge-${minecraft_version}:1.47.0"
     // Xaeros Minimap
-    implementation "xaero.minimap:xaerominimap-neoforge-${minecraft_version}:26.6.0"
+    //implementation "xaero.minimap:xaerominimap-neoforge-${minecraft_version}:26.6.0"
 
     compileOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt
 
     //runtimeOnly "maven.modrinth:aclfPzta:k6uRUh5V" //burnt for runtime (depends on cloth config)
-    runtimeOnly "maven.modrinth:9s6osm5g:izKINKFg" //cloth config
+    //runtimeOnly "maven.modrinth:9s6osm5g:izKINKFg" //cloth config
 
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html

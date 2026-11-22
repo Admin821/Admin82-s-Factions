@@ -20,6 +20,9 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(AdminsFactions.MODID)
 public class AdminsFactions {
@@ -80,7 +83,7 @@ public class AdminsFactions {
             BurntProtection.register(BurntCompat::isProtected);
         }
         if (ModList.get().isLoaded("golemcore")){
-            Protection.register(new NTMContinuumCompat());
+            NTMContinuumCompat.register();
         }
     }
 

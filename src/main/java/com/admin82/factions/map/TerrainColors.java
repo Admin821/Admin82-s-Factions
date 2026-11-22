@@ -94,6 +94,63 @@ public final class TerrainColors {
         }
     }
 
+    static int computeBlockColorWithExep(Level level, int wx, int wz) throws Exception {
+
+            // Water
+            int wyFloor   = level.getHeight(Heightmap.Types.OCEAN_FLOOR,   wx, wz) - 1;
+            int wySurface = level.getHeight(Heightmap.Types.WORLD_SURFACE, wx, wz) - 1;
+            if (wyFloor   < level.getMinBuildHeight()) wyFloor   = level.getMinBuildHeight();
+            if (wySurface < level.getMinBuildHeight()) wySurface = level.getMinBuildHeight();
+
+            if (wySurface > wyFloor) {
+                var surfPos = new BlockPos(wx, wySurface, wz);
+                if (!level.getFluidState(surfPos).isEmpty()) {
+                    int base;
+                    try {
+                        base = BiomeColors
+                                .getAverageWaterColor(level, surfPos);
+                    } catch (Exception e) { base = 0x3F76E4; }
+                    float f = Math.max(0.20f, 1.0f - (wySurface - wyFloor) * 0.05f);
+                    return ((int)(((base >> 16) & 0xFF) * f) << 16)
+                            | ((int)(((base >>  8) & 0xFF) * f) << 8)
+                            |  (int)(( base        & 0xFF) * f);
+                }
+            }
+
+            // Land
+            int wyTop = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx, wz) - 1;
+            if (wyTop < level.getMinBuildHeight()) wyTop = level.getMinBuildHeight();
+
+            var pos   = new BlockPos(wx, wyTop, wz);
+            var state = level.getBlockState(pos);
+
+            // Texture colour: baked top-face sprite → biome tint multiplied on top
+            int col = getBlockRenderColorWithExep(state, level, pos);
+            col = saturateColor(col, 1.35f);
+
+            // Tiny positional jitter breaks up uniform surfaces (±4%)
+            long h  = wx * 374761393L ^ wz * 668265263L;
+            float jitter = 1.0f + (((h >> 16) & 0xFF) - 128) / 3200.0f;
+
+            // Proportional hill shading
+            int wyN = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx,     wz - 1) - 1;
+            int wyE = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx + 1, wz    ) - 1;
+            if (wyN <= level.getMinBuildHeight() || wyN > level.getMaxBuildHeight()) wyN = wyTop;
+            if (wyE <= level.getMinBuildHeight() || wyE > level.getMaxBuildHeight()) wyE = wyTop;
+
+            float hill  = 1.0f + (wyTop - wyN) * 0.12f + (wyTop - wyE) * 0.06f;
+            hill = Math.max(0.40f, Math.min(1.60f, hill));
+            float alt   = Math.max(0.70f, Math.min(1.25f, 1.0f + (wyTop - 64) * 0.004f));
+            float total = hill * alt * jitter;
+
+            int r = Math.min(255, Math.max(0, (int)(((col >> 16) & 0xFF) * total)));
+            int g = Math.min(255, Math.max(0, (int)(((col >>  8) & 0xFF) * total)));
+            int b = Math.min(255, Math.max(0, (int)(( col        & 0xFF) * total)));
+            return (r << 16) | (g << 8) | b;
+
+
+    }
+
     /**
      * Samples the top-face baked-model sprite for {@code state}, averages the
      * non-transparent pixel colours, then multiplies by the biome tint if the
@@ -138,6 +195,49 @@ public final class TerrainColors {
         } catch (Exception ignored) {}
         int c = state.getMapColor(level, pos).col;
         return (c == 0 || c == -1) ? 0x707070 : c;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static int getBlockRenderColorWithExep(BlockState state,
+                                           Level level, BlockPos pos) throws Exception {
+            var mc    = Minecraft.getInstance();
+            var model = mc.getBlockRenderer().getBlockModel(state);
+            var quads = model.getQuads(state, Direction.UP,
+                    RandomSource.create(42L));
+            if (!quads.isEmpty()) {
+                var contents = quads.get(0).getSprite().contents();
+                int w = contents.width(), h = contents.height();
+                long rS = 0, gS = 0, bS = 0; int n = 0;
+                for (int sy = 0; sy < h; sy += 2) {
+                    for (int sx = 0; sx < w; sx += 2) {
+                        // NativeImage: pixels stored RGBA, R in LSB
+                        int px = contents.getOriginalImage().getPixelRGBA(sx, sy);
+                        if (((px >> 24) & 0xFF) < 64) continue;
+                        rS += px & 0xFF; gS += (px >> 8) & 0xFF; bS += (px >> 16) & 0xFF; n++;
+                    }
+                }
+                if (n > 0) {
+                    int tex = (int)(rS/n) << 16 | (int)(gS/n) << 8 | (int)(bS/n);
+                    int tint = mc.getBlockColors().getColor(state, level, pos, 0);
+                    if (tint != -1) {
+                        tex = ((tex >> 16 & 0xFF) * (tint >> 16 & 0xFF) / 255) << 16
+                                | ((tex >>  8 & 0xFF) * (tint >>  8 & 0xFF) / 255) << 8
+                                |  (tex       & 0xFF) * (tint       & 0xFF) / 255;
+                    }
+                    return tex;
+                }
+            }
+
+
+            int t = Minecraft.getInstance()
+                    .getBlockColors().getColor(state, level, pos, 0);
+            if (t != -1) return t;
+
+        int c = state.getMapColor(level, pos).col;
+        if(c == 0 || c == -1){
+            throw new Exception();
+        }
+        return c;
     }
 
     /**

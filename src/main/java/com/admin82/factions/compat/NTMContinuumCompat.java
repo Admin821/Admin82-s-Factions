@@ -25,4 +25,8 @@ public class NTMContinuumCompat implements Protection.Provider {
         return mngr.getChunkOwner(x, z, level.dimension().location().toString()) != null;
     }
 
+    public static void register(){
+        Protection.register(new NTMContinuumCompat());
+    }
+
 }
