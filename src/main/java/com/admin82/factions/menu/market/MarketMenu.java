@@ -37,7 +37,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -595,7 +595,7 @@ public class MarketMenu extends AbstractContainerMenu {
         icon.setItem(listing.item);
         icon.layout(l -> l.width(18).height(18));
         var actionBox = MarketUi.hbox(2);
-        actionBox.layout(l -> l.width(104).justifyContent(YogaJustify.FLEX_END));
+        actionBox.layout(l -> l.width(104).justifyContent(AlignContent.FLEX_END));
         actionBox.addChildren(action);
         var nameLabel = new Label().setText(MarketUi.itemLabel(listing.item, nameWidth));
         nameLabel.layout(l -> l.width(nameWidth));

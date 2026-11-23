@@ -29,7 +29,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -139,7 +139,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
             return;
         }
         var top = rowOf();
-        top.layout(l -> l.justifyContent(YogaJustify.SPACE_BETWEEN));
+        top.layout(l -> l.justifyContent(AlignContent.SPACE_BETWEEN));
         var title = new Label().setText("§6§l" + data.title() + " §7(level " + data.level() + ")");
         if (data.level() < data.maxLevel() && !data.upgradeNote().isEmpty()) tip(title, "§7" + data.upgradeNote());
         top.addChildren(title);

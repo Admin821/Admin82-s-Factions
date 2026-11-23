@@ -16,7 +16,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -103,7 +103,7 @@ public final class SeamMap {
         var outer = UiKit.background(new UIElement(), outline);
         outer.layout(l -> l.width(px).height(px).paddingAll(outline != 0 ? 1 : 0));
         var inner = UiKit.background(new UIElement(), color(c));
-        inner.layout(l -> l.flex(1).alignItems(AlignItems.CENTER).justifyContent(YogaJustify.CENTER));
+        inner.layout(l -> l.flex(1).alignItems(AlignItems.CENTER).justifyContent(AlignContent.CENTER));
         if (c.minable()) {
             var icon = new ItemSlot().setItem(ore(c.ore()));
             icon.style(st -> st.background(com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture.EMPTY));

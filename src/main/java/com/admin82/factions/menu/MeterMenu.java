@@ -19,7 +19,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.AlignContent;
 import dev.vfyjxf.taffy.style.FlexDirection;
+import dev.vfyjxf.taffy.style.JustifyContent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -33,7 +35,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -615,7 +617,7 @@ public class MeterMenu extends AbstractContainerMenu {
             int h = a < 0 ? 0 : max <= 0 ? 2 : Math.max(2, (int) (graphHeight * a / max));
             var slot = new UIElement();
             slot.layout(l -> l.width(barWidth).flexShrink(0).height(graphHeight).flexDirection(FlexDirection.COLUMN)
-                    .justifyContent(YogaJustify.FLEX_END));
+                    .justifyContent(AlignContent.FLEX_END));
             if (h > 0) {
                 var bar = UiKit.background(new UIElement(), ago == 0 ? 0xFFF0C040 : 0xFFB08830);
                 bar.layout(l -> l.width(barWidth).height(h));

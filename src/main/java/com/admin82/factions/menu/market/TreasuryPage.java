@@ -12,7 +12,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -206,7 +206,7 @@ final class TreasuryPage {
         for (long[] d : days) {
             var column = new UIElement();
             column.layout(l -> l.flexDirection(FlexDirection.COLUMN).justifyContent(
-                    YogaJustify.FLEX_END).width(columnWidth).height(height));
+                    AlignContent.FLEX_END).width(columnWidth).height(height));
             var bar = new UIElement();
             int barHeight = d[1] <= 0 ? 1 : Math.max(2, (int) Math.round((double) d[1] / max * (height - 2)));
             bar.layout(l -> l.height(barHeight).width(columnWidth));

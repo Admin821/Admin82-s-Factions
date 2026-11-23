@@ -250,7 +250,7 @@ public class FactionVaultMenu extends AbstractContainerMenu {
     /** A solid gold frame round a slot, marking it secure. */
     private static UIElement goldFrame(UIElement slot) {
         var frame = UiKit.background(new UIElement(), 0xFFD4A020);
-        frame.layout(l -> l.width(22).height(22).paddingAll(2).alignItems(AlignItems.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
+        frame.layout(l -> l.width(22).height(22).paddingAll(2).alignItems(AlignItems.CENTER).justifyContent(dev.vfyjxf.taffy.style.AlignContent.CENTER));
         frame.addChildren(slot);
         return frame;
     }

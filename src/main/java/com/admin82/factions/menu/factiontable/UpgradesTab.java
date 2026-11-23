@@ -241,7 +241,7 @@ final class UpgradesTab {
             boolean next = !isLocked && lvl == row.level() + 1;
             int fill = isLocked ? 0xFF3A2424 : owned ? 0xFF3FAF3F : next ? 0xFF6A6A6A : 0xFF3C3C3C;
             var pip = UiKit.background(new UIElement(), fill);
-            pip.layout(l -> l.width(18).height(12).alignItems(AlignItems.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
+            pip.layout(l -> l.width(18).height(12).alignItems(AlignItems.CENTER).justifyContent(dev.vfyjxf.taffy.style.AlignContent.CENTER));
             String r = roman(lvl);
             pip.addChildren(fitted((owned ? "§f" : isLocked ? "§8" : "§7") + r));
             track.addChildren(pip);

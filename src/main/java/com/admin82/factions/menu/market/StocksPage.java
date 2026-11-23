@@ -21,7 +21,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -159,7 +159,7 @@ final class StocksPage {
         for (var line : shown.subList(scroll * perPage, Math.min(shown.size(), (scroll + 1) * perPage))) area.addChildren(row(line));
 
         var pager = MarketUi.hbox(4);
-        pager.layout(l -> l.height(14).justifyContent(YogaJustify.FLEX_END).alignItems(AlignItems.CENTER));
+        pager.layout(l -> l.height(14).justifyContent(AlignContent.FLEX_END).alignItems(AlignItems.CENTER));
         pager.addChildren(MarketUi.smallButton("§7◀", 18, () -> { scroll = Math.max(0, scroll - 1); render(); }),
                 new Label().setText("§7" + (scroll + 1) + "/" + pages + " §8· " + shown.size() + " items"),
                 MarketUi.smallButton("§7▶", 18, () -> { scroll = Math.min(pages - 1, scroll + 1); render(); }));

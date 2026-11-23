@@ -7,7 +7,7 @@ import dev.vfyjxf.taffy.style.FlexDirection;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.List;
 import java.util.Locale;
@@ -53,7 +53,7 @@ public final class SearchPicker {
                     if (!q.isEmpty() && !n.toLowerCase(Locale.ROOT).contains(q) && !id.toLowerCase(Locale.ROOT).contains(q)) continue;
                     boolean picked = id.equals(current);
                     var row = UiKit.background(new UIElement(), picked ? 0x704A90E0 : UiKit.ROW);
-                    row.layout(l -> l.height(12).paddingLeft(3).justifyContent(YogaJustify.CENTER));
+                    row.layout(l -> l.height(12).paddingLeft(3).justifyContent(AlignContent.CENTER));
                     row.addChildren(new Label().setText((picked ? "§b▶ §f" : "§f") + n + (n.equals(id) ? "" : " §8" + id)));
                     UiKit.onClick(row, e -> onPick.accept(id));
                     list.addChildren(row);

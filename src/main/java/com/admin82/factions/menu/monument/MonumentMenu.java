@@ -49,7 +49,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -474,7 +474,7 @@ public class MonumentMenu extends AbstractContainerMenu {
 
         if (pageCount > 1) {
             var pager = MonumentUi.hbox(8);
-            pager.layout(l -> l.width(contentWidth).height(22).justifyContent(YogaJustify.CENTER));
+            pager.layout(l -> l.width(contentWidth).height(22).justifyContent(AlignContent.CENTER));
             var previous = new Button().setText(browserPage > 0 ? "‹ Previous" : "§8‹ Previous").setOnClick(event -> {
                 if (browserPage > 0) browserPage--;
                 refreshMonumentScreen();

@@ -16,7 +16,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -219,7 +219,7 @@ public final class MarketWidgets {
         for (Bucket bucket : buckets) {
             var column = new UIElement();
             column.layout(l -> l.flexDirection(FlexDirection.COLUMN).justifyContent(
-                    YogaJustify.FLEX_END).width(columnWidth).height(height));
+                    AlignContent.FLEX_END).width(columnWidth).height(height));
             var bar = new UIElement();
             if (bucket.sales() == 0) {
                 bar.layout(l -> l.height(1).width(columnWidth));

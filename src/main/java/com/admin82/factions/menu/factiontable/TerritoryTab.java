@@ -678,7 +678,7 @@ final class TerritoryTab {
 
                 // Plain UIElement, no background; terrain + borders show through
                 var cell = new UIElement();
-                cell.layout(l -> l.width(fcs).height(fcs).alignItems(AlignItems.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
+                cell.layout(l -> l.width(fcs).height(fcs).alignItems(AlignItems.CENTER).justifyContent(dev.vfyjxf.taffy.style.AlignContent.CENTER));
                 // A seam the faction has scanned: its ore on the chunk, and the seam's details on hover
                 var seam = seams.get(net.minecraft.world.level.ChunkPos.asLong(cx, cz));
                 if (seam != null && seam.hasSeam()) {

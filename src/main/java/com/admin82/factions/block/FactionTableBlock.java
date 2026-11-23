@@ -50,7 +50,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-public class FactionTableBlock extends BaseEntityBlock implements MultiblockPreview {
+@SuppressWarnings("deprecation") public class FactionTableBlock extends BaseEntityBlock implements MultiblockPreview {
 
     public static final MapCodec<FactionTableBlock> CODEC = simpleCodec(FactionTableBlock::new);
 

@@ -36,7 +36,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import dev.vfyjxf.taffy.style.AlignItems;
 
-import org.appliedenergistics.yoga.YogaJustify;
+import dev.vfyjxf.taffy.style.AlignContent;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -261,7 +261,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         var descVal   = new String[]{""};
         var statusVal = new String[]{""};
         var wrapper = new UIElement();
-        wrapper.layout(l -> l.flex(1).alignItems(AlignItems.CENTER).justifyContent(YogaJustify.CENTER));
+        wrapper.layout(l -> l.flex(1).alignItems(AlignItems.CENTER).justifyContent(AlignContent.CENTER));
         var card = UiKit.background(new UIElement(), UiKit.CARD);
         card.layout(l -> l.width(360).paddingAll(12).gapAll(6).flexDirection(FlexDirection.COLUMN));
         var nameField = UiKit.textField("");
