@@ -66,7 +66,7 @@ public class FactionTableItem extends BlockItem {
             }
 
             // Must be placed outdoors (at or near the surface) and not covered
-            int surfaceY = ((ServerLevel) level).getHeight(
+            int surfaceY = level.getHeight(
                     Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     targetPos.getX(), targetPos.getZ());
             if (targetPos.getY() < surfaceY - 1) {

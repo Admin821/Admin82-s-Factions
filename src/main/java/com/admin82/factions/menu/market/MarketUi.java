@@ -5,6 +5,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -50,7 +51,7 @@ import net.minecraft.world.level.block.TorchBlock;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -188,14 +189,14 @@ final class MarketUi {
     @OnlyIn(Dist.CLIENT)
     static UIElement hbox(int gap) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
+        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
         return box;
     }
 
     @OnlyIn(Dist.CLIENT)
     static UIElement vbox(int gap) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(gap));
+        box.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(gap));
         return box;
     }
 

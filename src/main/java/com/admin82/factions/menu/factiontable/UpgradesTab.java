@@ -11,6 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -18,7 +19,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import javax.annotation.Nullable;
 
@@ -47,7 +48,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     UIElement buildPanel() {
         panel = new UIElement();
-        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        panel.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(4));
         PacketDistributor.sendToServer(new FactionUpgradePacket(FactionUpgradePacket.REFRESH, ""));
         render();
         return panel;
@@ -101,7 +102,7 @@ final class UpgradesTab {
         if (panel == null) return;
         panel.clearAllChildren();
         var title = new UIElement();
-        title.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
+        title.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
         title.addChildren(new Label().setText("§6§lFaction Upgrades").layout(l -> l.flex(1)));
         if (data != null) {
             var have = warbondAmount(warbonds(), warbonds() > 0 ? "§d" : "§8", 14);
@@ -118,7 +119,7 @@ final class UpgradesTab {
 
         // Sub-tabs
         var tabs = new UIElement();
-        tabs.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(18));
+        tabs.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).height(18));
         for (Section sec : Section.values()) {
             int ready = 0;
             for (var row : data.rows()) {
@@ -161,12 +162,12 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private UIElement tiles(java.util.List<SyncFactionUpgradesPacket.Row> rows) {
         var nodes = new UIElement();
-        nodes.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(5));
+        nodes.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(5));
         UIElement line = null;
         for (int i = 0; i < rows.size(); i++) {
             if (i % 2 == 0) {
                 line = new UIElement();
-                line.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+                line.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
                 nodes.addChildren(line);
             }
             line.addChildren(node(rows.get(i)));
@@ -178,7 +179,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private UIElement seamSection(java.util.List<SyncFactionUpgradesPacket.Row> rows) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        box.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4));
         var paths = new java.util.ArrayList<SyncFactionUpgradesPacket.Row>();
         for (var row : rows) {
             if (isPath(row)) paths.add(row);
@@ -190,14 +191,14 @@ final class UpgradesTab {
         for (var row : paths) if (!locked(row) && row.level() > 0) taken = row;
 
         var tree = UiKit.background(new UIElement(), UiKit.CARD);
-        tree.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).paddingAll(4));
+        tree.layout(l -> l.flexDirection(FlexDirection.COLUMN).paddingAll(4));
         tree.addChildren(new Label().setText(taken == null
                 ? "§6§lMining path §7· pick §fONE§7, the other two lock for good"
                 : "§6§lMining path §7· your faction took §e" + taken.name().replace("Seam ", "")).layout(l -> l.height(11)));
         for (int i = 0; i < paths.size(); i++) {
             if (i > 0) {
                 var or = new UIElement();
-                or.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(9).paddingLeft(11));
+                or.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(9).paddingLeft(11));
                 var bar = UiKit.background(new UIElement(), 0x40FFFFFF);
                 bar.layout(l -> l.width(2).height(9));
                 or.addChildren(bar, fitted("§8or"));
@@ -219,7 +220,7 @@ final class UpgradesTab {
         boolean isTaken = row == taken;
         int bg = isSelected ? SELECTED : isLocked ? 0x30000000 : isTaken ? MAXED : UiKit.ROW;
         var line = UiKit.background(new UIElement(), bg);
-        line.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(20).paddingHorizontal(3));
+        line.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(20).paddingHorizontal(3));
 
         var icon = new ItemSlot().setItem(iconFor(row));
         icon.layout(l -> l.width(16).height(16));
@@ -228,7 +229,7 @@ final class UpgradesTab {
 
         // The track: I━II━III━IV
         var track = new UIElement();
-        track.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER));
+        track.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER));
         int max = isLocked ? PATH_LEVELS : Math.max(1, row.maxLevel());
         for (int lvl = 1; lvl <= max; lvl++) {
             if (lvl > 1) {
@@ -271,14 +272,14 @@ final class UpgradesTab {
         boolean done = maxed(row);
         boolean affordable = !done && !locked(row) && warbonds() >= row.cost();
         var tile = UiKit.background(new UIElement(), isSelected ? SELECTED : done ? MAXED : affordable ? AFFORDABLE : UiKit.ROW);
-        tile.layout(l -> l.width(NODE_WIDTH).height(NODE_HEIGHT).flexDirection(YogaFlexDirection.ROW)
+        tile.layout(l -> l.width(NODE_WIDTH).height(NODE_HEIGHT).flexDirection(FlexDirection.ROW)
                 .alignItems(YogaAlign.CENTER).gapAll(6).paddingAll(4));
         var icon = new ItemSlot().setItem(iconFor(row));
         var text = new UIElement();
-        text.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        text.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2));
         String name = row.name().startsWith("Outpost: ") ? row.name().substring(9) : row.name();
         var bottom = new UIElement();
-        bottom.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(10));
+        bottom.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(10));
         bottom.addChildren(fitted(levelText(row)),
                 locked(row) ? fitted("§c🔒 Locked") : done ? fitted("§6✔ Max")
                         : warbondAmount(row.cost(), affordable ? "§a" : "§d", 10));
@@ -306,7 +307,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private UIElement details(SyncFactionUpgradesPacket.Row row) {
         var card = UiKit.background(new UIElement(), UiKit.CARD);
-        card.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(5));
+        card.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(5));
         card.addChildren(new Label().setText("§e§l" + row.name() + (locked(row) ? " §c· locked" : " §7· level " + row.level()
                 + (unlimited(row) ? " §8(no limit)" : "/" + row.maxLevel()))));
         for (String line : description(row)) {
@@ -322,7 +323,7 @@ final class UpgradesTab {
             return card;
         }
         var buyRow = new UIElement();
-        buyRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
+        buyRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
         boolean affordable = warbonds() >= row.cost();
         boolean canBuy = affordable && data.canUpgrade();
         if (!canBuy) armed = false;
@@ -391,7 +392,7 @@ final class UpgradesTab {
         boolean hasNext = !maxed(row) && !row.next().isEmpty();
         String[] next = hasNext ? row.next().split(" · ") : new String[0];
         var table = new UIElement();
-        table.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        table.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         table.addChildren(statRow("§8Now", hasNext ? "§8Next level" : "", hasNext));
         for (int i = 0; i < Math.max(now.length, next.length); i++) {
             String a = i < now.length ? now[i] : "";
@@ -404,7 +405,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private static UIElement statRow(String now, String next, boolean arrow) {
         var line = new UIElement();
-        line.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(10));
+        line.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(10));
         line.addChildren(new Label().setText(now).layout(l -> l.width(STAT_WIDTH)));
         if (arrow) {
             line.addChildren(new Label().setText(now.startsWith("§8") ? "" : "§8→").layout(l -> l.width(14)),
@@ -429,7 +430,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private static UIElement warbondAmount(int amount, String color, int iconSize) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2).height(iconSize));
+        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2).height(iconSize));
         var icon = new ItemSlot().setItem(new ItemStack(ModItems.WARBOND.get()));
         icon.slotStyle(st -> st.showItemTooltips(true)); // hover the icon to see the Warbond item
         icon.style(st -> st.background(com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture.EMPTY));

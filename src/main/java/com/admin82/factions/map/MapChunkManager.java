@@ -42,7 +42,7 @@ public class MapChunkManager {
             }
     );
 
-    private static ConcurrentHashMap<Long, Byte> ageMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, Byte> ageMap = new ConcurrentHashMap<>();
     private static volatile byte iter = 1;
 
 
@@ -98,7 +98,7 @@ public class MapChunkManager {
         final int chunkX = event.getChunk().getPos().x;
         final int chunkZ = event.getChunk().getPos().z;
         final long packedPos = MapChunks.packChunkPos(chunkX, chunkZ);
-        if (ageMap.computeIfAbsent(packedPos, k -> (byte) 0) != 0 || false) {
+        if (ageMap.computeIfAbsent(packedPos, k -> (byte) 0) != 0) {
             ageMap.put(packedPos, (byte) 120);
         }
     }

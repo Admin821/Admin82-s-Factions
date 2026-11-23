@@ -26,6 +26,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
@@ -47,7 +48,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.ArrayList;
@@ -394,7 +395,7 @@ public class MonumentMenu extends AbstractContainerMenu {
         frame.addClass("preview_bg");
         var root = new UIElement();
         root.layout(l -> l.width(panelWidth - 4).height(panelHeight - 4).paddingAll(8).gapAll(6)
-                .flexDirection(YogaFlexDirection.COLUMN));
+                .flexDirection(FlexDirection.COLUMN));
         root.addClass("panel_bg");
         MonumentView selected = selectedView();
         root.addChildren(buildHeader(selected));

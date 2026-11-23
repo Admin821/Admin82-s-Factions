@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -14,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import javax.annotation.Nullable;
@@ -81,12 +82,12 @@ public final class SeamMap {
     public static UIElement grid(List<SeamCell> cells, int size, int cellPx, String playerChunk, @Nullable String selected,
                                  @Nullable Consumer<SeamCell> onClick) {
         var grid = new UIElement();
-        grid.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        grid.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         UIElement row = null;
         for (int i = 0; i < cells.size(); i++) {
             if (i % size == 0) {
                 row = new UIElement();
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1));
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1));
                 grid.addChildren(row);
             }
             row.addChildren(cell(cells.get(i), cellPx, playerChunk, selected, onClick));
@@ -136,14 +137,14 @@ public final class SeamMap {
     /** The colour key, {@code perRow} entries to a row (so it fits narrow screens). */
     public static UIElement legend(int perRow) {
         var col = new UIElement();
-        col.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).alignItems(YogaAlign.CENTER).gapAll(2));
+        col.layout(l -> l.flexDirection(FlexDirection.COLUMN).alignItems(YogaAlign.CENTER).gapAll(2));
         String[] names = {"§dOverflowing", "§6Endless", "§bRich", "§aMiddling", "§ePoor", "§8Depleted"};
         int[] colors = {0xD08A3CC8, 0xD0B07818, 0xD02E86B8, 0xD03C9A44, 0xD0A89A2C, 0xC0303030};
         UIElement row = null;
         for (int i = 0; i < names.length; i++) {
             if (i % perRow == 0) {
                 row = new UIElement();
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3).height(10));
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3).height(10));
                 col.addChildren(row);
             }
             var swatch = UiKit.background(new UIElement(), colors[i]);

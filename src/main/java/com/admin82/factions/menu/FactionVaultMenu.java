@@ -14,6 +14,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
@@ -32,7 +33,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.UUID;
 
@@ -174,7 +175,7 @@ public class FactionVaultMenu extends AbstractContainerMenu {
         frame.layout(l -> l.width(width).height(height).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(4));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(4));
         root.addClass("panel_bg");
 
         var header = row();
@@ -201,7 +202,7 @@ public class FactionVaultMenu extends AbstractContainerMenu {
 
         // The rest of the vault, scrollable
         var grid = new UIElement();
-        grid.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).width(gridWidth));
+        grid.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).width(gridWidth));
         for (int start = secure; start < size; start += COLUMNS) {
             var r = row();
             for (int i = start; i < Math.min(size, start + COLUMNS); i++) r.addChildren(cell(i, false));
@@ -217,7 +218,7 @@ public class FactionVaultMenu extends AbstractContainerMenu {
         tip(invLabel, "§7Shift-click moves a whole stack across.");
         root.addChildren(invLabel);
         var inv = new UIElement();
-        inv.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        inv.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2));
         for (int r0 = 0; r0 < 4; r0++) {
             var r = row();
             int top = r0 == 3 ? 4 : 0; // hotbar a little apart, like vanilla
@@ -256,7 +257,7 @@ public class FactionVaultMenu extends AbstractContainerMenu {
 
     private static UIElement row() {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
         return r;
     }
 

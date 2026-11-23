@@ -9,12 +9,13 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.time.Instant;
@@ -68,7 +69,7 @@ public final class MarketWidgets {
 
     public static UIElement historyRow(Transaction entry, int width) {
         var row = UiKit.background(new UIElement(), UiKit.ROW);
-        row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
                 .height(20).paddingHorizontal(4));
         if (entry.icon().isEmpty()) {
             var dot = new UIElement();
@@ -118,7 +119,7 @@ public final class MarketWidgets {
     public static UIElement priceStats(@Nullable List<PricePoint> points, String itemName, int width, int stackSize,
                                        @Nullable LongConsumer useAverage) {
         var card = UiKit.background(new UIElement(), UiKit.CARD);
-        card.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(3).paddingAll(6));
+        card.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3).paddingAll(6));
         card.addChildren(new Label().setText("§6Price history §7· " + itemName + " §8(per item)"));
         if (points == null) {
             card.addChildren(new Label().setText("§7Loading..."));
@@ -162,7 +163,7 @@ public final class MarketWidgets {
 
     private static UIElement statRow(String label, String value) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(11));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(11));
         row.addChildren(new Label().setText("§7" + label).layout(l -> l.width(96)), new Label().setText(value));
         return row;
     }
@@ -203,9 +204,9 @@ public final class MarketWidgets {
         long max = Math.max(1, buckets.stream().mapToLong(Bucket::average).max().orElse(1));
 
         var wrapper = new UIElement();
-        wrapper.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        wrapper.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         var top = new UIElement();
-        top.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(10));
+        top.layout(l -> l.flexDirection(FlexDirection.ROW).height(10));
         top.addChildren(new Label().setText("§8max " + Currency.format(max)).layout(l -> l.flex(1)),
                 new Label().setText(daily ? "§8daily average" : "§8each sale").lss("horizontal-align", "right")
                         .layout(l -> l.width(80)));
@@ -213,11 +214,11 @@ public final class MarketWidgets {
         int count = buckets.size();
         int columnWidth = Math.max(2, (width - (count - 1)) / count);
         var bars = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        bars.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1)
+        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1)
                 .height(height).paddingHorizontal(1));
         for (Bucket bucket : buckets) {
             var column = new UIElement();
-            column.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).justifyContent(
+            column.layout(l -> l.flexDirection(FlexDirection.COLUMN).justifyContent(
                     YogaJustify.FLEX_END).width(columnWidth).height(height));
             var bar = new UIElement();
             if (bucket.sales() == 0) {
@@ -236,7 +237,7 @@ public final class MarketWidgets {
         }
 
         var bottom = new UIElement();
-        bottom.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(10));
+        bottom.layout(l -> l.flexDirection(FlexDirection.ROW).height(10));
         bottom.addChildren(new Label().setText("§8" + buckets.get(0).label()).layout(l -> l.flex(1)),
                 new Label().setText("§8" + (daily ? "today" : "latest")).lss("horizontal-align", "right")
                         .layout(l -> l.width(60)));

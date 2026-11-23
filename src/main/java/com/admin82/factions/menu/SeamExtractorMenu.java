@@ -15,6 +15,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -34,7 +35,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import javax.annotation.Nullable;
 import java.util.Locale;
@@ -125,17 +126,17 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
         frame.layout(l -> l.width(WIDTH).height(310).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(4));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(4));
         root.addClass("panel_bg");
 
         root.addChildren(new Label().setText("§6§l⛏ Seam Extractor"));
         info = new UIElement();
-        info.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).height(146));
+        info.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4).height(146));
         root.addChildren(info);
         renderInfo();
 
         var slotsColumn = new UIElement();
-        slotsColumn.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).width(9 * 18).alignSelf(YogaAlign.CENTER));
+        slotsColumn.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4).width(9 * 18).alignSelf(YogaAlign.CENTER));
         var outLabel = new Label().setText("§7Ore mined");
         tip(outLabel, "§7Click to take. Hoppers and pipes can empty it too.");
         slotsColumn.addChildren(outLabel);
@@ -146,7 +147,7 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
 
         slotsColumn.addChildren(new Label().setText("§7Your inventory"));
         var inv = new UIElement();
-        inv.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(0));
+        inv.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(0));
         for (int r0 = 0; r0 < 4; r0++) {
             var r = row();
             int top = r0 == 3 ? 4 : 0; // hotbar a little apart, like vanilla
@@ -180,7 +181,7 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
         icon.setItem(ore);
         icon.slotStyle(st -> st.showItemTooltips(true));
         var names = new UIElement();
-        names.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).flex(1));
+        names.layout(l -> l.flexDirection(FlexDirection.COLUMN).flex(1));
         names.addChildren(new Label().setText("§f§l" + (ore.isEmpty() ? "No ore" : ore.getHoverName().getString())),
                 new Label().setText("§7Seam: " + d.seamText()));
         head.addChildren(icon, names);
@@ -226,7 +227,7 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
         double f = Math.max(0, Math.min(1, fill));
         int inner = WIDTH - 36;
         var track = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        track.layout(l -> l.width(inner).height(5).flexDirection(YogaFlexDirection.ROW));
+        track.layout(l -> l.width(inner).height(5).flexDirection(FlexDirection.ROW));
         if (f > 0) {
             var bar = UiKit.background(new UIElement(), color);
             bar.layout(l -> l.width(Math.max(1, (int) (inner * f))).height(5));
@@ -264,13 +265,13 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
 
     private static UIElement card() {
         var c = UiKit.background(new UIElement(), UiKit.CARD);
-        c.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(4));
+        c.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(4));
         return c;
     }
 
     private static UIElement row() {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
         return r;
     }
 

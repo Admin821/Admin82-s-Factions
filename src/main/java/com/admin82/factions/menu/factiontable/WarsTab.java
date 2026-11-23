@@ -17,6 +17,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.mojang.authlib.properties.PropertyMap;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.component.DataComponents;
@@ -30,7 +31,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
@@ -86,7 +87,7 @@ final class WarsTab {
 
     UIElement buildWarsPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(8).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).paddingAll(8).gapAll(6).flexDirection(FlexDirection.COLUMN));
         warsPanel = panel;
         fillWarsPanel(player);
         return panel;
@@ -113,7 +114,7 @@ final class WarsTab {
 
         // Header
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
         header.addChildren(new Label().setText("§6§l⚔ Wars").layout(l -> l.flex(1)),
                 UiKit.rightLabel(wars.isEmpty() ? "§a● At peace" : "§c● " + wars.size() + " active war" + (wars.size() == 1 ? "" : "s")));
         warsPanel.addChildren(header);
@@ -126,11 +127,11 @@ final class WarsTab {
         } else {
             for (WarEntry we : wars) {
                 var wr = UiKit.background(new UIElement(), UiKit.ROW);
-                wr.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6)
+                wr.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6)
                         .height(24).paddingHorizontal(4));
                 String type = we.warType() != null ? we.warType().displayName : "Faction Fight";
                 var info = new UIElement();
-                info.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+                info.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
                 info.addChildren(new Label().setText("§c⚔ §f§l" + we.targetFactionName()),
                         new Label().setText("§8" + type + " · started " + warAgo(we.startTime())));
                 wr.addChildren(info);
@@ -162,14 +163,14 @@ final class WarsTab {
         var others = FactionTableMenu.card();
         others.layout(l -> l.flex(1));
         var othersHeader = new UIElement();
-        othersHeader.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
+        othersHeader.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
         othersHeader.addChildren(new Label().setText("§e§lOther Factions").layout(l -> l.flex(1)),
                 UiKit.rightLabel("§8" + menu.allFactions.get().size() + " total"));
         others.addChildren(othersHeader);
         if (!canWar) others.addChildren(new Label().setText("§8Only officers and above can declare war."));
 
         warsListArea = new UIElement();
-        warsListArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        warsListArea.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2));
         var pageLabel = new Label();
         pageLabel.lss("horizontal-align", "center");
         pageLabel.layout(l -> l.flex(1));
@@ -188,7 +189,7 @@ final class WarsTab {
 
         if (menu.allFactions.get().size() > WARS_ROWS) {
             var scrollRow = new UIElement();
-            scrollRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+            scrollRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
             scrollRow.addChildren(
                     new Button().setText("▲").setOnClick(e -> {
                         menu.allFactionsScroll = Math.max(0, menu.allFactionsScroll - WARS_ROWS);
@@ -231,7 +232,7 @@ final class WarsTab {
             boolean atWar = myFaction != null && myFaction.getWars().stream()
                     .anyMatch(w -> w.targetFactionId().equals(s.id()));
             var row = UiKit.background(new UIElement(), UiKit.ROW);
-            row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6)
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6)
                     .height(20).paddingHorizontal(4));
             row.addChildren(
                     new Label().setText((atWar ? "§c" : "§f") + s.name()).layout(l -> l.flex(1)),
@@ -284,7 +285,7 @@ final class WarsTab {
             List<FactionMember> members = myFaction.getMembers();
             for (int i = 0; i < members.size(); i += 2) {
                 var row = new UIElement();
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingBottom(4));
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).paddingBottom(4));
                 for (int j = i; j < Math.min(i + 2, members.size()); j++) {
                     FactionMember fm = members.get(j);
                     UUID uid   = fm.getUuid();
@@ -304,7 +305,7 @@ final class WarsTab {
 
                     var card = new UIElement();
                     card.layout(l -> l.width(196).paddingAll(6).gapAll(3)
-                            .flexDirection(YogaFlexDirection.COLUMN));
+                            .flexDirection(FlexDirection.COLUMN));
                     UiKit.background(card, sel ? 0x8822AA22 : UiKit.CARD);
 
                     card.addChildren(
@@ -329,7 +330,7 @@ final class WarsTab {
         }
 
         var btnRow = new UIElement();
-        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingTop(6));
+        btnRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).paddingTop(6));
         btnRow.addChildren(
                 new Button().setText(selCount > 0
                                 ? "§a⚔ Start War §7(" + selCount + " fighter" + (selCount == 1 ? "" : "s") + ")"
@@ -410,7 +411,7 @@ final class WarsTab {
         );
 
         var warningBox = new UIElement();
-        warningBox.layout(l -> l.width(400).paddingAll(8).gapAll(5).flexDirection(YogaFlexDirection.COLUMN));
+        warningBox.layout(l -> l.width(400).paddingAll(8).gapAll(5).flexDirection(FlexDirection.COLUMN));
         UiKit.background(warningBox, 0x55AA0000);
         warningBox.addChildren(
                 new Label().setText("§eThe LOSER of this war — attacker or defender — will:"),
@@ -423,7 +424,7 @@ final class WarsTab {
         warsPanel.addChildren(warningBox);
 
         var btnRow = new UIElement();
-        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).paddingTop(10));
+        btnRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).paddingTop(10));
         btnRow.addChildren(
                 new Button().setText("§c⚔ Accept — Wage All Out War on " + target)
                         .setOnClick(e -> {
@@ -464,7 +465,7 @@ final class WarsTab {
         // data hasn't arrived yet, fillWarMapCells renders blank terrain; the map
         // updates via fillWarsPanel once SyncEnemyClaimsPacket triggers updateEnemyClaims.
         var mapRow = new UIElement();
-        mapRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        mapRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
 
         // Map
         warTerrainMapGrid = new UIElement();
@@ -512,7 +513,7 @@ final class WarsTab {
             });
 
             warChunkInfoPanel = new UIElement();
-            warChunkInfoPanel.layout(l -> l.width(162).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+            warChunkInfoPanel.layout(l -> l.width(162).flexDirection(FlexDirection.COLUMN).gapAll(4));
             refreshWarChunkInfo(playerCoreX, playerCoreZ);
 
             mapRow.addChildren(warTerrainMapGrid, warChunkInfoPanel);
@@ -524,7 +525,7 @@ final class WarsTab {
 
         // Bottom buttons
         var btnRow = new UIElement();
-        btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).paddingTop(2));
+        btnRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).paddingTop(2));
         btnRow.addChildren(
                 warContinueBtn = (Button) new Button()
                         .setOnClick(e -> {
@@ -745,7 +746,7 @@ final class WarsTab {
         // Step 2: transparent click cells
         for (int row = 0; row < warMapViewSize; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(fcs));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).height(fcs));
             for (int col = 0; col < warMapViewSize; col++) {
                 int cx = viewCX - halfView + col, cz = viewCZ - halfView + row;
                 String key = cx + "," + cz + "," + menu.tableDim;

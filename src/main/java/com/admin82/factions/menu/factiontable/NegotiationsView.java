@@ -14,6 +14,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -22,7 +23,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.*;
 import javax.annotation.Nullable;
@@ -72,7 +73,7 @@ final class NegotiationsView {
 
         // Header
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
         var back = new Button().setText("§7◀ Back").setOnClick(e -> { menu.wars.warsSubView = WarsSubView.LIST; menu.wars.fillWarsPanel(player); });
         back.layout(l -> l.width(54).height(16));
         var refresh = new Button().setText("§7⟳").setOnClick(e -> {
@@ -104,7 +105,7 @@ final class NegotiationsView {
                 final UUID id = incoming.demandId;
                 boolean confirming = id.equals(confirmDemandId);
                 var actions = new UIElement();
-                actions.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(18));
+                actions.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).height(18));
                 var accept = new Button().setText(confirming ? "§a§lConfirm: end the war" : "§a✔ Accept").setOnClick(e -> {
                     if (id.equals(confirmDemandId)) {
                         confirmDemandId = null;
@@ -160,7 +161,7 @@ final class NegotiationsView {
         }
         if (officer) {
             var actions = new UIElement();
-            actions.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(18));
+            actions.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).height(18));
             var compose = new Button().setText(outgoing == null ? "§e+ New demand" : "§e✎ Replace demand").setOnClick(e -> {
                 menu.wars.warsSubView = WarsSubView.COMPOSE_DEMAND;
                 menu.wars.fillWarsPanel(player);
@@ -199,7 +200,7 @@ final class NegotiationsView {
                     default -> "§8Expired";
                 };
                 var row = UiKit.background(new UIElement(), UiKit.ROW);
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
                         .height(14).paddingHorizontal(4));
                 String terms = d.termsSummary();
                 row.addChildren(new Label().setText((mineSent ? "§eYou" : "§c" + d.senderFactionName) + "§8: " + terms)
@@ -215,7 +216,7 @@ final class NegotiationsView {
     private UIElement demandHeader(WarDemand d, String text) {
         long minutesLeft = Math.max(0, (d.expiresAt - System.currentTimeMillis()) / 60_000L);
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
         row.addChildren(new Label().setText(text).layout(l -> l.flex(1)),
                 UiKit.rightLabel("§8sent " + WarsTab.warAgo(d.sentAt) + " · §e" + (minutesLeft < 1 ? "<1" : minutesLeft) + "m left"));
         return row;
@@ -237,7 +238,7 @@ final class NegotiationsView {
             ResourceLocation rl = ResourceLocation.tryParse(d.itemId);
             Item item = rl == null ? null : BuiltInRegistries.ITEM.getOptional(rl).orElse(null);
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
             if (item != null) {
                 var slot = new ItemSlot().setItem(new ItemStack(item));
                 slot.layout(l -> l.width(18).height(18));
@@ -276,7 +277,7 @@ final class NegotiationsView {
     void buildComposeDemandView(Player player) {
         String enemy = menu.wars.warsNegotiateTarget != null ? menu.wars.warsNegotiateTarget.name() : "?";
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
         var back = new Button().setText("§7◀ Back").setOnClick(e -> { menu.wars.warsSubView = WarsSubView.NEGOTIATIONS; menu.wars.fillWarsPanel(player); });
         back.layout(l -> l.width(54).height(16));
         header.addChildren(back, new Label().setText("§6§l⚑ New demand to §c§l" + enemy).layout(l -> l.flex(1)));
@@ -303,7 +304,7 @@ final class NegotiationsView {
         // Money
         var moneyCard = FactionTableMenu.card();
         var moneyRow = new UIElement();
-        moneyRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
+        moneyRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
         var moneyField = UiKit.textField("");
         moneyField.setValue(composeMoneyText[0]);
         moneyField.bindObserver(v -> {
@@ -319,7 +320,7 @@ final class NegotiationsView {
 
         // Items
         var itemRow = new UIElement();
-        itemRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
+        itemRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
         var itemField = UiKit.textField("");
         itemField.setValue(composeItemId[0]);
         itemField.bindObserver(v -> { composeItemId[0] = v.trim(); update.run(); });
@@ -349,7 +350,7 @@ final class NegotiationsView {
 
         // Land
         var landRow = new UIElement();
-        landRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
+        landRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
         var landLabel = new Label().setText("§f" + composeLandChunks[0]);
         landLabel.lss("horizontal-align", "center");
         landLabel.layout(l -> l.width(28));
@@ -371,7 +372,7 @@ final class NegotiationsView {
 
         // Vassal
         var vassalRow = new UIElement();
-        vassalRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
+        vassalRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
         var vassalToggle = UiKit.toggle();
         vassalToggle.setOn(composeVassal[0]);
         vassalToggle.setOnToggleChanged(on -> { composeVassal[0] = on; update.run(); });
@@ -385,7 +386,7 @@ final class NegotiationsView {
         var footer = FactionTableMenu.card();
         footer.addChildren(summary, new Label().setText("§8They have 10 minutes to answer. Accepting ends the war."));
         var buttons = new UIElement();
-        buttons.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(18));
+        buttons.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).height(18));
         var send = new Button().setText("§a⚑ Send").setOnClick(e -> {
             if (menu.wars.warsNegotiateTarget == null) return;
             if (!composeMoneyText[0].isBlank() && composeMoney[0] <= 0) return;

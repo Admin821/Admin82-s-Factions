@@ -8,10 +8,11 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.*;
 import javax.annotation.Nullable;
@@ -41,7 +42,7 @@ final class AlliancesTab {
 
     UIElement buildAlliancesPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(FlexDirection.COLUMN));
         alliancesPanel = panel;
         fillAlliancesPanel(player);
         return panel;
@@ -63,7 +64,7 @@ final class AlliancesTab {
         }
 
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
         header.addChildren(new Label().setText("§6§l🤝 Alliances").layout(l -> l.flex(1)),
                 UiKit.rightLabel(allies.isEmpty() ? "§8No allies" : "§a" + allies.size() + " all" + (allies.size() == 1 ? "y" : "ies")));
         alliancesPanel.addChildren(header,
@@ -156,7 +157,7 @@ final class AlliancesTab {
         if (candidates.isEmpty()) others.addChildren(new Label().setText("§7No other factions to ally with."));
         allianceOthersScroll = Math.max(0, Math.min(allianceOthersScroll, candidates.size() - ALLIANCE_OTHER_ROWS));
         var list = new UIElement();
-        list.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        list.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2));
         list.addEventListener(UIEvents.MOUSE_WHEEL, ev -> {
             allianceOthersScroll = Math.max(0, allianceOthersScroll + (ev.deltaY > 0 ? -1 : 1));
             fillAlliancesPanel(player);
@@ -190,9 +191,9 @@ final class AlliancesTab {
 
     private UIElement allianceRow(String title, String subtitle) {
         var row = UiKit.background(new UIElement(), UiKit.ROW);
-        row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(22).paddingHorizontal(4));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(22).paddingHorizontal(4));
         var info = new UIElement();
-        info.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        info.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         info.addChildren(new Label().setText(title), new Label().setText(subtitle));
         row.addChildren(info);
         return row;

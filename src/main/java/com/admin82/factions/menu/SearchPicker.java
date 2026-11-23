@@ -3,9 +3,10 @@ package com.admin82.factions.menu;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public final class SearchPicker {
     public static UIElement create(List<String> ids, Function<String, String> name, String current, String query,
                                    Consumer<String> onQuery, Consumer<String> onPick, int listHeight) {
         var root = new UIElement();
-        root.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).widthPercent(100));
+        root.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).widthPercent(100));
         var search = UiKit.textField("Search...");
         search.setValue(query);
         search.layout(l -> l.height(14).widthPercent(100));
@@ -38,7 +39,7 @@ public final class SearchPicker {
         var scroller = UiKit.background(new ScrollerView(), UiKit.CARD);
         scroller.layout(l -> l.widthPercent(100).height(listHeight));
         var list = new UIElement();
-        list.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1).widthPercent(100).paddingRight(10));
+        list.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1).widthPercent(100).paddingRight(10));
         scroller.addScrollViewChild(list);
 
         Consumer<String> fill = new Consumer<>() {

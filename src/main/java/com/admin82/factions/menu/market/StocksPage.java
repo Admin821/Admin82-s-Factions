@@ -11,6 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -19,7 +20,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.ArrayList;
@@ -171,7 +172,7 @@ final class StocksPage {
         r.layout(l -> l.height(20).paddingHorizontal(4).alignItems(YogaAlign.CENTER));
         var icon = new ItemSlot().setItem(stack(line.itemId()));
         var name = new UIElement();
-        name.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3));
+        name.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3));
         name.addChildren(icon, new Label().setText("§f" + MarketUi.itemLabel(stack(line.itemId()), 110)));
         r.addChildren(name,
                 new Label().setText("§a" + Currency.format(line.lastPrice()).replaceAll("§.", "")).layout(l -> l.width(70)),
@@ -189,7 +190,7 @@ final class StocksPage {
     @OnlyIn(Dist.CLIENT)
     private static UIElement sparkline(List<Long> prices, int width, int height) {
         var box = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        box.layout(l -> l.width(width).height(height).flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1));
+        box.layout(l -> l.width(width).height(height).flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1));
         if (prices.isEmpty()) return box;
         long max = prices.stream().mapToLong(Long::longValue).max().orElse(1);
         long min = prices.stream().mapToLong(Long::longValue).min().orElse(0);
@@ -264,7 +265,7 @@ final class StocksPage {
                 new Label().setText("§7Low §f" + Currency.format(low)),
                 new Label().setText("§7Avg §f" + Currency.format(avg)));
         area.addChildren(stats, new Label().setText("§8" + qty + " sold in " + inRange.size() + " sales over " + RANGE_NAMES[range]
-                + (window == Long.MAX_VALUE ? "" : "")));
+                + ("")));
         area.addChildren(MarketWidgets.chart(inRange, menu.contentWidth - 10, 70));
 
         // Most recent sales

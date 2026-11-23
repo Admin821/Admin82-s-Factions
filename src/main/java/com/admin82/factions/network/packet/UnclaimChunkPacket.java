@@ -53,6 +53,7 @@ public record UnclaimChunkPacket(int chunkX, int chunkZ, String dimension) imple
                             && SectionPos.blockToSectionCoord(outpost.managerPos.getX()) == packet.chunkX()
                             && SectionPos.blockToSectionCoord(outpost.managerPos.getZ()) == packet.chunkZ()) {
                         reason = "your outpost";
+                        break;
                     }
                 }
             }

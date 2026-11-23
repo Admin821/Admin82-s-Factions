@@ -9,6 +9,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -19,7 +20,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -74,7 +75,7 @@ public class SeamViewerMenu extends AbstractContainerMenu implements IModularUIH
         frame.layout(l -> l.width(width).height(mapPx + 92).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(5).alignItems(YogaAlign.CENTER));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(5).alignItems(YogaAlign.CENTER));
         root.addClass("panel_bg");
 
         root.addChildren(SeamMap.fit("§6§l⛏ Seam Viewer"), SeamMap.legend(3), view.element(),

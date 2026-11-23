@@ -104,7 +104,7 @@ public class FactionTableBlock extends BaseEntityBlock implements MultiblockPrev
             // Open the menu, send faction data if player has one
             Faction faction = manager.getFactionForPlayer(player.getUUID());
             VassalManager vmgr = VassalManager.get(serverLevel.getServer());
-            ((ServerPlayer) player).openMenu(factionBe, buf -> {
+            player.openMenu(factionBe, buf -> {
                 buf.writeBlockPos(pos);
                 if (faction != null) {
                     buf.writeBoolean(true);

@@ -164,7 +164,7 @@ public class BarracksBlock extends BaseEntityBlock implements MultiblockPreview 
         if (pendingMove != null) {
             int chunkX = SectionPos.blockToSectionCoord(pos.getX());
             int chunkZ = SectionPos.blockToSectionCoord(pos.getZ());
-            String dim = ((ServerLevel) level).dimension().location().toString();
+            String dim = level.dimension().location().toString();
             Faction pendingFaction = mgr.getFaction(pendingMove.factionId());
             if (pendingFaction == null || !pendingFaction.hasClaim(chunkX, chunkZ, dim)) {
                 level.removeBlock(pos, false);
@@ -326,7 +326,7 @@ public class BarracksBlock extends BaseEntityBlock implements MultiblockPreview 
         }
 
         final UUID fId = linkedId;
-        ((ServerPlayer) player).openMenu(be, buf -> {
+        player.openMenu(be, buf -> {
             buf.writeBlockPos(pos);
             buf.writeBoolean(fId != null);
             if (fId != null) buf.writeUUID(fId);

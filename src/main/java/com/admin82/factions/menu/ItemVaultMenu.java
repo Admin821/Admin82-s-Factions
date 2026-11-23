@@ -15,6 +15,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -27,7 +28,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.Locale;
@@ -98,16 +99,16 @@ public class ItemVaultMenu extends AbstractContainerMenu {
         frame.layout(l -> l.width(width).height(height).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(5));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(5));
         root.addClass("panel_bg");
 
         header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        header.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2));
         storedArea = UiKit.background(new UIElement(), UiKit.CARD);
-        storedArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(4));
+        storedArea.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(4));
 
         var inventory = UiKit.background(new UIElement(), UiKit.CARD);
-        inventory.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(4));
+        inventory.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(4));
         var invLabel = new Label().setText("§7Your inventory §8(hover for help)");
         tip(invLabel, "§7Click: put in the stack", "§7Shift-click: put in all of that item");
         inventory.addChildren(invLabel);
@@ -175,7 +176,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement storedCell(int index, SyncItemVaultPacket.Line line) {
         var cell = new UIElement();
-        cell.layout(l -> l.width(CELL - 2).flexDirection(YogaFlexDirection.COLUMN).alignItems(YogaAlign.CENTER));
+        cell.layout(l -> l.width(CELL - 2).flexDirection(FlexDirection.COLUMN).alignItems(YogaAlign.CENTER));
         var slot = new ItemSlot().setItem(line.item().copyWithCount(1));
         UiKit.onClick(slot, e -> {
             if (data == null || !data.canWithdraw()) return;
@@ -208,7 +209,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
 
     private static UIElement rowOf() {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
         return r;
     }
 

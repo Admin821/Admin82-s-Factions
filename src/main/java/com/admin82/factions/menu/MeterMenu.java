@@ -19,6 +19,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -31,7 +32,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.UUID;
@@ -137,10 +138,10 @@ public class MeterMenu extends AbstractContainerMenu {
         frame.layout(l -> l.width(WIDTH).height(HEIGHT).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(4));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(4));
         root.addClass("panel_bg");
         body = new UIElement();
-        body.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        body.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(4));
         root.addChildren(body);
         frame.addChildren(root);
         render();
@@ -167,7 +168,7 @@ public class MeterMenu extends AbstractContainerMenu {
                 UiKit.rightLabel("§f" + num(data.stored()) + " §8/ §7" + num(data.capacity()) + " " + kind.unit
                         + " §8(" + (int) (pct * 100) + "%)"));
         var track = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        track.layout(l -> l.height(10).flexDirection(YogaFlexDirection.ROW));
+        track.layout(l -> l.height(10).flexDirection(FlexDirection.ROW));
         if (pct > 0) {
             var fill = UiKit.background(new UIElement(), kind == MeterKind.POWER ? 0xFFE0B020 : 0xFF3070E0);
             fill.layout(l -> l.width(Math.max(1, (int) (INNER * pct))).height(10));
@@ -570,7 +571,7 @@ public class MeterMenu extends AbstractContainerMenu {
         var byName = new java.util.ArrayList<String>();
         for (String n : names) byName.add(ids.get(n));
         var col = new UIElement();
-        col.layout(l -> l.flexDirection(org.appliedenergistics.yoga.YogaFlexDirection.COLUMN).gapAll(2));
+        col.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2));
         var row = row(16);
         row.addChildren(formLabel("Fluid"), new Label().setText(buyFluid.isEmpty() ? "§8none picked" : "§b" + fluidName(buyFluid)));
         var picker = SearchPicker.create(byName, MeterMenu::fluidName, buyFluid, fluidSearch, q -> fluidSearch = q,
@@ -607,13 +608,13 @@ public class MeterMenu extends AbstractContainerMenu {
         int barWidth = Math.max(2, (INNER - 12 - (n - 1)) / n);
         int graphHeight = 34;
         var bars = new UIElement();
-        bars.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1).height(graphHeight));
+        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1).height(graphHeight));
         for (int i = 0; i < avg.length; i++) {
             long a = avg[i];
             int ago = avg.length - 1 - i;
             int h = a < 0 ? 0 : max <= 0 ? 2 : Math.max(2, (int) (graphHeight * a / max));
             var slot = new UIElement();
-            slot.layout(l -> l.width(barWidth).flexShrink(0).height(graphHeight).flexDirection(YogaFlexDirection.COLUMN)
+            slot.layout(l -> l.width(barWidth).flexShrink(0).height(graphHeight).flexDirection(FlexDirection.COLUMN)
                     .justifyContent(YogaJustify.FLEX_END));
             if (h > 0) {
                 var bar = UiKit.background(new UIElement(), ago == 0 ? 0xFFF0C040 : 0xFFB08830);
@@ -772,14 +773,14 @@ public class MeterMenu extends AbstractContainerMenu {
     /** A small box with a grey caption over a value. */
     private static UIElement stat(String caption, String value) {
         var t = UiKit.background(new UIElement(), UiKit.ROW);
-        t.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(5));
+        t.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(5));
         t.addChildren(new Label().setText("§8" + caption), new Label().setText(value));
         return t;
     }
 
     private static UIElement statRow(UIElement... stats) {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4));
         r.addChildren(stats);
         return r;
     }
@@ -795,7 +796,7 @@ public class MeterMenu extends AbstractContainerMenu {
     private static UIElement wrapped(String color, String text) {
         var font = net.minecraft.client.Minecraft.getInstance().font;
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        box.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         StringBuilder line = new StringBuilder();
         for (String word : text.split(" ")) {
             String next = line.isEmpty() ? word : line + " " + word;
@@ -818,13 +819,13 @@ public class MeterMenu extends AbstractContainerMenu {
 
     private static UIElement card() {
         var c = UiKit.background(new UIElement(), UiKit.CARD);
-        c.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(6));
+        c.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(6));
         return c;
     }
 
     private static UIElement row(int height) {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(height));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(height));
         return r;
     }
 

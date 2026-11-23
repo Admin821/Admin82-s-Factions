@@ -17,6 +17,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
@@ -31,7 +32,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.Arrays;
 import java.util.function.IntUnaryOperator;
@@ -227,7 +228,7 @@ public class AiCombatProfileMenu extends AbstractContainerMenu {
 
     private UIElement statRow(String label, int value, IntConsumerUpdate setter, String... help) {
         UIElement bar = new UIElement();
-        bar.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(YogaFlexDirection.ROW));
+        bar.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(FlexDirection.ROW));
         UiKit.background(bar, UiKit.BAR_TRACK);
         int fillWidth = Math.round(BAR_WIDTH * value / 100.0F);
         if (fillWidth > 0) {
@@ -285,13 +286,13 @@ public class AiCombatProfileMenu extends AbstractContainerMenu {
 
     private static UIElement row(int gap) {
         UIElement element = new UIElement();
-        element.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
+        element.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
         return element;
     }
 
     private static UIElement column(int gap) {
         UIElement element = new UIElement();
-        element.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(gap));
+        element.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(gap));
         return element;
     }
 

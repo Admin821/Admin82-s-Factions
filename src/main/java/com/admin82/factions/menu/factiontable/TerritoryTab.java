@@ -16,6 +16,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
@@ -25,7 +26,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
@@ -77,7 +78,7 @@ final class TerritoryTab {
     @OnlyIn(Dist.CLIENT)
     UIElement buildTerritoryPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(6).gapAll(4).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).paddingAll(6).gapAll(4).flexDirection(FlexDirection.COLUMN));
 
         final int     coreX    = SectionPos.blockToSectionCoord(menu.tablePos.getX());
         final int     coreZ    = SectionPos.blockToSectionCoord(menu.tablePos.getZ());
@@ -85,7 +86,7 @@ final class TerritoryTab {
 
         // Stats + Outpost toggle button row
         var statsRow = new UIElement();
-        statsRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).width(408).height(18).gapAll(4));
+        statsRow.layout(l -> l.flexDirection(FlexDirection.ROW).width(408).height(18).gapAll(4));
         statsRow.addChildren(
                 new Label().bindDataSource(SupplierDataSource.of(() -> {
                     var f = menu.factionRef.get();
@@ -111,7 +112,7 @@ final class TerritoryTab {
 
         // Swappable content area
         territoryContentArea = new UIElement();
-        territoryContentArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        territoryContentArea.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(4));
         showTerritoryMap(coreX, coreZ, canClaim); // default: show map
 
         panel.addChildren(statsRow, legend, territoryContentArea);
@@ -149,7 +150,7 @@ final class TerritoryTab {
         territoryContentArea.clearAllChildren();
 
         var mapRow = new UIElement();
-        mapRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        mapRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
         mapGrid = new UIElement();
         mapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(YogaAlign.CENTER));
         terrainMapTexture = new TerrainMapTexture(GRID_PX);
@@ -204,7 +205,7 @@ final class TerritoryTab {
         });
 
         chunkInfoContainer = new UIElement();
-        chunkInfoContainer.layout(l -> l.width(162).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        chunkInfoContainer.layout(l -> l.width(162).flexDirection(FlexDirection.COLUMN).gapAll(4));
         refreshChunkInfoPanel(coreX, coreZ, canClaim);
 
         mapRow.addChildren(mapGrid, chunkInfoContainer);
@@ -232,7 +233,7 @@ final class TerritoryTab {
                     new Label().setText("§8You must have sufficient coins on you to confirm.")
             );
             var btnRow = new UIElement();
-            btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).paddingTop(6));
+            btnRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).paddingTop(6));
             btnRow.addChildren(
                     new Button().setText("§a✔ Confirm Teleport")
                             .setOnClick(e -> {
@@ -264,7 +265,7 @@ final class TerritoryTab {
 
         // Column header
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(14).width(396).paddingHorizontal(2));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).height(14).width(396).paddingHorizontal(2));
         header.addChildren(
                 new Label().setText("§8Coordinates").layout(l -> l.width(130)),
                 new Label().setText("§8Dimension").layout(l -> l.width(80)),
@@ -276,11 +277,11 @@ final class TerritoryTab {
         // Rows
         for (var item : list) {
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).width(396).paddingHorizontal(2).paddingBottom(4));
+            row.layout(l -> l.flexDirection(FlexDirection.COLUMN).width(396).paddingHorizontal(2).paddingBottom(4));
 
             // Main info row
             var infoRow = new UIElement();
-            infoRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(12).width(396));
+            infoRow.layout(l -> l.flexDirection(FlexDirection.ROW).height(12).width(396));
 
             String coordStr = "§f" + item.name() + " §8" + item.pos().getX() + ", " + item.pos().getY() + ", " + item.pos().getZ();
             String dimStr   = FactionTableMenu.simplifyDim(item.dimension());
@@ -487,7 +488,7 @@ final class TerritoryTab {
 
         if (canManage) {
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
             var toggle = UiKit.toggle().setOn(claim.chunkloadEnabled()).setOnToggleChanged(on ->
                     PacketDistributor.sendToServer(new ChunkloadActionPacket(
                             ChunkloadActionPacket.Action.SET_ENABLED, cx, cz, menu.tableDim, on)));
@@ -661,7 +662,7 @@ final class TerritoryTab {
         // Step 2: transparent cells for click interaction only
         for (int row = 0; row < mapViewSize; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(fcs));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).height(fcs));
 
             for (int col = 0; col < mapViewSize; col++) {
                 int cx = viewCX - halfView + col;

@@ -8,6 +8,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -15,7 +16,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.lwjgl.glfw.GLFW;
 
 import javax.annotation.Nullable;
@@ -52,7 +53,7 @@ final class ChunkMapTab {
         int[] centerX = {controllerChunkX + mapOffsetX};
         int[] centerZ = {controllerChunkZ + mapOffsetZ};
         var mapArea = new UIElement();
-        mapArea.layout(l -> l.width(286).height(286).flexDirection(YogaFlexDirection.COLUMN));
+        mapArea.layout(l -> l.width(286).height(286).flexDirection(FlexDirection.COLUMN));
         if (monumentTerrainTexture == null) monumentTerrainTexture = new MonumentTerrainTexture(286);
         mapArea.style(style -> style.background(monumentTerrainTexture));
         var viewLabel = new Label();
@@ -120,7 +121,7 @@ final class ChunkMapTab {
             texture.upload();
             for (int row = -halfView; row <= halfView; row++) {
                 var rowElement = new UIElement();
-                rowElement.layout(l -> l.height(cellSize).flexDirection(YogaFlexDirection.ROW));
+                rowElement.layout(l -> l.height(cellSize).flexDirection(FlexDirection.ROW));
                 for (int col = -halfView; col <= halfView; col++) {
                     int chunkX = centerX[0] + col;
                     int chunkZ = centerZ[0] + row;

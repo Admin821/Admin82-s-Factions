@@ -13,6 +13,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -26,7 +27,6 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -152,7 +152,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         frame.layout(l -> l.width(width).height(height).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(6).gapAll(5));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(6).gapAll(5));
         root.addClass("panel_bg");
 
         var header = row(6, 14);
@@ -160,11 +160,11 @@ public class AdminPanelMenu extends AbstractContainerMenu {
                 UiKit.rightLabel("§8Operators only · changes apply instantly"));
 
         var body = new UIElement();
-        body.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        body.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(6));
         sidebar = UiKit.background(new UIElement(), UiKit.CARD);
-        sidebar.layout(l -> l.width(SIDEBAR_WIDTH).flexDirection(YogaFlexDirection.COLUMN).paddingAll(4).gapAll(2));
+        sidebar.layout(l -> l.width(SIDEBAR_WIDTH).flexDirection(FlexDirection.COLUMN).paddingAll(4).gapAll(2));
         content = new UIElement();
-        content.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        content.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(4));
         body.addChildren(sidebar, content);
         root.addChildren(header, body);
         frame.addChildren(root);
@@ -245,7 +245,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
             settingScroller = new ScrollerView();
             settingScroller.layout(l -> l.flex(1).width(contentWidth));
             settingRows = new UIElement();
-            settingRows.layout(l -> l.width(contentWidth - 12).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+            settingRows.layout(l -> l.width(contentWidth - 12).flexDirection(FlexDirection.COLUMN).gapAll(2));
             settingScroller.addScrollViewChild(settingRows);
             settingScrollerPage = page;
         }
@@ -315,7 +315,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         row.layout(l -> l.paddingHorizontal(5));
         boolean isDefault = Double.isNaN(s.defaultValue()) || Math.abs(s.defaultValue() - s.value()) < 1e-9;
         var name = new UIElement();
-        name.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        name.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         name.addChildren(new Label().setText("§f" + s.label() + (isDefault ? "" : " §e•")),
                 new Label().setText("§8" + shorten(s.help(), contentWidth - 230)));
         row.addChildren(name);
@@ -386,7 +386,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         content.addChildren(new Label().setText("§6§lFactions"),
                 new Label().setText("§8Every faction on the server. Deleting a faction can't be undone."));
         var list = UiKit.background(new UIElement(), UiKit.CARD);
-        list.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(4));
+        list.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(4));
         if (data.factions().isEmpty()) list.addChildren(new Label().setText("§7No factions yet."));
         for (var f : data.factions()) {
             var r = UiKit.background(row(6, 18), UiKit.ROW);
@@ -405,7 +405,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
 
         // Move a player
         var move = UiKit.background(new UIElement(), UiKit.CARD);
-        move.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(3).paddingAll(5));
+        move.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3).paddingAll(5));
         var r = row(4, 16);
         var playerField = UiKit.textField("");
         playerField.setValue(movePlayer);
@@ -452,7 +452,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         }
 
         var list = UiKit.background(new UIElement(), UiKit.CARD);
-        list.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(4));
+        list.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(4));
         var all = data.monuments();
         int pages = Math.max(1, (all.size() + MONUMENTS_PER_PAGE - 1) / MONUMENTS_PER_PAGE);
         monumentPage = Math.min(monumentPage, pages - 1);
@@ -463,7 +463,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
             var r = UiKit.background(row(6, 20), UiKit.ROW);
             r.layout(l -> l.paddingHorizontal(4));
             var info = new UIElement();
-            info.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+            info.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
             info.addChildren(new Label().setText("§f§l" + m.name() + " §7Tier " + m.tier() + "  " + m.status()),
                     new Label().setText("§8" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + " in " + dim));
             var go = new Button().setText("§7Go").setOnClick(e -> send(AdminPanelPacket.of(Action.TELEPORT_TO_MONUMENT, m.id())));
@@ -523,19 +523,19 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         content.addChildren(top);
 
         var body = new UIElement();
-        body.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).alignItems(YogaAlign.FLEX_START));
+        body.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).alignItems(YogaAlign.FLEX_START));
         var left = new UIElement();
-        left.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(3));
+        left.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3));
         left.addChildren(view.element(), SeamMap.fit("§8North up · white: you · orange: selected"));
         var right = new UIElement();
-        right.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        right.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(4));
         right.addChildren(sel != null ? seamDetails(sel) : new Label().setText("§7Loading chunk " + seamSel + "…"));
         body.addChildren(left, right);
         content.addChildren(body, SeamMap.legend());
 
         // Blacklist
         var black = UiKit.background(new UIElement(), UiKit.CARD);
-        black.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(5));
+        black.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(5));
         var add = row(4, 16);
         var field = UiKit.textField("minecraft:coal_ore or modid:*");
         field.setValue(blacklistDraft);
@@ -562,13 +562,13 @@ public class AdminPanelMenu extends AbstractContainerMenu {
     private UIElement seamDetails(com.admin82.factions.seam.SeamCell c) {
         String at = c.chunkX() + "," + c.chunkZ();
         var card = UiKit.background(new UIElement(), UiKit.CARD);
-        card.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(3).paddingAll(5));
+        card.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3).paddingAll(5));
         ItemStack ore = SeamMap.ore(c.ore());
         var head = row(6, 20);
         var icon = new ItemSlot().setItem(ore);
         icon.slotStyle(st -> st.showItemTooltips(true));
         var text = new UIElement();
-        text.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        text.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         text.addChildren(new Label().setText("§7Chunk " + c.chunkX() + ", " + c.chunkZ() + ": §f§l" + (c.minable() ? ore.getHoverName().getString() : "no ore")),
                 new Label().setText(SeamMap.describe(c) + " §8· " + (!c.minable() ? "nothing to mine" : c.endless() ? "never runs out"
                         : String.format("%,d", c.remaining()) + "/" + String.format("%,d", c.amount()) + " left")));
@@ -651,7 +651,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         content.addChildren(new Label().setText("§6§lEditors & tools"),
                 new Label().setText("§8Opens the full editor. Run /faction admin to come back here."));
         var grid = new UIElement();
-        grid.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        grid.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4));
         grid.addChildren(
                 toolRow("§6Monuments", "Monuments, loot pools, chunks, guard roster, gear and drops.", "monuments"),
                 toolRow("§6AI combat profiles", "How each guard class aims, reacts, notices and fights.", "ai"),
@@ -662,7 +662,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         var bypass = UiKit.background(row(6, 26), UiKit.CARD);
         bypass.layout(l -> l.paddingHorizontal(6));
         var info = new UIElement();
-        info.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        info.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         info.addChildren(new Label().setText("§6Protection bypass " + (data.bypass() ? "§a(ON)" : "§8(off)")),
                 new Label().setText("§8Build and break anywhere, including claims and monuments."));
         var toggle = new Button().setText(data.bypass() ? "§cTurn off" : "§aTurn on")
@@ -680,7 +680,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         var r = UiKit.background(row(6, 26), UiKit.CARD);
         r.layout(l -> l.paddingHorizontal(6));
         var info = new UIElement();
-        info.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        info.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         info.addChildren(new Label().setText(title), new Label().setText("§8" + help));
         var open = new Button().setText("§eOpen ▶").setOnClick(e -> send(AdminPanelPacket.of(Action.OPEN_TOOL, tool)));
         open.layout(l -> l.width(64).height(18));
@@ -695,11 +695,11 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         content.addChildren(new Label().setText("§6§lImport / Export"),
                 new Label().setText("§8Files live in config/adminsfactions/exports/ on the server. Copy them between servers."));
         var columns = new UIElement();
-        columns.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        columns.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(6));
 
         // Export
         var export = UiKit.background(new UIElement(), UiKit.CARD);
-        export.layout(l -> l.width(Math.max(170, contentWidth / 2 - 10)).flexDirection(YogaFlexDirection.COLUMN).gapAll(3).paddingAll(5));
+        export.layout(l -> l.width(Math.max(170, contentWidth / 2 - 10)).flexDirection(FlexDirection.COLUMN).gapAll(3).paddingAll(5));
         export.addChildren(new Label().setText("§e§lExport"), new Label().setText("§8What to include:"));
         for (AdminData.Section s : AdminData.Section.values()) {
             export.addChildren(sectionToggle(s, (exportMask & s.bit()) != 0, on -> {
@@ -722,7 +722,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
 
         // Files + import
         var files = UiKit.background(new UIElement(), UiKit.CARD);
-        files.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(5));
+        files.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(5));
         files.addChildren(new Label().setText("§e§lSaved exports §8(" + data.exports().size() + ")"));
         if (data.exports().isEmpty()) files.addChildren(new Label().setText("§7No exports yet."));
         var fmt = DateTimeFormatter.ofPattern("d MMM HH:mm");
@@ -820,7 +820,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
 
     private static UIElement row(int gap, int height) {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap).height(height));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap).height(height));
         return r;
     }
 

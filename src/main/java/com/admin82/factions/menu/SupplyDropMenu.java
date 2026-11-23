@@ -18,6 +18,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.FriendlyByteBuf;
@@ -35,7 +36,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -191,7 +192,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
         frame.addClass("preview_bg");
 
         var root = new UIElement();
-        root.layout(l -> l.width(700).height(426).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(6));
+        root.layout(l -> l.width(700).height(426).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(6));
         root.addClass("panel_bg");
         root.addChildren(new Label().setText(mode == Mode.EDITOR ? "§6§lSupply Drop Loot Pools" : "§6§lCall Supply Drop"));
         root.addChildren(mode == Mode.EDITOR ? buildEditorPanel() : buildSpawnerPanel());
@@ -202,12 +203,12 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildEditorPanel() {
         var split = new UIElement();
-        split.layout(l -> l.flex(1).width(684).flexDirection(YogaFlexDirection.ROW).gapAll(10));
+        split.layout(l -> l.flex(1).width(684).flexDirection(FlexDirection.ROW).gapAll(10));
 
         var left = new UIElement();
-        left.layout(l -> l.width(150).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        left.layout(l -> l.width(150).flexDirection(FlexDirection.COLUMN).gapAll(4));
         var listArea = new UIElement();
-        listArea.layout(l -> l.flex(1).width(150).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        listArea.layout(l -> l.flex(1).width(150).flexDirection(FlexDirection.COLUMN).gapAll(2));
 
         String[] newPoolName = {""};
         var nameField = UiKit.textField("").setValue("").bindObserver(value -> newPoolName[0] = value);
@@ -225,16 +226,16 @@ public class SupplyDropMenu extends AbstractContainerMenu {
                 left.addChildren(new Label().setText("§7Saved Loot Pools"), listArea, new Label().setText("§7New pool name"), nameField, createButton);
 
         var right = new UIElement();
-        right.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(12));
+        right.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(12));
 
         var editorCol = new UIElement();
-        editorCol.layout(l -> l.width(350).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        editorCol.layout(l -> l.width(350).flexDirection(FlexDirection.COLUMN).gapAll(4));
         var header = new Label();
         header.bindDataSource(SupplierDataSource.of(() -> Component.literal(
                 selectedPoolName[0] == null ? "§7Select or create a pool." : "§6Editing: §f" + selectedPoolName[0])));
         header.layout(l -> l.height(14));
         var gridArea = new UIElement();
-        gridArea.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        gridArea.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         var settingsArea = buildSettingsEditor();
         var inventoryArea = buildPlayerInventorySection();
 
@@ -249,7 +250,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
             } else {
                 for (int row = 0; row < 6; row++) {
                     var rowEl = new UIElement();
-                    rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+                    rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
                     for (int col = 0; col < 9; col++) {
                         rowEl.addChildren(makeContainerDisplaySlot(row * 9 + col));
                     }
@@ -310,10 +311,10 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildSpawnerPanel() {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).width(684).flexDirection(YogaFlexDirection.COLUMN).gapAll(8));
+        panel.layout(l -> l.flex(1).width(684).flexDirection(FlexDirection.COLUMN).gapAll(8));
 
         var listArea = new UIElement();
-        listArea.layout(l -> l.height(170).width(320).flexDirection(YogaFlexDirection.COLUMN).gapAll(3));
+        listArea.layout(l -> l.height(170).width(320).flexDirection(FlexDirection.COLUMN).gapAll(3));
         int[] lastHash = {Integer.MIN_VALUE};
         String[] lastSelected = {"__INIT__"};
         listArea.addEventListener(UIEvents.TICK, event -> {
@@ -354,7 +355,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
         intervalField.layout(l -> l.width(150).height(18));
 
         var controls = new UIElement();
-        controls.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(4).height(76));
+        controls.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4).height(76));
         controls.addChildren(
             labeledFieldRow("§7Radius from 0,0 (blocks)", radiusField),
             labeledFieldRow("§7Countdown before drop starts (seconds)", secondsField),
@@ -381,7 +382,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
                     SupplyDropActionPacket.Action.CLEAR_SCHEDULE, null, 0, 0)))
                 .layout(l -> l.width(170).height(26));
             var buttonRow = new UIElement();
-            buttonRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(26));
+            buttonRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(26));
             buttonRow.addChildren(spawnButton, scheduleButton, disableButton);
 
         var selectedLabel = new Label();
@@ -446,7 +447,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildSettingsEditor() {
         var area = new UIElement();
-        area.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(3).height(122).paddingTop(4));
+        area.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3).height(122).paddingTop(4));
 
         int[] lastSlot = {Integer.MIN_VALUE};
         int[] lastHash = {Integer.MIN_VALUE};
@@ -510,7 +511,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildRarityTable() {
         var panel = new UIElement();
-        panel.layout(l -> l.width(160).flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingTop(18));
+        panel.layout(l -> l.width(160).flexDirection(FlexDirection.COLUMN).gapAll(2).paddingTop(18));
         panel.addChildren(
                 new Label().setText("§6§lRarity Table"),
                 new Label().setText("§8Chance an item appears"),
@@ -530,7 +531,7 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement labeledFieldRow(String label, UIElement field) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(20));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(20));
         var labelElement = new Label().setText(label);
         labelElement.layout(l -> l.width(210).height(18));
         row.addChildren(labelElement, field);
@@ -540,18 +541,18 @@ public class SupplyDropMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildPlayerInventorySection() {
         var section = new UIElement();
-        section.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1).paddingTop(5));
+        section.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1).paddingTop(5));
         section.addChildren(new Label().setText("§7Your Inventory"));
         for (int row = 0; row < 3; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
             for (int col = 0; col < 9; col++) {
                 rowEl.addChildren(makeContainerDisplaySlot(PLAYER_INV_OFFSET + row * 9 + col));
             }
             section.addChildren(rowEl);
         }
         var hotbar = new UIElement();
-        hotbar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+        hotbar.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
         for (int col = 0; col < 9; col++) {
             hotbar.addChildren(makeContainerDisplaySlot(PLAYER_INV_OFFSET + 27 + col));
         }

@@ -16,13 +16,14 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.*;
 import java.util.function.LongSupplier;
@@ -57,9 +58,9 @@ final class VaultTab {
 
     UIElement buildVaultPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         vaultContentArea = new UIElement();
-        vaultContentArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(8));
+        vaultContentArea.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(8));
         var keepHistory = shownHistory;
         int keepScroll = historyScroll;
         if (keepHistory != null) {
@@ -79,7 +80,7 @@ final class VaultTab {
         vaultContentArea.clearAllChildren();
 
         var cards = new UIElement();
-        cards.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        cards.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
 
         // Personal wallet
         var wallet = FactionTableMenu.card();
@@ -134,7 +135,7 @@ final class VaultTab {
                 new Label().setText("§8Each chunk costs its deed price per day. Core chunk = 1 silver/day."));
 
         var historyRow = new UIElement();
-        historyRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(18));
+        historyRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(18));
         var walletHistoryBtn = new Button().setText("§bWallet history").setOnClick(e ->
                 showBankHistory(player, HistoryRequestPacket.Scope.WALLET));
         walletHistoryBtn.layout(l -> l.flex(1).height(18));
@@ -170,7 +171,7 @@ final class VaultTab {
         boolean wallet = scope == HistoryRequestPacket.Scope.WALLET;
 
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
         var back = new Button().setText("§7◀ Back").setOnClick(e -> showVaultMain(player));
         back.layout(l -> l.width(56).height(16));
         var walletTab = new Button().setText(wallet ? "§f§lWallet" : "§7Wallet").setOnClick(e ->
@@ -184,12 +185,12 @@ final class VaultTab {
         header.addChildren(back, new Label().setText("§6§lHistory").layout(l -> l.flex(1)), walletTab, vaultTab);
 
         historyArea = new UIElement();
-        historyArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        historyArea.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2));
         historyPager = new Label();
         historyPager.lss("horizontal-align", "center");
         historyPager.layout(l -> l.flex(1));
         var pager = new UIElement();
-        pager.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
         pager.addChildren(
                 new Button().setText("‹").setOnClick(e -> { historyScroll = Math.max(0, historyScroll - HISTORY_ROWS); renderBankHistory(); })
                         .layout(l -> l.width(20).height(14)),
@@ -283,7 +284,7 @@ final class VaultTab {
         String[] coin = {"Copper"};
 
         var inputRow = new UIElement();
-        inputRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(24));
+        inputRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(24));
 
         var field = UiKit.textField("");
         field.setValue("0");

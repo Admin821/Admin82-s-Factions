@@ -19,6 +19,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -40,7 +41,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -58,7 +59,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
     private final BlockPos barrPos;
     private final UUID ownerPlayerId;
-    @Nullable private UUID linkedFactionId;
+    @Nullable private final UUID linkedFactionId;
 
     /** Client-side kit names (synced via SyncBarracksPacket). */
     final AtomicReference<List<String>> kitNamesRef = new AtomicReference<>(new ArrayList<>());
@@ -301,12 +302,12 @@ public class BarracksMenu extends AbstractContainerMenu {
         frame.addClass("preview_bg");
 
         var root = new UIElement();
-        root.layout(l -> l.width(420).height(340).flexDirection(YogaFlexDirection.COLUMN));
+        root.layout(l -> l.width(420).height(340).flexDirection(FlexDirection.COLUMN));
         root.addClass("panel_bg");
 
         // Tab bar
         var tabBar = new UIElement();
-        tabBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(21).width(420).gapAll(2).paddingHorizontal(2));
+        tabBar.layout(l -> l.flexDirection(FlexDirection.ROW).height(21).width(420).gapAll(2).paddingHorizontal(2));
 
         var contentArea = new UIElement();
         contentArea.layout(l -> l.flex(1).width(420));
@@ -390,15 +391,15 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildKitCreatorPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).width(420).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).width(420).flexDirection(FlexDirection.COLUMN));
 
         // Main split row
         var splitRow = new UIElement();
-        splitRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).flex(1).width(420));
+        splitRow.layout(l -> l.flexDirection(FlexDirection.ROW).flex(1).width(420));
 
         // Left: kit list
         var leftCol = new UIElement();
-        leftCol.layout(l -> l.width(110).flexDirection(YogaFlexDirection.COLUMN)
+        leftCol.layout(l -> l.width(110).flexDirection(FlexDirection.COLUMN)
                 .paddingAll(4).gapAll(3));
 
         var kitsLabel = new Label().setText("§6§lKits");
@@ -407,14 +408,14 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         // Kit list area (rebuilt when names change)
         var kitListArea = new UIElement();
-        kitListArea.layout(l -> l.flex(1).width(102).flexDirection(YogaFlexDirection.COLUMN).gapAll(2));
+        kitListArea.layout(l -> l.flex(1).width(102).flexDirection(FlexDirection.COLUMN).gapAll(2));
         leftCol.addChildren(kitListArea);
 
         // Create kit form
         var newKitNameVal = new String[]{""};
         var statusLabel = new Label();
         statusLabel.bindDataSource(SupplierDataSource.of(() ->
-                Component.literal(newKitNameVal[0].isEmpty() ? "" : "")));
+                Component.literal("")));
         statusLabel.layout(l -> l.height(0)); // hidden by default
 
         var nameField = UiKit.textField("").setValue("").bindObserver(v -> newKitNameVal[0] = v);
@@ -474,7 +475,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         // Right: kit editor
         var rightCol = new UIElement();
-        rightCol.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN)
+        rightCol.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN)
                 .paddingAll(4).gapAll(4));
 
         // Header (kit name)
@@ -487,7 +488,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         // Editor content: only visible when a kit is selected.
         var editorArea = new UIElement();
-        editorArea.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(3).flex(1));
+        editorArea.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3).flex(1));
         this.kitEditorArea = editorArea; // track for cleanup on tab switch
         String[] lastEditorSelection = {"__INIT__"};
         editorArea.addEventListener(UIEvents.TICK, ev -> {
@@ -520,7 +521,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement labeledSlot(String label, Slot slot) {
         var wrap = new UIElement();
-        wrap.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).width(18).gapAll(1));
+        wrap.layout(l -> l.flexDirection(FlexDirection.COLUMN).width(18).gapAll(1));
         var lbl = new Label().setText("§8" + label);
         lbl.layout(l -> l.height(8).width(18));
         lbl.lss("font-size", "6");
@@ -534,7 +535,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildKitManagerPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).width(420).flexDirection(YogaFlexDirection.COLUMN)
+        panel.layout(l -> l.flex(1).width(420).flexDirection(FlexDirection.COLUMN)
                 .paddingAll(8).gapAll(6));
 
         panel.addChildren(
@@ -544,13 +545,13 @@ public class BarracksMenu extends AbstractContainerMenu {
         );
 
         var body = new UIElement();
-        body.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).flex(1));
+        body.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).flex(1));
 
         var listCol = new UIElement();
-        listCol.layout(l -> l.width(132).flexDirection(YogaFlexDirection.COLUMN).gapAll(3));
+        listCol.layout(l -> l.width(132).flexDirection(FlexDirection.COLUMN).gapAll(3));
 
         var previewCol = new UIElement();
-        previewCol.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        previewCol.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(4));
 
         var previewHeader = new Label();
         previewHeader.bindDataSource(SupplierDataSource.of(() -> {
@@ -565,7 +566,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         }
 
         var previewArmorRow = new UIElement();
-        previewArmorRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(2).height(24));
+        previewArmorRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(2).height(24));
         previewArmorRow.addChildren(
                 labeledPreviewSlot("Head",  previewSlots[36]),
                 labeledPreviewSlot("Chest", previewSlots[37]),
@@ -574,10 +575,10 @@ public class BarracksMenu extends AbstractContainerMenu {
         );
 
         var previewGrid = new UIElement();
-        previewGrid.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        previewGrid.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         for (int row = 0; row < 4; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
             for (int col = 0; col < 9; col++) {
                 rowEl.addChildren(previewSlots[row * 9 + col]);
             }
@@ -610,7 +611,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         });
 
         var kitListArea = new UIElement();
-        kitListArea.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).flex(1));
+        kitListArea.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).flex(1));
         listCol.addChildren(kitListArea);
 
         body.addChildren(listCol, previewCol);
@@ -655,7 +656,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         // Move Barracks button (faction owners only)
         var moveRow = new UIElement();
-        moveRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).width(416)
+        moveRow.layout(l -> l.flexDirection(FlexDirection.ROW).height(22).width(416)
                 .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(YogaAlign.CENTER));
         var moveBtn = new Button()
                 .setText("§e⇄ Move Barracks")
@@ -675,11 +676,11 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildEditableArmorRow() {
         var armorRow = new UIElement();
-        armorRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(2).height(24));
+        armorRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(2).height(24));
         var offhandSpacer = new UIElement();
         offhandSpacer.layout(l -> l.width(16));
         armorRow.addChildren(
-                labeledInteractiveSlot("Head",    KitData.INV_SLOTS + 0),
+                labeledInteractiveSlot("Head", KitData.INV_SLOTS),
                 labeledInteractiveSlot("Chest",   KitData.INV_SLOTS + 1),
                 labeledInteractiveSlot("Legs",    KitData.INV_SLOTS + 2),
                 labeledInteractiveSlot("Boots",   KitData.INV_SLOTS + 3),
@@ -692,10 +693,10 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildEditableKitGrid() {
         var kitGrid = new UIElement();
-        kitGrid.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        kitGrid.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         for (int row = 0; row < 4; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
             for (int col = 0; col < 9; col++) {
                 rowEl.addChildren(makeInteractiveDisplaySlot(row * 9 + col));
             }
@@ -732,7 +733,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement labeledInteractiveSlot(String label, int slotIdx) {
         var wrap = new UIElement();
-        wrap.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).width(18).gapAll(1));
+        wrap.layout(l -> l.flexDirection(FlexDirection.COLUMN).width(18).gapAll(1));
         var lbl = new Label().setText("\u00a78" + label);
         lbl.layout(l -> l.height(8).width(18));
         lbl.lss("font-size", "6");
@@ -746,7 +747,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildPlayerInventorySection() {
         var section = new UIElement();
-        section.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1)
+        section.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1)
                 .paddingHorizontal(4).paddingBottom(2));
 
         var invLabel = new Label().setText("§7Your Inventory");
@@ -756,7 +757,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         // 3 rows of main inventory (player slots 40-66)
         for (int row = 0; row < 3; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
             for (int col = 0; col < 9; col++) {
                 int slotIndex = PLAYER_INV_OFFSET + row * 9 + col;
                 var is = new ItemSlot(this.slots.get(slotIndex));
@@ -767,7 +768,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         }
         // Hotbar (slots 67-75)
         var hotbarRow = new UIElement();
-        hotbarRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+        hotbarRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
         for (int col = 0; col < 9; col++) {
             int slotIndex = PLAYER_INV_OFFSET + 27 + col;
             var is = new ItemSlot(this.slots.get(slotIndex));
@@ -782,7 +783,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildPlayerInvSection() {
         var section = new UIElement();
-        section.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1).paddingTop(6));
+        section.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1).paddingTop(6));
 
         var label = new Label().setText("§7Your Inventory  §8(shift-click to move)");
         label.layout(l -> l.height(10));
@@ -791,7 +792,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         // 3 main rows (container slots PLAYER_INV_OFFSET to PLAYER_INV_OFFSET+26)
         for (int row = 0; row < 3; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18));
             for (int col = 0; col < 9; col++) {
                 rowEl.addChildren(makeContainerDisplaySlot(PLAYER_INV_OFFSET + row * 9 + col));
             }
@@ -800,7 +801,7 @@ public class BarracksMenu extends AbstractContainerMenu {
 
         // Hotbar + offhand in one row
         var hotbarRow2 = new UIElement();
-        hotbarRow2.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(1).height(18).paddingTop(2));
+        hotbarRow2.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(1).height(18).paddingTop(2));
         for (int col = 0; col < 9; col++) {
             hotbarRow2.addChildren(makeContainerDisplaySlot(PLAYER_INV_OFFSET + 27 + col));
         }
@@ -816,7 +817,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildQuickTakeBar() {
         var bar = new UIElement();
-        bar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).width(416)
+        bar.layout(l -> l.flexDirection(FlexDirection.ROW).height(22).width(416)
                 .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(YogaAlign.CENTER));
 
         var infoLabel = new Label();
@@ -842,7 +843,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement labeledPreviewSlot(String label, ItemSlot slot) {
         var wrap = new UIElement();
-        wrap.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).width(18).gapAll(1));
+        wrap.layout(l -> l.flexDirection(FlexDirection.COLUMN).width(18).gapAll(1));
         var lbl = new Label().setText("§8" + label);
         lbl.layout(l -> l.height(8).width(18));
         lbl.lss("font-size", "6");

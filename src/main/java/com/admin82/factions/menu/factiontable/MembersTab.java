@@ -12,12 +12,13 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,7 +53,7 @@ final class MembersTab {
     @SuppressWarnings("unchecked")
     UIElement buildMembersPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(FlexDirection.COLUMN));
         Faction faction = menu.factionRef.get();
         if (faction == null) return panel;
 
@@ -65,7 +66,7 @@ final class MembersTab {
         }
 
         var columns = new UIElement();
-        columns.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(6).alignItems(YogaAlign.FLEX_START));
+        columns.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(6).alignItems(YogaAlign.FLEX_START));
 
         // Member list
         var list = FactionTableMenu.card();
@@ -89,7 +90,7 @@ final class MembersTab {
         }
         if (pages > 1) {
             var pager = new UIElement();
-            pager.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+            pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
             pager.addChildren(
                     new Button().setText("‹").setOnClick(e -> { memberListPage--; menu.reloadTab(Tab.MEMBERS, player); })
                             .layout(l -> l.width(18).height(14)),
@@ -130,7 +131,7 @@ final class MembersTab {
             });
             inviteBtn.layout(l -> l.width(60).height(18));
             var inviteRow = UiKit.background(new UIElement(), UiKit.CARD);
-            inviteRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+            inviteRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
                     .height(26).paddingHorizontal(6));
             inviteRow.addChildren(new Label().setText("§7Invite player").layout(l -> l.width(72)), inviteSel, inviteBtn);
             panel.addChildren(inviteRow);
@@ -158,7 +159,7 @@ final class MembersTab {
         if (isOwner && target.getRole() != FactionRole.OWNER) {
             area.addChildren(new Label().setText("§7Set role"));
             var roleRow = new UIElement();
-            roleRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(18));
+            roleRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).height(18));
             for (FactionRole role : new FactionRole[]{FactionRole.ADMIN, FactionRole.OFFICER, FactionRole.MEMBER}) {
                 boolean current = role == target.getRole();
                 var btn = new Button().setText((current ? "§f§l" : FactionTableMenu.roleColor(role)) + FactionTableMenu.capitalize(role.getId()))
@@ -201,7 +202,7 @@ final class MembersTab {
 
     UIElement buildPermissionsPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(8).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).paddingAll(8).gapAll(6).flexDirection(FlexDirection.COLUMN));
         boolean isOwner = menu.factionRef.get() != null && menu.factionRef.get().getOwnerId().equals(player.getUUID());
 
         permArea = new UIElement();
@@ -209,7 +210,7 @@ final class MembersTab {
         fillPermArea(permArea, isOwner);
 
         var roleBar = new UIElement();
-        roleBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).width(404));
+        roleBar.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).width(404));
         for (FactionRole role : new FactionRole[]{FactionRole.ADMIN, FactionRole.OFFICER, FactionRole.MEMBER}) {
             final FactionRole fr = role;
             var roleBtn = new Button()
@@ -235,9 +236,9 @@ final class MembersTab {
         for (FactionPermission perm : FactionPermission.values()) {
             boolean current = faction != null && faction.getRolePermission(role, perm);
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(28));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(28));
             var labelCol = new UIElement();
-            labelCol.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+            labelCol.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(1));
             labelCol.addChildren(
                     new Label().setText(FactionTableMenu.permLabel(perm)),
                     new Label().setText("§8" + FactionTableMenu.permDescription(perm))

@@ -10,6 +10,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -19,7 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 
 import java.util.Arrays;
 import javax.annotation.Nullable;
@@ -41,14 +42,14 @@ final class MonumentUi {
     @OnlyIn(Dist.CLIENT)
     static UIElement hbox(int gap) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
+        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
         return box;
     }
 
     @OnlyIn(Dist.CLIENT)
     static UIElement vbox(int gap) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(gap));
+        box.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(gap));
         return box;
     }
 

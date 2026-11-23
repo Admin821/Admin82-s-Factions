@@ -14,6 +14,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -26,7 +27,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.ArrayList;
@@ -90,12 +91,12 @@ public class OutpostPlacementMenu extends AbstractContainerMenu implements IModu
         frame.layout(l -> l.width(WIDTH).height(height).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).paddingAll(8).gapAll(6));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(6));
         root.addClass("panel_bg");
 
         // Title
         var title = new UIElement();
-        title.layout(l -> l.flexDirection(YogaFlexDirection.ROW).justifyContent(YogaJustify.SPACE_BETWEEN).alignItems(YogaAlign.CENTER));
+        title.layout(l -> l.flexDirection(FlexDirection.ROW).justifyContent(YogaJustify.SPACE_BETWEEN).alignItems(YogaAlign.CENTER));
         title.addChildren(new Label().setText("§d§l⚑ Place an outpost"),
                 UiKit.rightLabel("§7" + data.pos().getX() + ", " + data.pos().getY() + ", " + data.pos().getZ()));
         root.addChildren(title);
@@ -115,14 +116,14 @@ public class OutpostPlacementMenu extends AbstractContainerMenu implements IModu
         // Why it can't be placed
         if (!ok) {
             var problem = UiKit.background(new UIElement(), 0x60801818);
-            problem.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1).paddingAll(6));
+            problem.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1).paddingAll(6));
             for (String s : problemLines) problem.addChildren(line("§c" + s));
             root.addChildren(problem);
         }
 
         // Buttons
         var buttons = new UIElement();
-        buttons.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        buttons.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
         var cancel = new Button().setText("§c✘ Cancel").setOnClick(e -> close(false));
         cancel.layout(l -> l.flex(1).height(18));
         var confirm = new Button().setText(ok ? "§a✔ Place outpost" : "§8✔ Place outpost").setOnClick(e -> {
@@ -146,7 +147,7 @@ public class OutpostPlacementMenu extends AbstractContainerMenu implements IModu
 
     private static UIElement card(String heading) {
         var c = UiKit.background(new UIElement(), UiKit.CARD);
-        c.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(2).paddingAll(6));
+        c.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(2).paddingAll(6));
         c.addChildren(new Label().setText(heading));
         return c;
     }

@@ -21,6 +21,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -34,7 +35,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.*;
@@ -77,7 +78,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
     private boolean vassalIsSuzerain    = false;
     private String  vassalSuzerainName  = "";
     private long    vassalPendingTax    = 0L;
-    private List<VassalSubjectInfo> vassalSubjects = new ArrayList<>();
+    private final List<VassalSubjectInfo> vassalSubjects = new ArrayList<>();
 
     // Live UIElement references
 
@@ -242,7 +243,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         var root = new UIElement();
         root.layout(l -> l.width(DESIGN_WIDTH - 4).height(panelHeight - 4).paddingAll(8)
-                .flexDirection(YogaFlexDirection.COLUMN).gapAll(6));
+                .flexDirection(FlexDirection.COLUMN).gapAll(6));
         root.addClass("panel_bg");
 
         root.addChildren(factionRef.get() == null ? buildCreatePanel() : buildManagePanel(player));
@@ -262,7 +263,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         var wrapper = new UIElement();
         wrapper.layout(l -> l.flex(1).alignItems(YogaAlign.CENTER).justifyContent(YogaJustify.CENTER));
         var card = UiKit.background(new UIElement(), UiKit.CARD);
-        card.layout(l -> l.width(360).paddingAll(12).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        card.layout(l -> l.width(360).paddingAll(12).gapAll(6).flexDirection(FlexDirection.COLUMN));
         var nameField = UiKit.textField("");
         nameField.setValue("");
         nameField.bindObserver(v -> nameVal[0] = v);
@@ -299,7 +300,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private UIElement buildManagePanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(6));
+        panel.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(6));
         if (currentTab == Tab.PERMISSIONS && !isAdmin(player)) currentTab = Tab.OVERVIEW;
         if (currentTab == Tab.WARS && !canWageWar(player)) currentTab = Tab.OVERVIEW;
         if (currentTab == Tab.VASSAL && !vassalIsVassal && !vassalIsSuzerain) currentTab = Tab.OVERVIEW;
@@ -320,7 +321,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // Header: faction name + live stats
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(16));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(16));
         var stats = new Label();
         stats.bindDataSource(SupplierDataSource.of(() -> {
             Faction f = factionRef.get();
@@ -339,10 +340,10 @@ public class FactionTableMenu extends AbstractContainerMenu {
         })).layout(l -> l.flex(1)), stats);
 
         var body = new UIElement();
-        body.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        body.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(6));
 
         sidebarRef = UiKit.background(new UIElement(), UiKit.CARD);
-        sidebarRef.layout(l -> l.width(SIDEBAR_WIDTH).paddingAll(4).gapAll(2).flexDirection(YogaFlexDirection.COLUMN));
+        sidebarRef.layout(l -> l.width(SIDEBAR_WIDTH).paddingAll(4).gapAll(2).flexDirection(FlexDirection.COLUMN));
         fillSidebar(player);
 
         contentAreaRef = new UIElement();
@@ -456,7 +457,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private UIElement buildOverviewPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(FlexDirection.COLUMN));
         Faction faction = factionRef.get();
         if (faction == null) return panel;
         FactionMember self = faction.getMember(player.getUUID());
@@ -470,7 +471,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // 2 × 3 stat grid
         var grid = new UIElement();
-        grid.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        grid.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
         var left = card();
         left.layout(l -> l.flex(1));
         var right = card();
@@ -491,7 +492,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // Quick actions
         var actions = new UIElement();
-        actions.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).height(20));
+        actions.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).height(20));
         actions.addChildren(quickButton("§b▶ Claim Land", () -> switchTab(Tab.TERRITORY, player), "Open the territory map."),
                 quickButton("§a▶ Deposit", () -> switchTab(Tab.VAULT, player), "Fund the vault to keep land protected."));
         if (isOfficer(player)) {
@@ -505,7 +506,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         var danger = card();
         danger.addChildren(new Label().setText("§7Faction actions"));
         var dangerRow = new UIElement();
-        dangerRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(20));
+        dangerRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(20));
         if (isOwner) {
             var moveBtn = new Button().setText("Move Table")
                     .setOnClick(e -> PacketDistributor.sendToServer(new RequestMoveTablePacket()));
@@ -581,7 +582,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     UIElement statLine(String label, Supplier<String> value) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
         var valueLabel = new Label();
         valueLabel.bindDataSource(SupplierDataSource.of(() -> Component.literal(value.get())));
         row.addChildren(new Label().setText("§7" + label).layout(l -> l.width(76)), valueLabel);
@@ -598,7 +599,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     static UIElement card() {
         var box = UiKit.background(new UIElement(), UiKit.CARD);
-        box.layout(l -> l.paddingAll(6).gapAll(4).flexDirection(YogaFlexDirection.COLUMN));
+        box.layout(l -> l.paddingAll(6).gapAll(4).flexDirection(FlexDirection.COLUMN));
         return box;
     }
 
@@ -707,7 +708,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private UIElement buildUpkeepPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(FlexDirection.COLUMN));
         Faction faction = factionRef.get();
         if (faction == null) {
             panel.addChildren(new Label().setText("§7You are not in a faction."));
@@ -717,7 +718,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // Summary cards
         var summary = new UIElement();
-        summary.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        summary.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
         summary.addChildren(
                 summaryCard("Daily upkeep", () -> "§e" + Currency.format(dailyUpkeep())),
                 summaryCard("Faction vault", () -> "§a" + Currency.format(factionVaultRef.get())),
@@ -727,7 +728,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         var list = card();
         list.layout(l -> l.flex(1));
         var listHeader = new UIElement();
-        listHeader.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(12).paddingHorizontal(4));
+        listHeader.layout(l -> l.flexDirection(FlexDirection.ROW).height(12).paddingHorizontal(4));
         listHeader.addChildren(
                 new Label().setText("§8Chunk").layout(l -> l.flex(1)),
                 new Label().setText("§8Dimension").layout(l -> l.width(80)),
@@ -737,7 +738,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         int[] scroll = {0};
         final int deedRows = 7;
         var deedArea = new UIElement();
-        deedArea.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        deedArea.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(1));
         var pageLabel = new Label();
         Runnable fillDeeds = () -> {
             deedArea.clearAllChildren();
@@ -751,7 +752,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                 if (idx >= claims.size()) break;
                 var claim = claims.get(idx);
                 var row = UiKit.background(new UIElement(), UiKit.ROW);
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).height(15).paddingHorizontal(4));
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(15).paddingHorizontal(4));
                 row.addChildren(
                         new Label().setText("§f" + claim.chunkX() + ", " + claim.chunkZ()
                                 + (claim.isChunkloading() ? "  §d⚡ loaded" : "")).layout(l -> l.flex(1)),
@@ -763,7 +764,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         };
         fillDeeds.run();
         var pager = new UIElement();
-        pager.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
         pager.addChildren(
                 new Button().setText("‹").setOnClick(e -> {
                     scroll[0] = Math.max(0, scroll[0] - deedRows); fillDeeds.run();
@@ -804,13 +805,13 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private UIElement buildLeaderboardPanel() {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).gapAll(6).flexDirection(FlexDirection.COLUMN));
         var board = card();
         board.layout(l -> l.flex(1));
         board.addChildren(new Label().setText("§6Richest factions §8(by vault)"));
 
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(12).gapAll(4).paddingHorizontal(4));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).height(12).gapAll(4).paddingHorizontal(4));
         header.addChildren(
                 new Label().setText("§8#").layout(l -> l.width(22)),
                 new Label().setText("§8Faction").layout(l -> l.flex(1)),
@@ -819,7 +820,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         board.addChildren(header);
 
         var listArea = new UIElement();
-        listArea.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN).gapAll(1));
+        listArea.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(1));
         // Rebuild once per second, sorting a small list every tick wastes CPU
         int[] lbTick = {19};
         listArea.addEventListener(UIEvents.TICK, ev -> {
@@ -844,7 +845,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                     default -> "§7" + (i + 1);
                 };
                 var row = UiKit.background(new UIElement(), own ? 0x5533BBFF : UiKit.ROW);
-                row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
                         .height(16).paddingHorizontal(4));
                 row.addChildren(
                         new Label().setText(rank).layout(l -> l.width(22)),
@@ -863,7 +864,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     private UIElement buildVassalPanel(Player player) {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(10).gapAll(6).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).paddingAll(10).gapAll(6).flexDirection(FlexDirection.COLUMN));
 
         Faction myFaction = factionRef.get();
         if (myFaction == null) {
@@ -887,7 +888,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
             );
 
             var btnRow = new UIElement();
-            btnRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).paddingTop(6));
+            btnRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).paddingTop(6));
 
             var buyoutBtn = new Button()
                     .setText("§a💰 Buy Independence (§e" + Currency.format(SyncServerConfigPacket.get(Config.VASSAL_BUYOUT_COPPER)) + "§a)")
@@ -906,7 +907,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
             } else {
                 for (VassalSubjectInfo v : vassalSubjects) {
                     var row = new UIElement();
-                    row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6).height(28).width(400));
+                    row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).height(28).width(400));
 
                     row.addChildren(
                             new Label().setText("§e" + v.name()).layout(l -> l.flex(1)),

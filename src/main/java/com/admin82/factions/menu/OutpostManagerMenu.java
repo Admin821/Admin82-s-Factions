@@ -19,6 +19,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.mojang.blaze3d.platform.NativeImage;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.BiomeColors;
@@ -40,7 +41,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.lwjgl.glfw.GLFW;
 
 import javax.annotation.Nullable;
@@ -103,12 +104,12 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         frame.addClass("preview_bg");
 
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(YogaFlexDirection.COLUMN));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         root.addClass("panel_bg");
 
         // Title row
         var titleRow = new UIElement();
-        titleRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).paddingHorizontal(8).paddingTop(4));
+        titleRow.layout(l -> l.flexDirection(FlexDirection.ROW).height(22).paddingHorizontal(8).paddingTop(4));
         titleRow.addChildren(
                 new Label().setText("§d§l" + data.outpostName()).layout(l -> l.flex(1)),
                 UiKit.rightLabel("§5§o" + data.ownerName())
@@ -123,7 +124,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         contentArea.addChildren(overviewPanel);
 
         var tabBar = new UIElement();
-        tabBar.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(22).gapAll(2).paddingHorizontal(6));
+        tabBar.layout(l -> l.flexDirection(FlexDirection.ROW).height(22).gapAll(2).paddingHorizontal(6));
 
         UIElement[] panels = {overviewPanel, mapPanel};
         String[]    labels = {"Overview", "Territory Map"};
@@ -166,7 +167,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
     @OnlyIn(Dist.CLIENT)
     private UIElement buildOverviewPanel() {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(8).gapAll(5).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).paddingAll(8).gapAll(5).flexDirection(FlexDirection.COLUMN));
 
         // Status
         if (data.disintegrating()) {
@@ -191,7 +192,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         // Flag health
         float pct = data.maxHp() <= 0 ? 0 : Math.max(0f, Math.min(1f, data.hp() / (float) data.maxHp()));
         var barBg = new UIElement();
-        barBg.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(YogaFlexDirection.ROW).alignSelf(YogaAlign.CENTER));
+        barBg.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(FlexDirection.ROW).alignSelf(YogaAlign.CENTER));
         UiKit.background(barBg, UiKit.BAR_TRACK);
         if (pct > 0) {
             int fw = Math.max(1, (int) (BAR_WIDTH * pct));
@@ -221,7 +222,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         // Rename (officers)
         if (data.canManage() && !data.disintegrating()) {
             var nameRow = new UIElement();
-            nameRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(4).alignSelf(YogaAlign.CENTER).height(16));
+            nameRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).alignSelf(YogaAlign.CENTER).height(16));
             var nameField = UiKit.textField("");
             nameField.setValue(nameText.isEmpty() ? data.outpostName() : nameText);
             nameField.bindObserver(v -> nameText = v);
@@ -259,7 +260,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
 
         if (data.isOwner() && !data.disintegrating()) {
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(8).alignSelf(YogaAlign.CENTER));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).alignSelf(YogaAlign.CENTER));
             row.addChildren(
                     tipped(new Button().setText("§e Move Outpost").setOnClick(e -> {
                         PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.MOVE, data.outpostId()));
@@ -296,12 +297,12 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
     @OnlyIn(Dist.CLIENT)
     private UIElement buildMapPanel() {
         var panel = new UIElement();
-        panel.layout(l -> l.flex(1).paddingAll(6).gapAll(4).flexDirection(YogaFlexDirection.COLUMN));
+        panel.layout(l -> l.flex(1).paddingAll(6).gapAll(4).flexDirection(FlexDirection.COLUMN));
 
         panel.addChildren(new Label().setText("§8Chunk territory around the outpost  §8(drag/scroll)"));
 
         var mapRow = new UIElement();
-        mapRow.layout(l -> l.flexDirection(YogaFlexDirection.ROW).gapAll(6));
+        mapRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
 
         // Terrain map grid
         mapGrid = new UIElement();
@@ -349,7 +350,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
 
         // Inspection panel
         inspPanel = new UIElement();
-        inspPanel.layout(l -> l.width(162).flexDirection(YogaFlexDirection.COLUMN).gapAll(4));
+        inspPanel.layout(l -> l.width(162).flexDirection(FlexDirection.COLUMN).gapAll(4));
         refreshInspPanel();
 
         mapRow.addChildren(mapGrid, inspPanel);
@@ -431,7 +432,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         final int fcs = cellPx;
         for (int row = 0; row < mapViewSize; row++) {
             var rowEl = new UIElement();
-            rowEl.layout(l -> l.flexDirection(YogaFlexDirection.ROW).height(fcs));
+            rowEl.layout(l -> l.flexDirection(FlexDirection.ROW).height(fcs));
             for (int col = 0; col < mapViewSize; col++) {
                 int fcx = ccx - halfView + col, fcz = ccz - halfView + row;
                 var cell = new UIElement();

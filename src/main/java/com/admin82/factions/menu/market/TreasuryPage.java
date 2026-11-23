@@ -6,11 +6,12 @@ import com.admin82.factions.menu.UiKit;
 import com.admin82.factions.network.packet.TreasuryPacket;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
+import dev.vfyjxf.taffy.style.FlexDirection;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.appliedenergistics.yoga.YogaAlign;
-import org.appliedenergistics.yoga.YogaFlexDirection;
+
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.time.Instant;
@@ -199,12 +200,12 @@ final class TreasuryPage {
         int count = Math.max(1, days.size());
         int columnWidth = Math.max(2, (width - (count - 1) - 2) / count);
         var bars = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        bars.layout(l -> l.flexDirection(YogaFlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1)
+        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1)
                 .height(height).paddingHorizontal(1));
         var fmt = DateTimeFormatter.ofPattern("EEE d MMM");
         for (long[] d : days) {
             var column = new UIElement();
-            column.layout(l -> l.flexDirection(YogaFlexDirection.COLUMN).justifyContent(
+            column.layout(l -> l.flexDirection(FlexDirection.COLUMN).justifyContent(
                     YogaJustify.FLEX_END).width(columnWidth).height(height));
             var bar = new UIElement();
             int barHeight = d[1] <= 0 ? 1 : Math.max(2, (int) Math.round((double) d[1] / max * (height - 2)));
