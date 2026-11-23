@@ -40,7 +40,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.*;
@@ -657,7 +657,7 @@ public class BarracksMenu extends AbstractContainerMenu {
         // Move Barracks button (faction owners only)
         var moveRow = new UIElement();
         moveRow.layout(l -> l.flexDirection(FlexDirection.ROW).height(22).width(416)
-                .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(YogaAlign.CENTER));
+                .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(AlignItems.CENTER));
         var moveBtn = new Button()
                 .setText("§e⇄ Move Barracks")
                 .setOnClick(e -> PacketDistributor.sendToServer(new RequestMoveBarracksPacket()));
@@ -818,7 +818,7 @@ public class BarracksMenu extends AbstractContainerMenu {
     private UIElement buildQuickTakeBar() {
         var bar = new UIElement();
         bar.layout(l -> l.flexDirection(FlexDirection.ROW).height(22).width(416)
-                .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(YogaAlign.CENTER));
+                .paddingHorizontal(4).paddingVertical(1).gapAll(4).alignSelf(AlignItems.CENTER));
 
         var infoLabel = new Label();
         infoLabel.bindDataSource(SupplierDataSource.of(() ->

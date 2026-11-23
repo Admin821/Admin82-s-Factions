@@ -26,7 +26,7 @@ import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ final class GuardTabs {
     @OnlyIn(Dist.CLIENT)
     UIElement buildDropsTab(MonumentView selected) {
         var panel = MonumentUi.hbox(8);
-        panel.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        panel.layout(l -> l.alignItems(AlignItems.FLEX_START));
         var contents = MonumentUi.card();
         contents.layout(l -> l.width(184));
         contents.addChildren(MonumentUi.sectionTitle("Death Drops"),
@@ -202,7 +202,7 @@ final class GuardTabs {
     @OnlyIn(Dist.CLIENT)
     UIElement buildRosterTab(MonumentView selected) {
         var panel = MonumentUi.hbox(8);
-        panel.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        panel.layout(l -> l.alignItems(AlignItems.FLEX_START));
 
         var table = MonumentUi.card();
         table.layout(l -> l.width(370));
@@ -287,7 +287,7 @@ final class GuardTabs {
     UIElement buildGearTab(MonumentView selected) {
         if (selectedLoadoutPickerSlot >= 0) return buildLoadoutItemPicker(selected);
         var panel = MonumentUi.hbox(8);
-        panel.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        panel.layout(l -> l.alignItems(AlignItems.FLEX_START));
 
         var classes = MonumentUi.card();
         classes.layout(l -> l.width(150));

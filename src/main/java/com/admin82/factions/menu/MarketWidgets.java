@@ -14,7 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -69,7 +69,7 @@ public final class MarketWidgets {
 
     public static UIElement historyRow(Transaction entry, int width) {
         var row = UiKit.background(new UIElement(), UiKit.ROW);
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4)
                 .height(20).paddingHorizontal(4));
         if (entry.icon().isEmpty()) {
             var dot = new UIElement();
@@ -153,7 +153,7 @@ public final class MarketWidgets {
             long suggested = average * Math.max(1, stackSize);
             var use = new Button().setText("§eUse average §7(" + Currency.format(suggested) + ")")
                     .setOnClick(e -> useAverage.accept(suggested));
-            use.layout(l -> l.height(16).alignSelf(YogaAlign.FLEX_START).width(
+            use.layout(l -> l.height(16).alignSelf(AlignItems.FLEX_START).width(
                     Minecraft.getInstance().font.width("Use average (" + Currency.format(suggested) + ")") + 16));
             tooltip(use, "§7Fill in the average price" + (stackSize > 1 ? " for " + stackSize + " items." : "."));
             card.addChildren(use);
@@ -163,7 +163,7 @@ public final class MarketWidgets {
 
     private static UIElement statRow(String label, String value) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(11));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(11));
         row.addChildren(new Label().setText("§7" + label).layout(l -> l.width(96)), new Label().setText(value));
         return row;
     }
@@ -214,7 +214,7 @@ public final class MarketWidgets {
         int count = buckets.size();
         int columnWidth = Math.max(2, (width - (count - 1)) / count);
         var bars = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1)
+        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.FLEX_END).gapAll(1)
                 .height(height).paddingHorizontal(1));
         for (Bucket bucket : buckets) {
             var column = new UIElement();

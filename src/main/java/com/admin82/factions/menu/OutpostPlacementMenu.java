@@ -26,7 +26,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -96,7 +96,7 @@ public class OutpostPlacementMenu extends AbstractContainerMenu implements IModu
 
         // Title
         var title = new UIElement();
-        title.layout(l -> l.flexDirection(FlexDirection.ROW).justifyContent(YogaJustify.SPACE_BETWEEN).alignItems(YogaAlign.CENTER));
+        title.layout(l -> l.flexDirection(FlexDirection.ROW).justifyContent(YogaJustify.SPACE_BETWEEN).alignItems(AlignItems.CENTER));
         title.addChildren(new Label().setText("§d§l⚑ Place an outpost"),
                 UiKit.rightLabel("§7" + data.pos().getX() + ", " + data.pos().getY() + ", " + data.pos().getZ()));
         root.addChildren(title);

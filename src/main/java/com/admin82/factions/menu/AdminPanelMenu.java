@@ -13,6 +13,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
+import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -26,7 +27,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -523,7 +524,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
         content.addChildren(top);
 
         var body = new UIElement();
-        body.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).alignItems(YogaAlign.FLEX_START));
+        body.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6).alignItems(AlignItems.FLEX_START));
         var left = new UIElement();
         left.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(3));
         left.addChildren(view.element(), SeamMap.fit("§8North up · white: you · orange: selected"));
@@ -820,7 +821,7 @@ public class AdminPanelMenu extends AbstractContainerMenu {
 
     private static UIElement row(int gap, int height) {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap).height(height));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(gap).height(height));
         return r;
     }
 

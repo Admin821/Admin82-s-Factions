@@ -19,7 +19,7 @@ import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -119,7 +119,7 @@ final class StocksPage {
     @OnlyIn(Dist.CLIENT)
     private void renderList() {
         var top = MarketUi.hbox(4);
-        top.layout(l -> l.height(16).alignItems(YogaAlign.CENTER));
+        top.layout(l -> l.height(16).alignItems(AlignItems.CENTER));
         var field = UiKit.textField("");
         field.setValue(search);
         field.bindObserver(v -> { if (!v.equals(search)) { search = v; scroll = 0; render(); } });
@@ -159,7 +159,7 @@ final class StocksPage {
         for (var line : shown.subList(scroll * perPage, Math.min(shown.size(), (scroll + 1) * perPage))) area.addChildren(row(line));
 
         var pager = MarketUi.hbox(4);
-        pager.layout(l -> l.height(14).justifyContent(YogaJustify.FLEX_END).alignItems(YogaAlign.CENTER));
+        pager.layout(l -> l.height(14).justifyContent(YogaJustify.FLEX_END).alignItems(AlignItems.CENTER));
         pager.addChildren(MarketUi.smallButton("§7◀", 18, () -> { scroll = Math.max(0, scroll - 1); render(); }),
                 new Label().setText("§7" + (scroll + 1) + "/" + pages + " §8· " + shown.size() + " items"),
                 MarketUi.smallButton("§7▶", 18, () -> { scroll = Math.min(pages - 1, scroll + 1); render(); }));
@@ -169,10 +169,10 @@ final class StocksPage {
     @OnlyIn(Dist.CLIENT)
     private UIElement row(SyncStocksPacket.Line line) {
         var r = UiKit.background(MarketUi.hbox(4), UiKit.ROW);
-        r.layout(l -> l.height(20).paddingHorizontal(4).alignItems(YogaAlign.CENTER));
+        r.layout(l -> l.height(20).paddingHorizontal(4).alignItems(AlignItems.CENTER));
         var icon = new ItemSlot().setItem(stack(line.itemId()));
         var name = new UIElement();
-        name.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3));
+        name.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(3));
         name.addChildren(icon, new Label().setText("§f" + MarketUi.itemLabel(stack(line.itemId()), 110)));
         r.addChildren(name,
                 new Label().setText("§a" + Currency.format(line.lastPrice()).replaceAll("§.", "")).layout(l -> l.width(70)),
@@ -190,7 +190,7 @@ final class StocksPage {
     @OnlyIn(Dist.CLIENT)
     private static UIElement sparkline(List<Long> prices, int width, int height) {
         var box = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        box.layout(l -> l.width(width).height(height).flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1));
+        box.layout(l -> l.width(width).height(height).flexDirection(FlexDirection.ROW).alignItems(AlignItems.FLEX_END).gapAll(1));
         if (prices.isEmpty()) return box;
         long max = prices.stream().mapToLong(Long::longValue).max().orElse(1);
         long min = prices.stream().mapToLong(Long::longValue).min().orElse(0);
@@ -220,7 +220,7 @@ final class StocksPage {
     private void renderDetail() {
         String itemId = detailItem;
         var top = MarketUi.hbox(6);
-        top.layout(l -> l.height(20).alignItems(YogaAlign.CENTER));
+        top.layout(l -> l.height(20).alignItems(AlignItems.CENTER));
         top.addChildren(MarketUi.backButton(() -> { detailItem = null; detailPoints = null; render(); }),
                 new ItemSlot().setItem(stack(itemId)), new Label().setText("§f§l" + name(itemId)).layout(l -> l.flex(1)));
         area.addChildren(top);

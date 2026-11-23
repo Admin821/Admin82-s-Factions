@@ -19,7 +19,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import javax.annotation.Nullable;
@@ -75,7 +75,7 @@ public class SeamViewerMenu extends AbstractContainerMenu implements IModularUIH
         frame.layout(l -> l.width(width).height(mapPx + 92).paddingAll(2));
         frame.addClass("preview_bg");
         var root = new UIElement();
-        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(5).alignItems(YogaAlign.CENTER));
+        root.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).paddingAll(8).gapAll(5).alignItems(AlignItems.CENTER));
         root.addClass("panel_bg");
 
         root.addChildren(SeamMap.fit("§6§l⛏ Seam Viewer"), SeamMap.legend(3), view.element(),

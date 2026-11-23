@@ -22,7 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.*;
@@ -171,7 +171,7 @@ final class VaultTab {
         boolean wallet = scope == HistoryRequestPacket.Scope.WALLET;
 
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(18));
         var back = new Button().setText("§7◀ Back").setOnClick(e -> showVaultMain(player));
         back.layout(l -> l.width(56).height(16));
         var walletTab = new Button().setText(wallet ? "§f§lWallet" : "§7Wallet").setOnClick(e ->
@@ -190,7 +190,7 @@ final class VaultTab {
         historyPager.lss("horizontal-align", "center");
         historyPager.layout(l -> l.flex(1));
         var pager = new UIElement();
-        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
         pager.addChildren(
                 new Button().setText("‹").setOnClick(e -> { historyScroll = Math.max(0, historyScroll - HISTORY_ROWS); renderBankHistory(); })
                         .layout(l -> l.width(20).height(14)),

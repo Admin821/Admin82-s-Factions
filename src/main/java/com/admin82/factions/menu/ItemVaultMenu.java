@@ -27,7 +27,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -115,7 +115,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
         // Main inventory (slots 9-35) then hotbar (0-8)
         for (int row = 0; row < 4; row++) {
             var r = rowOf();
-            r.layout(l -> l.alignSelf(YogaAlign.CENTER));
+            r.layout(l -> l.alignSelf(AlignItems.CENTER));
             for (int col = 0; col < 9; col++) {
                 int slot = row < 3 ? 9 + row * 9 + col : col;
                 r.addChildren(inventoryCell(player, slot));
@@ -176,7 +176,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement storedCell(int index, SyncItemVaultPacket.Line line) {
         var cell = new UIElement();
-        cell.layout(l -> l.width(CELL - 2).flexDirection(FlexDirection.COLUMN).alignItems(YogaAlign.CENTER));
+        cell.layout(l -> l.width(CELL - 2).flexDirection(FlexDirection.COLUMN).alignItems(AlignItems.CENTER));
         var slot = new ItemSlot().setItem(line.item().copyWithCount(1));
         UiKit.onClick(slot, e -> {
             if (data == null || !data.canWithdraw()) return;
@@ -196,7 +196,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
             send(Screen.hasShiftDown() ? ItemVaultService.Action.DEPOSIT_ALL_OF : ItemVaultService.Action.DEPOSIT_SLOT, slotIndex, 0);
         });
         var cell = new UIElement();
-        cell.layout(l -> l.width(18).height(18).alignItems(YogaAlign.CENTER));
+        cell.layout(l -> l.width(18).height(18).alignItems(AlignItems.CENTER));
         cell.addChildren(slot);
         return cell;
     }
@@ -209,7 +209,7 @@ public class ItemVaultMenu extends AbstractContainerMenu {
 
     private static UIElement rowOf() {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(2));
         return r;
     }
 

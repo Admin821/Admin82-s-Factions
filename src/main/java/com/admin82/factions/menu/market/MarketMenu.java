@@ -36,7 +36,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 import org.appliedenergistics.yoga.YogaJustify;
 
 import java.util.ArrayList;
@@ -251,7 +251,7 @@ public class MarketMenu extends AbstractContainerMenu {
         header.addChildren(new Label().setText("§6§lFaction Market").layout(l -> l.flex(1)), wallet);
 
         var body = MarketUi.hbox(6);
-        body.layout(l -> l.flex(1).alignItems(YogaAlign.STRETCH));
+        body.layout(l -> l.flex(1).alignItems(AlignItems.STRETCH));
         var content = MarketUi.vbox(4);
         content.layout(l -> l.width(contentWidth));
         content.addChildren(switch (currentTab) {

@@ -38,7 +38,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.UUID;
@@ -290,7 +290,7 @@ public class CoinStorageMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement cell(int slotIndex) {
         var wrap = new UIElement();
-        wrap.layout(l -> l.width(18).height(18).alignItems(YogaAlign.CENTER));
+        wrap.layout(l -> l.width(18).height(18).alignItems(AlignItems.CENTER));
         var display = new ItemSlot();
         display.addEventListener(UIEvents.TICK, ev -> display.setItem(slots.get(slotIndex).getItem().copy()));
         UiKit.onClick(display, ev -> {
@@ -303,7 +303,7 @@ public class CoinStorageMenu extends AbstractContainerMenu {
 
     private static UIElement row() {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(2));
         return r;
     }
 

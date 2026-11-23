@@ -34,7 +34,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import javax.annotation.Nullable;
@@ -136,7 +136,7 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
         renderInfo();
 
         var slotsColumn = new UIElement();
-        slotsColumn.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4).width(9 * 18).alignSelf(YogaAlign.CENTER));
+        slotsColumn.layout(l -> l.flexDirection(FlexDirection.COLUMN).gapAll(4).width(9 * 18).alignSelf(AlignItems.CENTER));
         var outLabel = new Label().setText("§7Ore mined");
         tip(outLabel, "§7Click to take. Hoppers and pipes can empty it too.");
         slotsColumn.addChildren(outLabel);
@@ -252,7 +252,7 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement cell(int slotIndex) {
         var wrap = new UIElement();
-        wrap.layout(l -> l.width(18).height(18).alignItems(YogaAlign.CENTER));
+        wrap.layout(l -> l.width(18).height(18).alignItems(AlignItems.CENTER));
         var display = new ItemSlot();
         display.addEventListener(UIEvents.TICK, ev -> display.setItem(slots.get(slotIndex).getItem().copy()));
         UiKit.onClick(display, ev -> {
@@ -271,7 +271,7 @@ public class SeamExtractorMenu extends AbstractContainerMenu {
 
     private static UIElement row() {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(2));
         return r;
     }
 

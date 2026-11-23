@@ -50,7 +50,7 @@ import net.minecraft.world.level.block.LanternBlock;
 import net.minecraft.world.level.block.TorchBlock;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.Arrays;
@@ -189,7 +189,7 @@ final class MarketUi {
     @OnlyIn(Dist.CLIENT)
     static UIElement hbox(int gap) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
+        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(gap));
         return box;
     }
 

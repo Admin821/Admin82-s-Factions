@@ -18,7 +18,7 @@ import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import javax.annotation.Nullable;
@@ -102,7 +102,7 @@ final class UpgradesTab {
         if (panel == null) return;
         panel.clearAllChildren();
         var title = new UIElement();
-        title.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
+        title.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(14));
         title.addChildren(new Label().setText("§6§lFaction Upgrades").layout(l -> l.flex(1)));
         if (data != null) {
             var have = warbondAmount(warbonds(), warbonds() > 0 ? "§d" : "§8", 14);
@@ -198,7 +198,7 @@ final class UpgradesTab {
         for (int i = 0; i < paths.size(); i++) {
             if (i > 0) {
                 var or = new UIElement();
-                or.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(9).paddingLeft(11));
+                or.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(9).paddingLeft(11));
                 var bar = UiKit.background(new UIElement(), 0x40FFFFFF);
                 bar.layout(l -> l.width(2).height(9));
                 or.addChildren(bar, fitted("§8or"));
@@ -220,7 +220,7 @@ final class UpgradesTab {
         boolean isTaken = row == taken;
         int bg = isSelected ? SELECTED : isLocked ? 0x30000000 : isTaken ? MAXED : UiKit.ROW;
         var line = UiKit.background(new UIElement(), bg);
-        line.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(20).paddingHorizontal(3));
+        line.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(6).height(20).paddingHorizontal(3));
 
         var icon = new ItemSlot().setItem(iconFor(row));
         icon.layout(l -> l.width(16).height(16));
@@ -229,7 +229,7 @@ final class UpgradesTab {
 
         // The track: I━II━III━IV
         var track = new UIElement();
-        track.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER));
+        track.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER));
         int max = isLocked ? PATH_LEVELS : Math.max(1, row.maxLevel());
         for (int lvl = 1; lvl <= max; lvl++) {
             if (lvl > 1) {
@@ -241,7 +241,7 @@ final class UpgradesTab {
             boolean next = !isLocked && lvl == row.level() + 1;
             int fill = isLocked ? 0xFF3A2424 : owned ? 0xFF3FAF3F : next ? 0xFF6A6A6A : 0xFF3C3C3C;
             var pip = UiKit.background(new UIElement(), fill);
-            pip.layout(l -> l.width(18).height(12).alignItems(YogaAlign.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
+            pip.layout(l -> l.width(18).height(12).alignItems(AlignItems.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
             String r = roman(lvl);
             pip.addChildren(fitted((owned ? "§f" : isLocked ? "§8" : "§7") + r));
             track.addChildren(pip);
@@ -273,13 +273,13 @@ final class UpgradesTab {
         boolean affordable = !done && !locked(row) && warbonds() >= row.cost();
         var tile = UiKit.background(new UIElement(), isSelected ? SELECTED : done ? MAXED : affordable ? AFFORDABLE : UiKit.ROW);
         tile.layout(l -> l.width(NODE_WIDTH).height(NODE_HEIGHT).flexDirection(FlexDirection.ROW)
-                .alignItems(YogaAlign.CENTER).gapAll(6).paddingAll(4));
+                .alignItems(AlignItems.CENTER).gapAll(6).paddingAll(4));
         var icon = new ItemSlot().setItem(iconFor(row));
         var text = new UIElement();
         text.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(2));
         String name = row.name().startsWith("Outpost: ") ? row.name().substring(9) : row.name();
         var bottom = new UIElement();
-        bottom.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(10));
+        bottom.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(6).height(10));
         bottom.addChildren(fitted(levelText(row)),
                 locked(row) ? fitted("§c🔒 Locked") : done ? fitted("§6✔ Max")
                         : warbondAmount(row.cost(), affordable ? "§a" : "§d", 10));
@@ -323,7 +323,7 @@ final class UpgradesTab {
             return card;
         }
         var buyRow = new UIElement();
-        buyRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(18));
+        buyRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(6).height(18));
         boolean affordable = warbonds() >= row.cost();
         boolean canBuy = affordable && data.canUpgrade();
         if (!canBuy) armed = false;
@@ -405,7 +405,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private static UIElement statRow(String now, String next, boolean arrow) {
         var line = new UIElement();
-        line.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(10));
+        line.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(10));
         line.addChildren(new Label().setText(now).layout(l -> l.width(STAT_WIDTH)));
         if (arrow) {
             line.addChildren(new Label().setText(now.startsWith("§8") ? "" : "§8→").layout(l -> l.width(14)),
@@ -430,7 +430,7 @@ final class UpgradesTab {
     @OnlyIn(Dist.CLIENT)
     private static UIElement warbondAmount(int amount, String color, int iconSize) {
         var box = new UIElement();
-        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(2).height(iconSize));
+        box.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(2).height(iconSize));
         var icon = new ItemSlot().setItem(new ItemStack(ModItems.WARBOND.get()));
         icon.slotStyle(st -> st.showItemTooltips(true)); // hover the icon to see the Warbond item
         icon.style(st -> st.background(com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture.EMPTY));

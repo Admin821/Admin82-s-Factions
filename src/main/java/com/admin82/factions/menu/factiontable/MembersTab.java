@@ -17,7 +17,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.*;
@@ -66,7 +66,7 @@ final class MembersTab {
         }
 
         var columns = new UIElement();
-        columns.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(6).alignItems(YogaAlign.FLEX_START));
+        columns.layout(l -> l.flex(1).flexDirection(FlexDirection.ROW).gapAll(6).alignItems(AlignItems.FLEX_START));
 
         // Member list
         var list = FactionTableMenu.card();
@@ -90,7 +90,7 @@ final class MembersTab {
         }
         if (pages > 1) {
             var pager = new UIElement();
-            pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+            pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
             pager.addChildren(
                     new Button().setText("‹").setOnClick(e -> { memberListPage--; menu.reloadTab(Tab.MEMBERS, player); })
                             .layout(l -> l.width(18).height(14)),
@@ -131,7 +131,7 @@ final class MembersTab {
             });
             inviteBtn.layout(l -> l.width(60).height(18));
             var inviteRow = UiKit.background(new UIElement(), UiKit.CARD);
-            inviteRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+            inviteRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4)
                     .height(26).paddingHorizontal(6));
             inviteRow.addChildren(new Label().setText("§7Invite player").layout(l -> l.width(72)), inviteSel, inviteBtn);
             panel.addChildren(inviteRow);

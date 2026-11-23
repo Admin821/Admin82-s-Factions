@@ -25,7 +25,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -152,7 +152,7 @@ final class TerritoryTab {
         var mapRow = new UIElement();
         mapRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(6));
         mapGrid = new UIElement();
-        mapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(YogaAlign.CENTER));
+        mapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(AlignItems.CENTER));
         terrainMapTexture = new TerrainMapTexture(GRID_PX);
         mapGrid.style(s -> s.background(terrainMapTexture));
         fillMapCells(mapGrid, coreX, coreZ, canClaim);
@@ -488,7 +488,7 @@ final class TerritoryTab {
 
         if (canManage) {
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(18));
             var toggle = UiKit.toggle().setOn(claim.chunkloadEnabled()).setOnToggleChanged(on ->
                     PacketDistributor.sendToServer(new ChunkloadActionPacket(
                             ChunkloadActionPacket.Action.SET_ENABLED, cx, cz, menu.tableDim, on)));
@@ -588,7 +588,7 @@ final class TerritoryTab {
         // Resize grid element so no unwritten grey strips show at edges
         if (mapGrid != null) {
             final int as = actualSize;
-            mapGrid.layout(l -> l.width(as).height(as).alignSelf(YogaAlign.CENTER));
+            mapGrid.layout(l -> l.width(as).height(as).alignSelf(AlignItems.CENTER));
         }
 
         // Step 1: per-pixel terrain render into the NativeImage texture
@@ -678,7 +678,7 @@ final class TerritoryTab {
 
                 // Plain UIElement, no background; terrain + borders show through
                 var cell = new UIElement();
-                cell.layout(l -> l.width(fcs).height(fcs).alignItems(YogaAlign.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
+                cell.layout(l -> l.width(fcs).height(fcs).alignItems(AlignItems.CENTER).justifyContent(org.appliedenergistics.yoga.YogaJustify.CENTER));
                 // A seam the faction has scanned: its ore on the chunk, and the seam's details on hover
                 var seam = seams.get(net.minecraft.world.level.ChunkPos.asLong(cx, cz));
                 if (seam != null && seam.hasSeam()) {

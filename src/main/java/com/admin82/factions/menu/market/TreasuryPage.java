@@ -10,7 +10,7 @@ import dev.vfyjxf.taffy.style.FlexDirection;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -125,7 +125,7 @@ final class TreasuryPage {
         for (var e : t.last7d().entrySet()) if (e.getKey().income) week += e.getValue();
 
         var cards = MarketUi.hbox(4);
-        cards.layout(l -> l.height(30).alignItems(YogaAlign.STRETCH));
+        cards.layout(l -> l.height(30).alignItems(AlignItems.STRETCH));
         cards.addChildren(statCard("Total taken in", "§a§l" + money(totalIncome),
                         t.since() > 0 ? "since " + DateTimeFormatter.ofPattern("d MMM yyyy")
                                 .format(Instant.ofEpochMilli(t.since()).atZone(ZoneId.systemDefault())) : "no data yet"),
@@ -200,7 +200,7 @@ final class TreasuryPage {
         int count = Math.max(1, days.size());
         int columnWidth = Math.max(2, (width - (count - 1) - 2) / count);
         var bars = UiKit.background(new UIElement(), UiKit.BAR_TRACK);
-        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1)
+        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.FLEX_END).gapAll(1)
                 .height(height).paddingHorizontal(1));
         var fmt = DateTimeFormatter.ofPattern("EEE d MMM");
         for (long[] d : days) {

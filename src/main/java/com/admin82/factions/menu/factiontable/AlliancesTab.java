@@ -11,7 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.*;
@@ -64,7 +64,7 @@ final class AlliancesTab {
         }
 
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(14));
         header.addChildren(new Label().setText("§6§l🤝 Alliances").layout(l -> l.flex(1)),
                 UiKit.rightLabel(allies.isEmpty() ? "§8No allies" : "§a" + allies.size() + " all" + (allies.size() == 1 ? "y" : "ies")));
         alliancesPanel.addChildren(header,
@@ -191,7 +191,7 @@ final class AlliancesTab {
 
     private UIElement allianceRow(String title, String subtitle) {
         var row = UiKit.background(new UIElement(), UiKit.ROW);
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(6).height(22).paddingHorizontal(4));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(6).height(22).paddingHorizontal(4));
         var info = new UIElement();
         info.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN));
         info.addChildren(new Label().setText(title), new Label().setText(subtitle));

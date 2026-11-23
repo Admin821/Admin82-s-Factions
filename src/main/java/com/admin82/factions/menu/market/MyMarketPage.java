@@ -20,7 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
@@ -244,7 +244,7 @@ final class MyMarketPage {
                 ? "§7Click the item you want to sell. The whole stack is listed."
                 : "§7Click the item (and stack size) for this listing."));
         var grid = UiKit.background(MarketUi.vbox(2), UiKit.ROW);
-        grid.layout(l -> l.paddingAll(6).alignSelf(YogaAlign.FLEX_START));
+        grid.layout(l -> l.paddingAll(6).alignSelf(AlignItems.FLEX_START));
         int[][] rowDefs = {{9, 18}, {18, 27}, {27, 36}, {0, 9}};
         for (int r = 0; r < rowDefs.length; r++) {
             int[] range = rowDefs[r];

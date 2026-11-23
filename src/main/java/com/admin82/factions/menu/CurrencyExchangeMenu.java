@@ -34,7 +34,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.*;
@@ -213,7 +213,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         root.addClass("panel_bg");
 
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(14));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(14));
         var balances = new Label();
         balances.bindDataSource(SupplierDataSource.of(() -> {
             Player me = ClientPlayer.get();
@@ -289,7 +289,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         left.layout(l -> l.flex(1).flexDirection(FlexDirection.COLUMN).gapAll(3));
 
         var filterRow = new UIElement();
-        filterRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        filterRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
         var searchField = UiKit.textField("Search items");
         searchField.setValue(search);
         searchField.bindObserver(v -> {
@@ -321,7 +321,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         left.addChildren(listArea);
 
         var pager = new UIElement();
-        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
         pagerLabel = new Label();
         pagerLabel.lss("horizontal-align", "center");
         pagerLabel.layout(l -> l.flex(1));
@@ -394,7 +394,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
         Item item = resolve(id);
         boolean selected = id.equals(selectedForTab());
         var row = UiKit.background(new UIElement(), selected ? SELECTED_ROW : UiKit.ROW);
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(5).height(19).paddingHorizontal(3));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(5).height(19).paddingHorizontal(3));
         var icon = new ItemSlot();
         icon.setItem(item != null ? new ItemStack(item) : ItemStack.EMPTY);
         icon.layout(l -> l.width(18).height(18));
@@ -538,7 +538,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private void manageDetail(Player player) {
         var twoWayRow = new UIElement();
-        twoWayRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        twoWayRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
         var toggle = UiKit.toggle();
         toggle.setOn(twoWay);
         toggle.setOnToggleChanged(on -> PacketDistributor.sendToServer(ExchangeActionPacket.setTwoWay(on)));
@@ -566,7 +566,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
                     : price > 0 ? "§7= §r" + Currency.format(price) + " §7each" : "§c✖ Not a valid price");
         };
         var itemRow = new UIElement();
-        itemRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3).height(18));
+        itemRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(3).height(18));
         var itemField = UiKit.textField("Item id, e.g. diamond");
         itemField.setValue(manageItemText);
         itemField.bindObserver(v -> { manageItemText = v.trim(); validate.run(); });
@@ -583,7 +583,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
 
         // Price
         var priceRow = new UIElement();
-        priceRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        priceRow.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
         var priceField = UiKit.textField("Price, e.g. 2g50s");
         priceField.setValue(managePriceText);
         priceField.bindObserver(v -> { managePriceText = v; validate.run(); });
@@ -650,7 +650,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement itemHeader(String id) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(5).height(20));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(5).height(20));
         var icon = new ItemSlot();
         Item item = resolve(id);
         icon.setItem(item != null ? new ItemStack(item) : ItemStack.EMPTY);
@@ -662,7 +662,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement amountRow(int max, Runnable onChange) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3).height(16));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(3).height(16));
         var field = UiKit.textField("");
         field.setValue(Integer.toString(amount));
         field.bindObserver(v -> {
@@ -696,7 +696,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement payoutRow(String label) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3).height(16));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(3).height(16));
         var coins = new Button().setText(useWallet ? "§7Coins" : "§f§lCoins").setOnClick(e -> { useWallet = false; renderDetail(); });
         coins.layout(l -> l.flex(1).height(16));
         if (!useWallet) coins.lss("base-background", ACTIVE_BG);
@@ -712,7 +712,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement sellAllRow(Player player) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(18));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(18));
         long total = totalSellableValue(player);
         var btn = new Button().setText(total <= 0 ? "§8Sell everything"
                 : sellAllArmed ? "§a§lConfirm: sell all for " + Currency.format(total).replaceAll("§.", "")
@@ -748,7 +748,7 @@ public class CurrencyExchangeMenu extends AbstractContainerMenu {
             Item coin = coinItems[i];
             long value = coinValues[i];
             var row = UiKit.background(new UIElement(), UiKit.ROW);
-            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(5).height(20).paddingHorizontal(2));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(5).height(20).paddingHorizontal(2));
             var icon = new ItemSlot();
             icon.setItem(new ItemStack(coin));
             icon.layout(l -> l.width(18).height(18));

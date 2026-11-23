@@ -40,7 +40,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -192,7 +192,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         // Flag health
         float pct = data.maxHp() <= 0 ? 0 : Math.max(0f, Math.min(1f, data.hp() / (float) data.maxHp()));
         var barBg = new UIElement();
-        barBg.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(FlexDirection.ROW).alignSelf(YogaAlign.CENTER));
+        barBg.layout(l -> l.width(BAR_WIDTH).height(8).flexDirection(FlexDirection.ROW).alignSelf(AlignItems.CENTER));
         UiKit.background(barBg, UiKit.BAR_TRACK);
         if (pct > 0) {
             int fw = Math.max(1, (int) (BAR_WIDTH * pct));
@@ -209,7 +209,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
                     + "§8/day · §7lasts " + days + " day" + (days == 1 ? "" : "s")));
             var open = new Button().setText("§6Coin storage")
                     .setOnClick(e -> PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.OPEN_COINS, data.outpostId())));
-            open.layout(l -> l.width(120).height(16).alignSelf(YogaAlign.CENTER));
+            open.layout(l -> l.width(120).height(16).alignSelf(AlignItems.CENTER));
             open.addEventListener(UIEvents.HOVER_TOOLTIPS, ev -> ev.hoverTooltips = HoverTooltips.empty().append(
                     Component.literal("§7Put coins in to pay the daily upkeep."),
                     Component.literal(data.canManage() ? "§7Officers can take coins out too." : "§8Only officers can take coins out."),
@@ -222,7 +222,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
         // Rename (officers)
         if (data.canManage() && !data.disintegrating()) {
             var nameRow = new UIElement();
-            nameRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).alignSelf(YogaAlign.CENTER).height(16));
+            nameRow.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(4).alignSelf(AlignItems.CENTER).height(16));
             var nameField = UiKit.textField("");
             nameField.setValue(nameText.isEmpty() ? data.outpostName() : nameText);
             nameField.bindObserver(v -> nameText = v);
@@ -255,12 +255,12 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
                                 OutpostActionPacket.Action.SET_WAR_SPAWN, data.outpostId()));
                         Minecraft.getInstance().setScreen(null);
                     })
-                    .layout(l -> l.width(380).alignSelf(YogaAlign.CENTER)));
+                    .layout(l -> l.width(380).alignSelf(AlignItems.CENTER)));
         }
 
         if (data.isOwner() && !data.disintegrating()) {
             var row = new UIElement();
-            row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).alignSelf(YogaAlign.CENTER));
+            row.layout(l -> l.flexDirection(FlexDirection.ROW).gapAll(8).alignSelf(AlignItems.CENTER));
             row.addChildren(
                     tipped(new Button().setText("§e Move Outpost").setOnClick(e -> {
                         PacketDistributor.sendToServer(new OutpostActionPacket(OutpostActionPacket.Action.MOVE, data.outpostId()));
@@ -306,7 +306,7 @@ public class OutpostManagerMenu extends AbstractContainerMenu implements IModula
 
         // Terrain map grid
         mapGrid = new UIElement();
-        mapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(YogaAlign.CENTER));
+        mapGrid.layout(l -> l.width(GRID_PX).height(GRID_PX).alignSelf(AlignItems.CENTER));
         if (mapTex == null) mapTex = new OutpostTerrainMap(GRID_PX);
         mapGrid.style(s -> s.background(mapTex));
         fillMapCells();

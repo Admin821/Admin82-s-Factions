@@ -31,7 +31,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 
 import java.util.Arrays;
@@ -113,7 +113,7 @@ public class AiCombatProfileMenu extends AbstractContainerMenu {
         }
 
         UIElement body = row(8);
-        body.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        body.layout(l -> l.alignItems(AlignItems.FLEX_START));
         body.addChildren(buildEditor(), buildPreview());
         if (panelHeight < DESIGN_HEIGHT) {
             // Small window / large GUI scale: scroll instead of spilling out of the panel.
@@ -286,7 +286,7 @@ public class AiCombatProfileMenu extends AbstractContainerMenu {
 
     private static UIElement row(int gap) {
         UIElement element = new UIElement();
-        element.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(gap));
+        element.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(gap));
         return element;
     }
 

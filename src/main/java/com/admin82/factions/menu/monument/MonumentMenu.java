@@ -47,7 +47,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -434,7 +434,7 @@ public class MonumentMenu extends AbstractContainerMenu {
     private void buildBrowser(UIElement content) {
         if (monuments.isEmpty()) {
             var empty = MonumentUi.card();
-            empty.layout(l -> l.width(contentWidth).paddingAll(16).alignItems(YogaAlign.CENTER));
+            empty.layout(l -> l.width(contentWidth).paddingAll(16).alignItems(AlignItems.CENTER));
             empty.addChildren(
                     new Label().setText("§eNo monuments yet"),
                     new Label().setText("§7Place a §fMonument Controller§7 block to create one."));
@@ -592,7 +592,7 @@ public class MonumentMenu extends AbstractContainerMenu {
     @OnlyIn(Dist.CLIENT)
     private UIElement buildOverviewTab(MonumentView selected) {
         var panel = MonumentUi.hbox(8);
-        panel.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        panel.layout(l -> l.alignItems(AlignItems.FLEX_START));
 
         String[] name = {selected.name()};
         int[] tier = {selected.tier()};
@@ -671,7 +671,7 @@ public class MonumentMenu extends AbstractContainerMenu {
         if (lootPoolNames.isEmpty()) lootPoolNames = new ArrayList<>(selected.lootPoolNames());
         if (currentLootPoolName == null && !lootPoolNames.isEmpty()) currentLootPoolName = lootPoolNames.getFirst();
         var panel = MonumentUi.hbox(8);
-        panel.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        panel.layout(l -> l.alignItems(AlignItems.FLEX_START));
 
         var pools = MonumentUi.card();
         pools.layout(l -> l.width(140));

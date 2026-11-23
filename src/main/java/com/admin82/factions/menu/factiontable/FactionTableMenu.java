@@ -34,7 +34,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -261,7 +261,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         var descVal   = new String[]{""};
         var statusVal = new String[]{""};
         var wrapper = new UIElement();
-        wrapper.layout(l -> l.flex(1).alignItems(YogaAlign.CENTER).justifyContent(YogaJustify.CENTER));
+        wrapper.layout(l -> l.flex(1).alignItems(AlignItems.CENTER).justifyContent(YogaJustify.CENTER));
         var card = UiKit.background(new UIElement(), UiKit.CARD);
         card.layout(l -> l.width(360).paddingAll(12).gapAll(6).flexDirection(FlexDirection.COLUMN));
         var nameField = UiKit.textField("");
@@ -289,7 +289,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                             PacketDistributor.sendToServer(new CreateFactionPacket(name, descVal[0].trim()));
                             statusVal[0] = "§7Creating...";
                         })
-                        .layout(l -> l.alignSelf(YogaAlign.CENTER).width(160).height(20)),
+                        .layout(l -> l.alignSelf(AlignItems.CENTER).width(160).height(20)),
                 new Label().bindDataSource(SupplierDataSource.of(() -> Component.literal(statusVal[0])))
         );
         wrapper.addChildren(card);
@@ -321,7 +321,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
         // Header: faction name + live stats
         var header = new UIElement();
-        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(16));
+        header.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(16));
         var stats = new Label();
         stats.bindDataSource(SupplierDataSource.of(() -> {
             Faction f = factionRef.get();
@@ -582,7 +582,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
 
     UIElement statLine(String label, Supplier<String> value) {
         var row = new UIElement();
-        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(12));
+        row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(12));
         var valueLabel = new Label();
         valueLabel.bindDataSource(SupplierDataSource.of(() -> Component.literal(value.get())));
         row.addChildren(new Label().setText("§7" + label).layout(l -> l.width(76)), valueLabel);
@@ -752,7 +752,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                 if (idx >= claims.size()) break;
                 var claim = claims.get(idx);
                 var row = UiKit.background(new UIElement(), UiKit.ROW);
-                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).height(15).paddingHorizontal(4));
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).height(15).paddingHorizontal(4));
                 row.addChildren(
                         new Label().setText("§f" + claim.chunkX() + ", " + claim.chunkZ()
                                 + (claim.isChunkloading() ? "  §d⚡ loaded" : "")).layout(l -> l.flex(1)),
@@ -764,7 +764,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
         };
         fillDeeds.run();
         var pager = new UIElement();
-        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(16));
+        pager.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(16));
         pager.addChildren(
                 new Button().setText("‹").setOnClick(e -> {
                     scroll[0] = Math.max(0, scroll[0] - deedRows); fillDeeds.run();
@@ -845,7 +845,7 @@ public class FactionTableMenu extends AbstractContainerMenu {
                     default -> "§7" + (i + 1);
                 };
                 var row = UiKit.background(new UIElement(), own ? 0x5533BBFF : UiKit.ROW);
-                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4)
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4)
                         .height(16).paddingHorizontal(4));
                 row.addChildren(
                         new Label().setText(rank).layout(l -> l.width(22)),

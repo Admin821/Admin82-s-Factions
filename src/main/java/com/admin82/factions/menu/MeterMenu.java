@@ -31,7 +31,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -608,7 +608,7 @@ public class MeterMenu extends AbstractContainerMenu {
         int barWidth = Math.max(2, (INNER - 12 - (n - 1)) / n);
         int graphHeight = 34;
         var bars = new UIElement();
-        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.FLEX_END).gapAll(1).height(graphHeight));
+        bars.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.FLEX_END).gapAll(1).height(graphHeight));
         for (int i = 0; i < avg.length; i++) {
             long a = avg[i];
             int ago = avg.length - 1 - i;
@@ -825,7 +825,7 @@ public class MeterMenu extends AbstractContainerMenu {
 
     private static UIElement row(int height) {
         var r = new UIElement();
-        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(4).height(height));
+        r.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(4).height(height));
         return r;
     }
 

@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.appliedenergistics.yoga.YogaJustify;
 
@@ -103,7 +103,7 @@ public final class SeamMap {
         var outer = UiKit.background(new UIElement(), outline);
         outer.layout(l -> l.width(px).height(px).paddingAll(outline != 0 ? 1 : 0));
         var inner = UiKit.background(new UIElement(), color(c));
-        inner.layout(l -> l.flex(1).alignItems(YogaAlign.CENTER).justifyContent(YogaJustify.CENTER));
+        inner.layout(l -> l.flex(1).alignItems(AlignItems.CENTER).justifyContent(YogaJustify.CENTER));
         if (c.minable()) {
             var icon = new ItemSlot().setItem(ore(c.ore()));
             icon.style(st -> st.background(com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture.EMPTY));
@@ -137,14 +137,14 @@ public final class SeamMap {
     /** The colour key, {@code perRow} entries to a row (so it fits narrow screens). */
     public static UIElement legend(int perRow) {
         var col = new UIElement();
-        col.layout(l -> l.flexDirection(FlexDirection.COLUMN).alignItems(YogaAlign.CENTER).gapAll(2));
+        col.layout(l -> l.flexDirection(FlexDirection.COLUMN).alignItems(AlignItems.CENTER).gapAll(2));
         String[] names = {"§dOverflowing", "§6Endless", "§bRich", "§aMiddling", "§ePoor", "§8Depleted"};
         int[] colors = {0xD08A3CC8, 0xD0B07818, 0xD02E86B8, 0xD03C9A44, 0xD0A89A2C, 0xC0303030};
         UIElement row = null;
         for (int i = 0; i < names.length; i++) {
             if (i % perRow == 0) {
                 row = new UIElement();
-                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(YogaAlign.CENTER).gapAll(3).height(10));
+                row.layout(l -> l.flexDirection(FlexDirection.ROW).alignItems(AlignItems.CENTER).gapAll(3).height(10));
                 col.addChildren(row);
             }
             var swatch = UiKit.background(new UIElement(), colors[i]);

@@ -15,7 +15,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.appliedenergistics.yoga.YogaAlign;
+import dev.vfyjxf.taffy.style.AlignItems;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -46,7 +46,7 @@ final class ChunkMapTab {
     @OnlyIn(Dist.CLIENT)
     UIElement buildChunkMap(MonumentView selected) {
         var panel = MonumentUi.hbox(8);
-        panel.layout(l -> l.alignItems(YogaAlign.FLEX_START));
+        panel.layout(l -> l.alignItems(AlignItems.FLEX_START));
 
         int controllerChunkX = Math.floorDiv(selected.x(), 16);
         int controllerChunkZ = Math.floorDiv(selected.z(), 16);
