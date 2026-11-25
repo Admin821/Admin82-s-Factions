@@ -114,14 +114,27 @@ public final class TerrainMapTexture
              | ( (rgb >> 16) & 0xFF       ); // R → bits  0-7
     }
 
+    private float uOffset = 0;
+    private float vOffset = 0;
+
+    public void setSubPixelOffset(float subX, float subZ){
+        this.uOffset = subX;
+        this.vOffset = subZ;
+    }
+
     @Override
     protected void drawInternal(GuiGraphics gfx,
             float mouseX, float mouseY, float screenX, float screenY,
             float elemW, float elemH, float partialTick) {
+        int visibleTexels = size - 16;
         // LDLib2 passes: (gfx, localMouseX, localMouseY, screenX, screenY, elemW, elemH, partialTick)
         // blit(rl, destX, destY, uOffset, vOffset, blitW, blitH, texW, texH)
         //gfx.blit(rl, (int) screenX, (int) screenY, 0f, 0f, (int) elemW, (int) elemH, size, size);
-        gfx.blit(rl, (int) screenX, (int) screenY, (int) elemW, (int) elemH,
-                0f, 0f, size, size, size, size);
+        gfx.blit(rl,
+                (int) screenX, (int) screenY,
+                (int) elemW, (int) elemH,
+                uOffset, vOffset,
+                visibleTexels, visibleTexels,
+                size, size);
     }
 }

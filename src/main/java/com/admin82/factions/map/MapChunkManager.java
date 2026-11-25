@@ -4,6 +4,8 @@ import com.admin82.factions.AdminsFactions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -12,6 +14,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -138,10 +141,19 @@ public class MapChunkManager {
         }
 
         iter = (byte) (currentIter + 1);
+    }
 
-        if(MapHud.SQUARE_TEXTURE != null && Minecraft.getInstance().player != null){
+    @SubscribeEvent
+    public static void playerTickEvent(PlayerTickEvent.Post event){
+        Player player = event.getEntity();
+        if(!player.level().isClientSide()){
+            return;
+        }
+        Vec3 position = player.position();
+        double px = position.x;
+        double pz = position.z;
+        if(MapHud.SQUARE_TEXTURE != null){
             MapHud.SQUARE_TEXTURE.clear();
-            Vec3 position = Minecraft.getInstance().player.position();
             int x = ((int) position.x) >> 4;
             int z = ((int) position.z) >> 4;
             for(int xi = 0; xi < 32; xi++){
@@ -158,6 +170,11 @@ public class MapChunkManager {
                     }
                 }
             }
+            int chunkX = Mth.floor(px) >> 4;
+            int chunkZ = Mth.floor(pz) >> 4;
+            float subX = (float) (px - (chunkX << 4));
+            float subZ = (float) (pz - (chunkZ << 4));
+            MapHud.SQUARE_TEXTURE.setSubPixelOffset(subX, subZ);
             MapHud.SQUARE_TEXTURE.upload();
         }
     }

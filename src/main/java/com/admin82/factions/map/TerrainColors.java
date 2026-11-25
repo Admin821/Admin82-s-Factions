@@ -128,20 +128,22 @@ public final class TerrainColors {
             int col = getBlockRenderColorWithExep(state, level, pos);
             col = saturateColor(col, 1.35f);
 
-            // Tiny positional jitter breaks up uniform surfaces (±4%)
-            long h  = wx * 374761393L ^ wz * 668265263L;
-            float jitter = 1.0f + (((h >> 16) & 0xFF) - 128) / 3200.0f;
+            //// Tiny positional jitter breaks up uniform surfaces (±4%)
+            //long h  = wx * 374761393L ^ wz * 668265263L;
+            //float jitter = 1.0f + (((h >> 16) & 0xFF) - 128) / 3200.0f;
+ //
+            //// Proportional hill shading
+            //int wyN = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx,     wz - 1) - 1;
+            //int wyE = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx + 1, wz    ) - 1;
+            //if (wyN <= level.getMinBuildHeight() || wyN > level.getMaxBuildHeight()) wyN = wyTop;
+            //if (wyE <= level.getMinBuildHeight() || wyE > level.getMaxBuildHeight()) wyE = wyTop;
+ //
+            //float hill  = 1.0f + (wyTop - wyN) * 0.12f + (wyTop - wyE) * 0.06f;
+            //hill = Math.max(0.40f, Math.min(1.60f, hill));
+            //float alt   = Math.max(0.70f, Math.min(1.25f, 1.0f + (wyTop - 64) * 0.004f));
+            //float total = hill * alt * jitter;
 
-            // Proportional hill shading
-            int wyN = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx,     wz - 1) - 1;
-            int wyE = level.getHeight(Heightmap.Types.MOTION_BLOCKING, wx + 1, wz    ) - 1;
-            if (wyN <= level.getMinBuildHeight() || wyN > level.getMaxBuildHeight()) wyN = wyTop;
-            if (wyE <= level.getMinBuildHeight() || wyE > level.getMaxBuildHeight()) wyE = wyTop;
-
-            float hill  = 1.0f + (wyTop - wyN) * 0.12f + (wyTop - wyE) * 0.06f;
-            hill = Math.max(0.40f, Math.min(1.60f, hill));
-            float alt   = Math.max(0.70f, Math.min(1.25f, 1.0f + (wyTop - 64) * 0.004f));
-            float total = hill * alt * jitter;
+            float total = 1;
 
             int r = Math.min(255, Math.max(0, (int)(((col >> 16) & 0xFF) * total)));
             int g = Math.min(255, Math.max(0, (int)(((col >>  8) & 0xFF) * total)));
