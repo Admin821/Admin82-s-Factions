@@ -172,8 +172,8 @@ public class MapChunkManager {
             }
             int chunkX = Mth.floor(px) >> 4;
             int chunkZ = Mth.floor(pz) >> 4;
-            float subX = (float) (px - (chunkX << 4));
-            float subZ = (float) (pz - (chunkZ << 4));
+            float subX = (float) (px - (chunkX << 4)) + 8;
+            float subZ = (float) (pz - (chunkZ << 4)) + 8;
             MapHud.SQUARE_TEXTURE.setSubPixelOffset(subX, subZ);
             MapHud.SQUARE_TEXTURE.upload();
         }

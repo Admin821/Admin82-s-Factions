@@ -25,6 +25,7 @@ public final class TerrainMapTexture
     private final DynamicTexture dynTex;
     private final ResourceLocation rl;
     private final int size;
+    private float zoom = 3.0f;
 
     public TerrainMapTexture(int size) {
         super(0x00000000); // transparent fill, parent's drawInternal is overridden below
@@ -122,19 +123,32 @@ public final class TerrainMapTexture
         this.vOffset = subZ;
     }
 
+    public void setZoom(float zoom) {
+        float maxZoom = (size - 16f) /16;
+        this.zoom = Math.max(1.0f, Math.min(maxZoom, zoom));
+    }
+
     @Override
     protected void drawInternal(GuiGraphics gfx,
             float mouseX, float mouseY, float screenX, float screenY,
             float elemW, float elemH, float partialTick) {
-        int visibleTexels = size - 16;
+        float visibleTexels = size - 16;
+        float sampleSIze = visibleTexels / zoom;
         // LDLib2 passes: (gfx, localMouseX, localMouseY, screenX, screenY, elemW, elemH, partialTick)
         // blit(rl, destX, destY, uOffset, vOffset, blitW, blitH, texW, texH)
         //gfx.blit(rl, (int) screenX, (int) screenY, 0f, 0f, (int) elemW, (int) elemH, size, size);
+
+        float centerU = (visibleTexels / 2f) + uOffset;
+        float centerV = (visibleTexels / 2f) + vOffset;
+
+        float u0 = centerU - (sampleSIze / 2f);
+        float v0 = centerV - (sampleSIze / 2f);
+
         gfx.blit(rl,
                 (int) screenX, (int) screenY,
                 (int) elemW, (int) elemH,
-                uOffset, vOffset,
-                visibleTexels, visibleTexels,
+                u0, v0,
+                (int) sampleSIze, (int) sampleSIze,
                 size, size);
     }
 }
