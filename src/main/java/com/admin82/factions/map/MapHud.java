@@ -6,12 +6,12 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.mojang.math.Axis;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.appliedenergistics.yoga.YogaPositionType; // or Taffy PositionType depending on your 2.2.x build
 
 public class MapHud {
     // Semi-transparent red square (ARGB)
@@ -28,7 +28,7 @@ public class MapHud {
 
             var square = new UIElement()
                     .layout(layout -> {
-                        layout.positionType(YogaPositionType.ABSOLUTE); // Use TaffyPositionType / PositionType in newer 2.2+
+                        layout.positionType(TaffyPosition.ABSOLUTE);
                         layout.top(0);
                         layout.right(0);
                         layout.width(128);

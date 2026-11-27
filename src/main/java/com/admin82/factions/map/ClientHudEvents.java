@@ -57,7 +57,7 @@ public class ClientHudEvents {
     }
 }
 
-@EventBusSubscriber(modid = AdminsFactions.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = AdminsFactions.MODID, value = Dist.CLIENT)
 final class ClientMapKeyRegistration {
     private ClientMapKeyRegistration() {}
 
