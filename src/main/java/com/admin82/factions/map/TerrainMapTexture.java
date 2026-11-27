@@ -9,6 +9,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 // Terrain map texture backing NativeImage
 
 /**
@@ -21,11 +23,13 @@ import net.neoforged.api.distmarker.OnlyIn;
 public final class TerrainMapTexture
         extends ColorRectTexture {
 
+    private static final AtomicInteger TEXTURE_IDS = new AtomicInteger();
+
     private final com.mojang.blaze3d.platform.NativeImage image;
     private final DynamicTexture dynTex;
     private final ResourceLocation rl;
     private final int size;
-    private float zoom = 3.0f;
+    private float zoom = 1f;
 
     public TerrainMapTexture(int size) {
         super(0x00000000); // transparent fill, parent's drawInternal is overridden below
@@ -37,7 +41,7 @@ public final class TerrainMapTexture
                 image.setPixelRGBA(x, y, abgr(0x404040)); // default: unloaded grey
         this.dynTex = new DynamicTexture(image);
         this.rl = Minecraft.getInstance()
-                .getTextureManager().register("adminsfactions_terrainmap", dynTex);
+                .getTextureManager().register("adminsfactions_terrainmap_" + TEXTURE_IDS.incrementAndGet(), dynTex);
     }
 
     /** Write one pixel; {@code rgb} is 24-bit 0x00RRGGBB. */
@@ -107,6 +111,17 @@ public final class TerrainMapTexture
     /** Push all buffered pixels to the GPU.  Call once after all {@link #setPixel} calls. */
     public void upload() { dynTex.upload(); }
 
+    /** Draw the complete map image without the minimap crop or zoom. */
+    public void drawFull(GuiGraphics gfx, float x, float y, float width, float height) {
+        gfx.blit(rl, (int) x, (int) y, (int) width, (int) height,
+                0f, 0f, size, size, size, size);
+    }
+
+    /** Release the registered GPU texture and its native image. */
+    public void close() {
+        Minecraft.getInstance().getTextureManager().release(rl);
+    }
+
     /** Converts 0x00RRGGBB → the ABGR int expected by {@link com.mojang.blaze3d.platform.NativeImage#setPixelRGBA}. */
     private static int abgr(int rgb) {
         return (0xFF                << 24)  // alpha = opaque
@@ -132,8 +147,8 @@ public final class TerrainMapTexture
     protected void drawInternal(GuiGraphics gfx,
             float mouseX, float mouseY, float screenX, float screenY,
             float elemW, float elemH, float partialTick) {
-        float visibleTexels = size - 16;
-        float sampleSIze = visibleTexels / zoom;
+        float visibleTexels = size- 32f;
+        float sampleSIze = (visibleTexels / zoom);
         // LDLib2 passes: (gfx, localMouseX, localMouseY, screenX, screenY, elemW, elemH, partialTick)
         // blit(rl, destX, destY, uOffset, vOffset, blitW, blitH, texW, texH)
         //gfx.blit(rl, (int) screenX, (int) screenY, 0f, 0f, (int) elemW, (int) elemH, size, size);

@@ -1,5 +1,8 @@
 {
   "itemGroup.adminsfactions": "Admin's Factions",
+  "key.categories.adminsfactions": "Admin's Factions",
+  "key.adminsfactions.open_map": "Open World Map",
+  "gui.adminsfactions.world_map": "World Map",
 
   "block.adminsfactions.faction_table":        "Faction Table",
   "block.adminsfactions.faction_table_filler": "Faction Table",

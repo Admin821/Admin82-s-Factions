@@ -4,6 +4,9 @@ import com.admin82.factions.AdminsFactions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.telemetry.events.WorldLoadEvent;
+import net.minecraft.client.telemetry.events.WorldUnloadEvent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
@@ -12,12 +15,17 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,6 +34,11 @@ public class MapChunkManager {
 
     private static final int WORKER_THREADS = 4;
     private static final int QUEUE_CAPACITY = 8192;
+
+    private static RegionStorage regionStorage;
+
+    private static volatile ResourceLocation activeDimension = null;
+    private static final Set<Long> loadingRegions = ConcurrentHashMap.newKeySet();
 
     private static final ThreadPoolExecutor MAP_EXECUTOR = new ThreadPoolExecutor(
             WORKER_THREADS,
@@ -45,9 +58,12 @@ public class MapChunkManager {
             }
     );
 
+    private static final ExecutorService IO_EXECUTOR = Executors.newSingleThreadExecutor(
+            namedDaemonFactory("AdminsFactions-MapIO-")
+    );
+
     private static final ConcurrentHashMap<Long, Byte> ageMap = new ConcurrentHashMap<>();
     private static volatile byte iter = 1;
-
 
     public void run(Level level){
         if (iter == 0){
@@ -86,7 +102,6 @@ public class MapChunkManager {
         } catch (RejectedExecutionException e){
             ageMap.put(packedPos, (byte) 0);
         }
-
         //ChunkPos chunkPos = event.getChunk().getPos();
         //byte chunkAge = ageMap.computeIfAbsent(MapChunks.packChunkPos(chunkPos.x, chunkPos.z), k -> {return (byte)0;});
         //if (chunkAge == 0 || Byte.compareUnsigned(iter, chunkAge) >= 0){
@@ -115,7 +130,6 @@ public class MapChunkManager {
             byte tmp = iter;
             iter = (byte) (tmp + 1);
         }
-
         int renderDistance = mc.options.getEffectiveRenderDistance();
 
         final byte currentIter = iter;
@@ -127,7 +141,7 @@ public class MapChunkManager {
             for (int xi = startX; xi < startX + (renderDistance * 2); xi++){
                 for (int zi = startZ; zi < startZ + (renderDistance * 2); zi++) {
                     byte v = ageMap.computeIfAbsent(MapChunks.packChunkPos(xi, zi), (k) -> (byte) 0);
-                    if (Minecraft.getInstance().level.getChunkSource().hasChunk(xi, zi) && (Math.abs(Byte.compareUnsigned(v, currentIter)) >= 2 || v == 0)) {
+                    if (level.getChunkSource().hasChunk(xi, zi) && (Math.abs(Byte.compareUnsigned(v, currentIter)) >= 2 || v == 0)) {
                         final int cx = xi;
                         final int cz = zi;
                         try {
@@ -139,7 +153,6 @@ public class MapChunkManager {
                 }
             }
         }
-
         iter = (byte) (currentIter + 1);
     }
 
@@ -160,7 +173,7 @@ public class MapChunkManager {
                 for(int zi = 0; zi < 32; zi++){
                     int cx = xi + x - 16;
                     int cz = zi + z - 16;
-                    int[][] colors = MapChunks.getSlice(cx, cz, Integer.MAX_VALUE);
+                    int[][] colors = getSlice(cx, cz, Integer.MAX_VALUE);
                     if(colors != null) {
                         for (int xc = 0; xc < 16; xc++) {
                             for (int zc = 0; zc < 16; zc++) {
@@ -179,11 +192,169 @@ public class MapChunkManager {
         }
     }
 
+    public static int[][] getSlice(int x, int z, int depth){
+        if(!MapChunks.hasSlice(x, z, depth)){
+            requestRegionLoad(x >> 5, z >> 5);
+        }
+        return MapChunks.getSlice(x, z, depth);
+    }
 
+    @SubscribeEvent
+    public static void onClientLevelLoad(LevelEvent.Load event) {
+        if (!event.getLevel().isClientSide()) {
+            return;
+        }
+        if (event.getLevel() instanceof Level level) {
+            onLevelChange(level);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onClientLevelUnload(LevelEvent.Unload event) {
+        if (!event.getLevel().isClientSide()) {
+            return;
+        }
+        if (event.getLevel() instanceof Level level
+                && level.dimension().location().equals(activeDimension)) {
+            onLevelChange(null);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onClientLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        RegionStorage currentStorage = regionStorage;
+        Future<?> flushFuture = flushToStorage(currentStorage, true);
+        if (flushFuture != null) {
+            try {
+                flushFuture.get(3, TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
+        }
+        onLevelChange(null);
+    }
+
+    public static void saveSnapshot(java.util.Map<Long, MapChunks.ChunkColorColumn> snapshot, boolean mergeExisting) {
+        RegionStorage storage = regionStorage;
+        if (storage == null || snapshot == null || snapshot.isEmpty()) {
+            return;
+        }
+
+        IO_EXECUTOR.execute(() -> {
+            try {
+                storage.saveChunks(snapshot, mergeExisting);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public static void shutdown() {
+        MAP_EXECUTOR.shutdown();
+        IO_EXECUTOR.shutdown();
+    }
+
+    public static void onLevelChange(Level level) {
+        RegionStorage previousStorage = regionStorage;
+
+        if (level == null) {
+            flushToStorage(previousStorage, true);
+            activeDimension = null;
+            regionStorage = null;
+            loadingRegions.clear();
+            ageMap.clear();
+            MapChunks.clear();
+            return;
+        }
+
+        if (!level.isClientSide()) {
+            return;
+        }
+
+        ResourceLocation dimLoc = level.dimension().location();
+        if (dimLoc.equals(activeDimension) && regionStorage != null) {
+            return;
+        }
+
+        // Flush previous dimension before clearing in-memory state or swapping storage.
+        flushToStorage(previousStorage, true);
+
+        activeDimension = dimLoc;
+        loadingRegions.clear();
+        ageMap.clear();
+        MapChunks.clear();
+        regionStorage = new RegionStorage(resolveDimensionDir(dimLoc));
+    }
+
+    public static void requestRegionLoad(int regionX, int regionZ) {
+        RegionStorage storage = regionStorage;
+        ResourceLocation expectedDim = activeDimension;
+        if (storage == null || expectedDim == null) {
+            return;
+        }
+
+        long packedRegion = RegionStorage.packRegionPos(regionX, regionZ);
+        if (!loadingRegions.add(packedRegion)) {
+            return;
+        }
+
+        IO_EXECUTOR.execute(() -> {
+            try {
+                // Guard against dimension changes while queued.
+                if (regionStorage != storage || !expectedDim.equals(activeDimension)) {
+                    return;
+                }
+                java.util.Map<Long, RegionStorage.ChunkRecord> loaded = storage.loadRegion(regionX, regionZ);
+                if (loaded.isEmpty()) {
+                    return;
+                }
+                if (regionStorage != storage || !expectedDim.equals(activeDimension)) {
+                    return;
+                }
+                MapChunks.putAllFromRecords(loaded);
+                for (Long packedChunk : loaded.keySet()) {
+                    ageMap.putIfAbsent(packedChunk, (byte) 0);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                loadingRegions.remove(packedRegion);
+            }
+        });
+    }
+
+    private static Path resolveDimensionDir(ResourceLocation dimLoc){
+        Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
+        String safeNamespace = sanitizePathSegment(dimLoc.getNamespace());
+        String safePath = sanitizePathSegment(dimLoc.getPath());
+        return gameDir
+                .resolve("factions_map")
+                .resolve(safeNamespace)
+                .resolve(safePath);
+    }
+
+    private static String sanitizePathSegment(String raw) {
+        return raw.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private static Future<?> flushToStorage(RegionStorage targetStorage, boolean mergeExisting) {
+        if (targetStorage == null) {
+            return null;
+        }
+        java.util.Map<Long, MapChunks.ChunkColorColumn> snapshot = MapChunks.snapshotAllColumns();
+        if (snapshot.isEmpty()) {
+            return null;
+        }
+        return IO_EXECUTOR.submit(() -> {
+            try {
+                targetStorage.saveChunks(snapshot, mergeExisting);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
 
     private void update(int chunkX, int chunkZ, int depthY, Level level){
         int[][] newSlice = new int[16][16];
-
         MapChunks.putSlice(chunkX, chunkZ, depthY, newSlice);
     }
 
@@ -214,6 +385,19 @@ public class MapChunkManager {
         ageMap.put(packedPos,currentIter);
         MapChunks.putSlice(chunkX, chunkZ, Integer.MAX_VALUE, newSlice);
         MapChunks.putHeightMap(chunkX, chunkZ, newHeight);
+    }
+
+    private static ThreadFactory namedDaemonFactory(String prefix) {
+        return new ThreadFactory() {
+            private final AtomicInteger idx = new AtomicInteger(1);
+
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, prefix + idx.getAndIncrement());
+                t.setDaemon(true);
+                return t;
+            }
+        };
     }
 
 }

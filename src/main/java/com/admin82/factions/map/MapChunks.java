@@ -1,7 +1,11 @@
 package com.admin82.factions.map;
 
+import com.admin82.factions.AdminsFactions;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -32,6 +36,10 @@ public final class MapChunks {
         return (col != null) ? col.getSlice(depthY) : null;
     }
 
+    public static boolean hasSlice(int chunkX, int chunkZ, int depthY){
+        return chunks.containsKey(packChunkPos(chunkX, chunkZ));
+    }
+
     public static void putSlice(int chunkX, int chunkZ, int depthY, int[][] colors16x16) {
         long key = packChunkPos(chunkX, chunkZ);
         ChunkColorColumn col = chunks.computeIfAbsent(key, k -> new ChunkColorColumn());
@@ -41,7 +49,7 @@ public final class MapChunks {
     public static void putHeightMap(int chunkX, int chunkZ, short[][] map){
         long key = packChunkPos(chunkX, chunkZ);
         ChunkColorColumn col = chunks.computeIfAbsent(key, k -> new ChunkColorColumn());
-        col.putHightMap(map);
+        col.putHeightMap(map);
     }
 
     public static void removeSlice(int chunkX, int chunkZ, int depthY) {
@@ -51,10 +59,53 @@ public final class MapChunks {
         }
     }
 
-    public static void unloadChunk(int chunkX, int chunkZ) {
+    public static void loadChunk(int chunkX, int chunkZ, RegionStorage regionStorage){
+        try {
+            Map<Long, RegionStorage.ChunkRecord> records = regionStorage.loadRegion(chunkX, chunkZ);
+            putAllFromRecords(records);
+        } catch (IOException e) {
+            AdminsFactions.LOGGER.debug("Map Chunk data load failed, map data will not be loaded!\n", e);
+        }
+    }
+
+    public static void unloadChunk(int chunkX, int chunkZ, RegionStorage regionStorage) {
+        try {
+            regionStorage.saveChunks(chunks);
+        } catch (IOException e){
+            AdminsFactions.LOGGER.debug("Map Chunk data save failed, map data will be lost!\n", e);
+        }
         chunks.remove(packChunkPos(chunkX, chunkZ));
     }
 
+    public static void putAllFromRecords(Map<Long, RegionStorage.ChunkRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<Long, RegionStorage.ChunkRecord> entry : records.entrySet()) {
+            long packedChunk = entry.getKey();
+            RegionStorage.ChunkRecord record = entry.getValue();
+            if (record == null) {
+                continue;
+            }
+            ChunkColorColumn col = chunks.computeIfAbsent(packedChunk, k -> new ChunkColorColumn());
+            if (record.heightMap() != null) {
+                col.putHeightMap(record.heightMap());
+            }
+            if (record.slices() != null && !record.slices().isEmpty()) {
+                for (Int2ObjectMap.Entry<int[][]> sliceEntry : record.slices().int2ObjectEntrySet()) {
+                    col.putSlice(sliceEntry.getIntKey(), sliceEntry.getValue());
+                }
+            }
+        }
+    }
+
+    public static void clear() {
+        chunks.clear();
+    }
+
+    public static Map<Long, ChunkColorColumn> snapshotAllColumns() {
+        return Map.copyOf(chunks);
+    }
 
     public static final class ChunkColorColumn {
         private static final AtomicReferenceFieldUpdater<ChunkColorColumn, Int2ObjectOpenHashMap> UPDATER =
@@ -80,8 +131,12 @@ public final class MapChunks {
             }
         }
 
-        public void putHightMap(short[][] map){
+        public void putHeightMap(short[][] map){
             heightMap = map;
+        }
+
+        public short[][] getHeightMap(){
+            return heightMap;
         }
 
         @SuppressWarnings("unchecked")
@@ -96,6 +151,13 @@ public final class MapChunks {
                 }
             }
         }
+
+        @SuppressWarnings("unchecked")
+        public Int2ObjectOpenHashMap<int[][]> snapshotSlices() {
+            Int2ObjectOpenHashMap<int[][]> current = this.slices;
+            return current.clone();
+        }
+
     }
 
 
