@@ -233,9 +233,7 @@ public final class RegionStorage {
             Int2ObjectOpenHashMap<int[][]> slices
     ) {
         public static ChunkRecord fromColumn(long packedChunk, MapChunks.ChunkColorColumn column) {
-            Int2ObjectOpenHashMap<int[][]> copy = new Int2ObjectOpenHashMap<>(4);
-            // Replace with a dedicated snapshot getter on ChunkColorColumn so you read the volatile map once.
-            return new ChunkRecord(packedChunk, column.getHeightMap(), copy);
+            return new ChunkRecord(packedChunk, column.getHeightMap(), column.snapshotSlices());
         }
     }
 }

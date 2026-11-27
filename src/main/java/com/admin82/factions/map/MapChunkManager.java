@@ -38,6 +38,7 @@ public class MapChunkManager {
     private static RegionStorage regionStorage;
 
     private static volatile ResourceLocation activeDimension = null;
+    private static volatile Level activeLevel = null;
     private static final Set<Long> loadingRegions = ConcurrentHashMap.newKeySet();
 
     private static final ThreadPoolExecutor MAP_EXECUTOR = new ThreadPoolExecutor(
@@ -214,8 +215,7 @@ public class MapChunkManager {
         if (!event.getLevel().isClientSide()) {
             return;
         }
-        if (event.getLevel() instanceof Level level
-                && level.dimension().location().equals(activeDimension)) {
+        if (event.getLevel() == activeLevel) {
             onLevelChange(null);
         }
     }
@@ -259,6 +259,7 @@ public class MapChunkManager {
         if (level == null) {
             flushToStorage(previousStorage, true);
             activeDimension = null;
+            activeLevel = null;
             regionStorage = null;
             loadingRegions.clear();
             ageMap.clear();
@@ -272,6 +273,7 @@ public class MapChunkManager {
 
         ResourceLocation dimLoc = level.dimension().location();
         if (dimLoc.equals(activeDimension) && regionStorage != null) {
+            activeLevel = level;
             return;
         }
 
@@ -279,6 +281,7 @@ public class MapChunkManager {
         flushToStorage(previousStorage, true);
 
         activeDimension = dimLoc;
+        activeLevel = level;
         loadingRegions.clear();
         ageMap.clear();
         MapChunks.clear();
@@ -297,6 +300,7 @@ public class MapChunkManager {
             return;
         }
 
+        // The region stays in loadingRegions afterwards so each region file is only read once per dimension session.
         IO_EXECUTOR.execute(() -> {
             try {
                 // Guard against dimension changes while queued.
@@ -315,9 +319,7 @@ public class MapChunkManager {
                     ageMap.putIfAbsent(packedChunk, (byte) 0);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                loadingRegions.remove(packedRegion);
+                AdminsFactions.LOGGER.warn("Failed to load map region {}, {}", regionX, regionZ, e);
             }
         });
     }
