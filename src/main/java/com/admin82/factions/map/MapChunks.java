@@ -16,13 +16,6 @@ public final class MapChunks {
         return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
-    public static int[] unPackChunkPos(long packedChunk){
-        int[] ret = new int[2];
-        ret[0] = (int) (packedChunk >> 32);
-        ret[1] = (int) packedChunk;
-        return ret;
-    }
-
     public static int unpackChunkX(long packed){
         return (int) (packed >> 32);
     }
@@ -50,31 +43,6 @@ public final class MapChunks {
         long key = packChunkPos(chunkX, chunkZ);
         ChunkColorColumn col = chunks.computeIfAbsent(key, k -> new ChunkColorColumn());
         col.putHeightMap(map);
-    }
-
-    public static void removeSlice(int chunkX, int chunkZ, int depthY) {
-        ChunkColorColumn col = chunks.get(packChunkPos(chunkX, chunkZ));
-        if (col != null) {
-            col.removeSlice(depthY);
-        }
-    }
-
-    public static void loadChunk(int chunkX, int chunkZ, RegionStorage regionStorage){
-        try {
-            Map<Long, RegionStorage.ChunkRecord> records = regionStorage.loadRegion(chunkX, chunkZ);
-            putAllFromRecords(records);
-        } catch (IOException e) {
-            AdminsFactions.LOGGER.debug("Map Chunk data load failed, map data will not be loaded!\n", e);
-        }
-    }
-
-    public static void unloadChunk(int chunkX, int chunkZ, RegionStorage regionStorage) {
-        try {
-            regionStorage.saveChunks(chunks);
-        } catch (IOException e){
-            AdminsFactions.LOGGER.debug("Map Chunk data save failed, map data will be lost!\n", e);
-        }
-        chunks.remove(packChunkPos(chunkX, chunkZ));
     }
 
     public static void putAllFromRecords(Map<Long, RegionStorage.ChunkRecord> records) {

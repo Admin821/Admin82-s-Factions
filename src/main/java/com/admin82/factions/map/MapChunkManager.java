@@ -103,23 +103,6 @@ public class MapChunkManager {
         } catch (RejectedExecutionException e){
             ageMap.put(packedPos, (byte) 0);
         }
-        //ChunkPos chunkPos = event.getChunk().getPos();
-        //byte chunkAge = ageMap.computeIfAbsent(MapChunks.packChunkPos(chunkPos.x, chunkPos.z), k -> {return (byte)0;});
-        //if (chunkAge == 0 || Byte.compareUnsigned(iter, chunkAge) >= 0){
-        //    updateSurface(chunkPos.x, chunkPos.z, event.getChunk().getLevel());
-        //}
-    }
-
-    @SubscribeEvent
-    public static void chunkUnloadEvent(ChunkEvent.Unload event){
-        if (!event.getLevel().isClientSide())
-            return;
-        final int chunkX = event.getChunk().getPos().x;
-        final int chunkZ = event.getChunk().getPos().z;
-        final long packedPos = MapChunks.packChunkPos(chunkX, chunkZ);
-        if (ageMap.computeIfAbsent(packedPos, k -> (byte) 0) != 0) {
-            ageMap.put(packedPos, (byte) 120);
-        }
     }
 
     @SubscribeEvent
@@ -127,10 +110,7 @@ public class MapChunkManager {
         Level level = Minecraft.getInstance().level;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if(iter == 120){
-            byte tmp = iter;
-            iter = (byte) (tmp + 1);
-        }
+
         int renderDistance = mc.options.getEffectiveRenderDistance();
 
         final byte currentIter = iter;
@@ -233,21 +213,6 @@ public class MapChunkManager {
         onLevelChange(null);
     }
 
-    public static void saveSnapshot(java.util.Map<Long, MapChunks.ChunkColorColumn> snapshot, boolean mergeExisting) {
-        RegionStorage storage = regionStorage;
-        if (storage == null || snapshot == null || snapshot.isEmpty()) {
-            return;
-        }
-
-        IO_EXECUTOR.execute(() -> {
-            try {
-                storage.saveChunks(snapshot, mergeExisting);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
     public static void shutdown() {
         MAP_EXECUTOR.shutdown();
         IO_EXECUTOR.shutdown();
@@ -324,12 +289,30 @@ public class MapChunkManager {
         });
     }
 
+    private static String resolveSessionKey() {
+        Minecraft mc = Minecraft.getInstance();
+        var spServer = mc.getSingleplayerServer();
+        if (spServer != null) {
+            String levelId = spServer.getWorldData().getLevelName();
+            return "sp_" + sanitizePathSegment(levelId);
+        }
+
+        var serverData = mc.getCurrentServer();
+        if (serverData != null && serverData.ip != null && !serverData.ip.isBlank()) {
+            return "mp_" + sanitizePathSegment(serverData.ip);
+        }
+
+        return "session_default";
+    }
+
     private static Path resolveDimensionDir(ResourceLocation dimLoc){
         Path gameDir = Minecraft.getInstance().gameDirectory.toPath();
+        String sessionKey = resolveSessionKey();
         String safeNamespace = sanitizePathSegment(dimLoc.getNamespace());
         String safePath = sanitizePathSegment(dimLoc.getPath());
         return gameDir
                 .resolve("factions_map")
+                .resolve(sessionKey)
                 .resolve(safeNamespace)
                 .resolve(safePath);
     }
